@@ -1,0 +1,35 @@
+{% extends 'gestion_taller/base.html' %}
+{% load i18n attrs %}
+{% block title %}Registro{% endblock %}
+{% block content %}
+<div class="container mt-5">
+    <div class="row justify-content-center">
+        <div class="col-md-5">
+            <div class="card shadow">
+                <div class="card-body">
+                    <h3 class="mb-4 text-center">Registro de nuevo taller</h3>
+                    {% if form.errors %}
+                        <div class="alert alert-danger">Por favor, revisa los datos ingresados.</div>
+                    {% endif %}
+                    <form method="post" action="{% url 'account_signup' %}">
+                        {% csrf_token %}
+                        {% for field in form %}
+                            <div class="mb-3">
+                                <label class="form-label">{{ field.label }}</label>
+                                {{ field|as_widget }}
+                                {% if field.errors %}
+                                    <div class="text-danger small">{{ field.errors|striptags }}</div>
+                                {% endif %}
+                            </div>
+                        {% endfor %}
+                        <button type="submit" class="btn btn-success w-100">Registrarse</button>
+                    </form>
+                    <div class="mt-3 text-center">
+                        ¿Ya tienes cuenta? <a href="{% url 'account_login' %}">Inicia sesión aquí</a>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

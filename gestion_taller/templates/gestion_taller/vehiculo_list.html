@@ -1,0 +1,67 @@
+{% extends 'gestion_taller/base.html' %}
+
+{% block title %}Lista de Vehículos{% endblock %}
+
+{% block content %}
+<div class="container mt-4">
+    <div class="card shadow-sm">
+        <div class="card-header bg-primary text-white d-flex justify-content-between align-items-center">
+            <h4 class="mb-0"><i class="bi bi-car-front-fill me-2"></i>Mis Vehículos</h4>
+            {% url 'vehiculo_nuevo' as vehiculo_nuevo_url %}
+            <button type="button" class="btn btn-light" 
+                    onclick="openModal('{{ vehiculo_nuevo_url }}', 'Nuevo Vehículo')">
+                <i class="bi bi-plus-circle me-1"></i> Agregar Vehículo
+            </button>
+        </div>
+        <div class="card-body">
+            <p class="card-text text-muted">A continuación se muestra la lista de vehículos registrados a su nombre.</p>
+            <div class="table-responsive">
+                <table class="table table-hover table-striped">
+                    <thead class="table-dark">
+                        <tr>
+                            <th>Marca</th>
+                            <th>Modelo</th>
+                            <th>Año</th>
+                            <th>Placa</th>
+                            <th>Conductor Asignado</th>
+                            <th>Acciones</th>
+                        </tr>
+                    </thead>
+                    <tbody id="vehiculo-table-body">
+                        {% include 'gestion_taller/vehiculo_tabla.html' with vehiculos=vehiculos %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+</div>
+
+{# Incluimos los modales base que nuestro JS va a poblar #}
+
+{% include 'gestion_taller/modal_form_base.html' %}
+{% include 'gestion_taller/modal_delete_base.html' %}
+
+<!-- Contenedor del modal de vehículos -->
+<div class="modal fade" id="modalVehiculo" tabindex="-1" role="dialog" aria-labelledby="modalVehiculoLabel" aria-hidden="true">
+  <div class="modal-dialog modal-lg">
+    <div class="modal-content">
+      <div class="modal-header bg-primary text-white">
+        <h5 class="modal-title" id="modalVehiculoLabel">
+          <i class="bi bi-car-front me-2"></i>
+          Cargando...
+        </h5>
+        <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Cerrar"></button>
+      </div>
+      <div class="modal-body">
+        <div class="text-center p-4">
+          <div class="spinner-border text-primary" role="status">
+            <span class="visually-hidden">Cargando...</span>
+          </div>
+          <p class="mt-2">Cargando formulario...</p>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+{% endblock %}

@@ -1,0 +1,107 @@
+{% extends 'gestion_taller/base.html' %}
+{% load static %}
+{% block title %}Catálogo de Servicios{% endblock %}
+{% block content %}
+<div class="container py-4">
+  <div class="row justify-content-center">
+    <div class="col-lg-10">
+      <div class="card shadow">
+        <div class="card-header bg-primary text-white d-flex align-items-center justify-content-between">
+          <h4 class="mb-0">Catálogo de Servicios</h4>
+        </div>
+        <div class="card-body">
+          <form method="get" class="mb-3 row g-2">
+            <div class="col-md-4">
+              <input type="text" name="q" class="form-control" placeholder="Buscar servicio..." value="{{ request.GET.q }}">
+            </div>
+            <div class="col-md-2">
+              <input type="number" name="precio_min" class="form-control" placeholder="Precio mín" value="{{ request.GET.precio_min }}">
+            </div>
+            <div class="col-md-2">
+              <input type="number" name="precio_max" class="form-control" placeholder="Precio máx" value="{{ request.GET.precio_max }}">
+            </div>
+            <div class="col-md-2">
+              <select name="activo" class="form-select">
+                <option value="">Todos</option>
+                <option value="1" {% if request.GET.activo == '1' %}selected{% endif %}>Solo activos</option>
+                <option value="0" {% if request.GET.activo == '0' %}selected{% endif %}>Solo inactivos</option>
+              </select>
+            </div>
+            <div class="col-md-2">
+              <button class="btn btn-outline-primary w-100" type="submit">Filtrar</button>
+            </div>
+          </form>
+          <div class="table-responsive">
+            <table class="table table-striped align-middle">
+              <thead class="table-light">
+                <tr>
+                  <th>Nombre</th>
+                  <th>Descripción</th>
+                  <th>Precio base</th>
+                  <th>Frecuencia (km)</th>
+                  <th>Frecuencia (meses)</th>
+                  <th>Productos requeridos</th>
+                  <th>Activo</th>
+                  <th></th>
+                </tr>
+              </thead>
+              <tbody>
+                {% for servicio in servicios %}
+                <tr>
+                  <td><strong>{{ servicio.nombre }}</strong></td>
+                  <td>{{ servicio.descripcion|default:'-' }}</td>
+                  <td>${{ servicio.precio_base }}</td>
+                  <td>{% if servicio.frecuencia_km %}{{ servicio.frecuencia_km }}{% else %}-{% endif %}</td>
+                  <td>{% if servicio.frecuencia_meses %}{{ servicio.frecuencia_meses }}{% else %}-{% endif %}</td>
+                  <td>
+                    {% for p in servicio.productos_requeridos.all %}
+                      {{ p.nombre }}{% if not forloop.last %}, {% endif %}
+                    {% empty %}-{% endfor %}
+                  </td>
+                  <td>{% if servicio.activo %}<span class="badge bg-success">Sí</span>{% else %}<span class="badge bg-secondary">No</span>{% endif %}</td>
+                  <td><button class="btn btn-outline-info btn-sm" data-bs-toggle="modal" data-bs-target="#modalDetalleServicio{{ servicio.id }}">Ver detalle</button></td>
+                </tr>
+                <!-- Modal detalle -->
+                <div class="modal fade" id="modalDetalleServicio{{ servicio.id }}" tabindex="-1" aria-labelledby="modalDetalleServicioLabel{{ servicio.id }}" aria-hidden="true">
+                  <div class="modal-dialog modal-lg">
+                    <div class="modal-content">
+                      <div class="modal-header bg-primary text-white">
+                        <h5 class="modal-title" id="modalDetalleServicioLabel{{ servicio.id }}">Detalle del Servicio: {{ servicio.nombre }}</h5>
+                        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Cerrar"></button>
+                      </div>
+                      <div class="modal-body">
+                        <dl class="row">
+                          <dt class="col-sm-4">Descripción</dt>
+                          <dd class="col-sm-8">{{ servicio.descripcion|default:'-' }}</dd>
+                          <dt class="col-sm-4">Precio base</dt>
+                          <dd class="col-sm-8">${{ servicio.precio_base }}</dd>
+                          <dt class="col-sm-4">Frecuencia recomendada</dt>
+                          <dd class="col-sm-8">{{ servicio.frecuencia_km|default:'-' }} km / {{ servicio.frecuencia_meses|default:'-' }} meses</dd>
+                          <dt class="col-sm-4">Productos requeridos</dt>
+                          <dd class="col-sm-8">
+                            {% for p in servicio.productos_requeridos.all %}
+                              {{ p.nombre }}{% if not forloop.last %}, {% endif %}
+                            {% empty %}-{% endfor %}
+                          </dd>
+                          <dt class="col-sm-4">Estado</dt>
+                          <dd class="col-sm-8">{% if servicio.activo %}Activo{% else %}Inactivo{% endif %}</dd>
+                        </dl>
+                      </div>
+                      <div class="modal-footer">
+                        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cerrar</button>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+                {% empty %}
+                <tr><td colspan="7" class="text-center">No hay servicios en el catálogo.</td></tr>
+                {% endfor %}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}

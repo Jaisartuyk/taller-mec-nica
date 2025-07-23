@@ -1,0 +1,170 @@
+{% extends 'gestion_taller/base.html' %}
+{% load static %}
+
+{% block title %}Servicios{% endblock %}
+
+{% block extra_css %}
+<style>
+    .btn-action {
+        min-width: 80px;
+        margin: 0 2px;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <h2>Servicios</h2>
+        <button type="button" class="btn btn-success" id="btn-nuevo-servicio" data-url="{% url 'servicio_nuevo' %}">
+            <i class="fas fa-plus"></i> Nuevo Servicio
+        </button>
+    </div>
+
+    <!-- Filtros -->
+    <div class="card mb-4">
+        <div class="card-body">
+            <div class="row">
+                <div class="col-md-3">
+                    <div class="form-group">
+                        <label for="filtro-vehiculo">Vehículo</label>
+                        <select class="form-control" id="filtro-vehiculo">
+                            <option value="">Todos los vehículos</option>
+                            {% for vehiculo in vehiculos %}
+                            <option value="{{ vehiculo.id }}">{{ vehiculo.marca }} {{ vehiculo.modelo }} - {{ vehiculo.placa }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                </div>
+                <div class="col-md-3">
+                    <div class="form-group">
+                        <label for="filtro-tipo">Tipo de Servicio</label>
+                        <select class="form-control" id="filtro-tipo">
+                            <option value="">Todos los tipos</option>
+                            {% for tipo in tipos_servicio %}
+                            <option value="{{ tipo.0 }}">{{ tipo.1 }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                </div>
+                <div class="col-md-3">
+                    <div class="form-group">
+                        <label for="filtro-fecha">Fecha</label>
+                        <input type="date" class="form-control" id="filtro-fecha">
+                    </div>
+                </div>
+                <div class="col-md-3 d-flex align-items-end">
+                    <button class="btn btn-primary w-100" id="btn-filtrar">
+                        <i class="fas fa-filter"></i> Filtrar
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Tabla de servicios -->
+    <div class="card">
+        <div class="card-body">
+            <div class="table-responsive">
+                <div id="servicios-grid">
+                    {% include 'gestion_taller/includes/servicio_grid.html' %}
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Modal para confirmar eliminación -->
+<div class="modal fade" id="confirmDeleteModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Confirmar Eliminación</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Cerrar"></button>
+            </div>
+            <div class="modal-body">
+                ¿Está seguro de que desea eliminar este servicio?
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+                <a href="#" class="btn btn-danger" id="confirmDeleteBtn">Eliminar</a>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script src="{% static 'gestion_taller/js/servicio_ajax.js' %}"></script>
+<script>
+$(document).ready(function() {
+    // Inicializar select2 si está disponible
+    if ($.fn.select2) {
+        $('select').select2({
+            theme: 'bootstrap-5'
+        });
+    }
+
+    // Manejar clic en botón de eliminar
+    $(document).on('click', '.btn-eliminar-servicio', function(e) {
+        e.preventDefault();
+        const deleteUrl = $(this).data('url');
+        $('#confirmDeleteBtn').attr('href', deleteUrl);
+        const modal = new bootstrap.Modal(document.getElementById('confirmDeleteModal'));
+        modal.show();
+    });
+
+    // Confirmar eliminación
+    $('#confirmDeleteBtn').click(function(e) {
+        e.preventDefault();
+        const url = $(this).attr('href');
+        
+        $.ajax({
+            url: url,
+            method: 'POST',
+            headers: {
+                'X-Requested-With': 'XMLHttpRequest',
+                'X-CSRFTTOKEN': '{{ csrf_token }}'
+            },
+            success: function(response) {
+                if (response.success) {
+                    $('#confirmDeleteModal').modal('hide');
+                    $('#servicios-grid').html(response.grid);
+                    showToast('success', '¡Servicio eliminado correctamente!');
+                }
+            },
+            error: function(xhr) {
+                console.error('Error al eliminar:', xhr);
+                showToast('error', 'Error al eliminar el servicio');
+            }
+        });
+    });
+
+    // Función para mostrar notificaciones toast
+    function showToast(type, message) {
+        const toast = `
+            <div class="position-fixed bottom-0 end-0 p-3" style="z-index: 11">
+                <div class="toast show" role="alert" aria-live="assertive" aria-atomic="true">
+                    <div class="toast-header bg-${type} text-white">
+                        <strong class="me-auto">${type === 'success' ? 'Éxito' : 'Error'}</strong>
+                        <button type="button" class="btn-close btn-close-white" data-bs-dismiss="toast" aria-label="Cerrar"></button>
+                    </div>
+                    <div class="toast-body">
+                        ${message}
+                    </div>
+                </div>
+            </div>`;
+        
+        $('.toast-container').remove();
+        $('body').append(`<div class="toast-container">${toast}</div>`);
+        
+        // Eliminar el toast después de 5 segundos
+        setTimeout(() => {
+            $('.toast-container').fadeOut(400, function() {
+                $(this).remove();
+            });
+        }, 5000);
+    }
+});
+</script>
+{% endblock %}

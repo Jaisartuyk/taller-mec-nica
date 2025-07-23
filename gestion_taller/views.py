@@ -1,0 +1,1091 @@
+from django.shortcuts import render
+from django.urls import reverse_lazy
+from django.views.generic import ListView, CreateView, UpdateView, DeleteView
+from django.contrib import messages
+from .models import Vehiculo, Repuesto, Servicio, ServicioCatalogo, PerfilUsuario, Conductor, User, CategoriaRepuesto
+from .forms import VehiculoForm, RepuestoForm, ServicioForm, PerfilUsuarioForm, ConductorForm, OrdenServicioForm
+from .models import Conductor
+from django.urls import reverse_lazy
+from django.views.generic import ListView, CreateView, UpdateView, DeleteView
+from django.contrib.auth.decorators import login_required
+from django.utils.decorators import method_decorator
+from django.contrib.auth.models import User
+from django.shortcuts import redirect
+from django.db.models import F
+
+# Vistas para Vehículos (con AJAX para modales)
+from django.http import JsonResponse, HttpResponse, HttpResponseRedirect
+from django.template.loader import render_to_string
+
+@method_decorator(login_required, name='dispatch')
+class VehiculoListView(ListView):
+    model = Vehiculo
+    template_name = 'gestion_taller/vehiculo_list.html'
+    context_object_name = 'vehiculos'
+
+    def get_queryset(self):
+        perfil = self.request.user.perfilusuario
+        if perfil.cliente:
+            return Vehiculo.objects.filter(cliente=perfil.cliente)
+        return Vehiculo.objects.none()
+
+@method_decorator(login_required, name='dispatch')
+class VehiculoCreateView(CreateView):
+    model = Vehiculo
+    form_class = VehiculoForm
+    template_name = 'gestion_taller/vehiculo_modal.html'
+    success_url = reverse_lazy('vehiculos')
+
+    def get_form_kwargs(self):
+        kwargs = super().get_form_kwargs()
+        kwargs['user'] = self.request.user
+        return kwargs
+
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        context['modal_title'] = 'Nuevo Vehículo'
+        return context
+
+    def form_valid(self, form):
+        form.instance.cliente = self.request.user.perfilusuario.cliente
+        self.object = form.save()
+        
+        if self.request.headers.get('x-requested-with') == 'XMLHttpRequest':
+            return JsonResponse({
+                'success': True,
+                'message': 'Vehículo guardado correctamente',
+                'redirect': str(self.get_success_url())
+            })
+            
+        messages.success(self.request, 'Vehículo guardado correctamente')
+        return super().form_valid(form)
+
+    def form_invalid(self, form):
+        if self.request.headers.get('x-requested-with') == 'XMLHttpRequest':
+            return JsonResponse({
+                'success': False,
+                'form': self.get_context_data(form=form).get('form').as_div()
+            })
+            
+        messages.error(self.request, 'Por favor corrija los errores en el formulario')
+        return super().form_invalid(form)
+
+@method_decorator(login_required, name='dispatch')
+class VehiculoUpdateView(UpdateView):
+    model = Vehiculo
+    form_class = VehiculoForm
+    template_name = 'gestion_taller/vehiculo_form_modal.html'
+    success_url = reverse_lazy('vehiculos')
+
+    def get_queryset(self):
+        perfil = self.request.user.perfilusuario
+        if perfil.cliente:
+            return Vehiculo.objects.filter(cliente=perfil.cliente)
+        return Vehiculo.objects.none()
+
+    def get_form_kwargs(self):
+        kwargs = super().get_form_kwargs()
+        kwargs['user'] = self.request.user
+        return kwargs
+
+    def get(self, request, *args, **kwargs):
+        if request.headers.get('x-requested-with') == 'XMLHttpRequest':
+            self.object = self.get_object()
+            form = self.get_form()
+            html_form = render_to_string('gestion_taller/vehiculo_form_ajax.html', {'form': form}, request=request)
+            return HttpResponse(html_form)
+        return super().get(request, *args, **kwargs)
+
+    def form_valid(self, form):
+        self.object = form.save()
+        if self.request.headers.get('x-requested-with') == 'XMLHttpRequest':
+            vehiculos = Vehiculo.objects.filter(cliente=self.request.user.perfilusuario.cliente)
+            html_tabla = render_to_string('gestion_taller/vehiculo_tabla.html', {'vehiculos': vehiculos})
+            return JsonResponse({'success': True, 'tabla': html_tabla})
+        return super().form_valid(form)
+
+    def form_invalid(self, form):
+        if self.request.headers.get('x-requested-with') == 'XMLHttpRequest':
+            html_form = render_to_string('gestion_taller/vehiculo_form_ajax.html', {'form': form}, request=self.request)
+            return HttpResponse(html_form)
+        return super().form_invalid(form)
+
+@method_decorator(login_required, name='dispatch')
+class VehiculoDeleteView(DeleteView):
+    model = Vehiculo
+    template_name = 'gestion_taller/vehiculo_confirm_delete_modal.html'
+    success_url = reverse_lazy('vehiculos')
+
+    def get_queryset(self):
+        perfil = self.request.user.perfilusuario
+        if perfil.cliente:
+            return Vehiculo.objects.filter(cliente=perfil.cliente)
+        return Vehiculo.objects.none()
+
+    def get(self, request, *args, **kwargs):
+        if request.headers.get('x-requested-with') == 'XMLHttpRequest':
+            self.object = self.get_object()
+            context = self.get_context_data(object=self.object)
+            html = render_to_string(self.template_name, context, request=request)
+            return HttpResponse(html)
+        return super().get(request, *args, **kwargs)
+
+    def delete(self, request, *args, **kwargs):
+        self.object = self.get_object()
+        cliente = self.request.user.perfilusuario.cliente
+        self.object.delete()
+        if request.headers.get('x-requested-with') == 'XMLHttpRequest':
+            vehiculos = Vehiculo.objects.filter(cliente=cliente)
+            html_tabla = render_to_string('gestion_taller/vehiculo_tabla.html', {'vehiculos': vehiculos})
+            return JsonResponse({'success': True, 'tabla': html_tabla})
+        return HttpResponseRedirect(self.get_success_url())
+
+# Vistas para Repuestos
+@method_decorator(login_required, name='dispatch')
+class RepuestoListView(ListView):
+    model = Repuesto
+    template_name = 'gestion_taller/repuesto_list.html'
+    context_object_name = 'repuestos'
+
+    def get_queryset(self):
+        perfil = self.request.user.perfilusuario
+        qs = Repuesto.objects.filter(cliente=perfil.cliente) if perfil.cliente else Repuesto.objects.none()
+        categoria_id = self.request.GET.get('categoria')
+        if categoria_id:
+            qs = qs.filter(categoria_id=categoria_id)
+        return qs
+
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        categorias = CategoriaRepuesto.objects.all()
+        context['categorias'] = categorias
+        context['categoria_seleccionada'] = self.request.GET.get('categoria', '')
+        return context
+
+@method_decorator(login_required, name='dispatch')
+class RepuestoCreateView(CreateView):
+    model = Repuesto
+    form_class = RepuestoForm
+    template_name = 'gestion_taller/repuesto_form_modal_content.html'
+    success_url = reverse_lazy('repuestos')
+
+    def get_form_kwargs(self):
+        kwargs = super().get_form_kwargs()
+        kwargs['user'] = self.request.user
+        kwargs['editing'] = False
+        return kwargs
+
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        context['modal_title'] = 'Nuevo Repuesto'
+        # Asegurarse de que siempre haya un objeto en el contexto
+        context['object'] = getattr(self, 'object', None)
+        return context
+        
+    def get(self, request, *args, **kwargs):
+        is_ajax = request.headers.get('x-requested-with') == 'XMLHttpRequest'
+        
+        try:
+            # Inicializar el objeto para el formulario
+            self.object = None
+            
+            if is_ajax:
+                form = self.get_form()
+                context = self.get_context_data(form=form)
+                return render(request, self.template_name, context)
+                
+            return super().get(request, *args, **kwargs)
+            
+        except Exception as e:
+            print(f"Error en get: {str(e)}")
+            if is_ajax:
+                return JsonResponse({
+                    'success': False,
+                    'message': f'Error al cargar el formulario: {str(e)}',
+                    'error_type': type(e).__name__
+                }, status=500)
+            raise
+
+    def form_valid(self, form):
+        # Verificar si es una petición AJAX
+        is_ajax = self.request.headers.get('x-requested-with') == 'XMLHttpRequest'
+        
+        try:
+            # Verificar si el usuario tiene perfil
+            if not hasattr(self.request.user, 'perfilusuario'):
+                raise ValueError('El usuario no tiene un perfil configurado')
+                
+            # Verificar si el perfil tiene un cliente asociado
+            if not hasattr(self.request.user.perfilusuario, 'cliente'):
+                raise ValueError('El perfil del usuario no tiene un cliente asociado')
+                
+            # Asignar el cliente al repuesto
+            form.instance.cliente = self.request.user.perfilusuario.cliente
+            
+            # Guardar el formulario
+            self.object = form.save()
+            
+            if is_ajax:
+                return JsonResponse({
+                    'success': True,
+                    'message': 'Repuesto creado exitosamente',
+                    'redirect': str(self.get_success_url())
+                })
+                
+            return super().form_valid(form)
+            
+        except Exception as e:
+            print(f"Error en form_valid: {str(e)}")
+            if is_ajax:
+                return JsonResponse({
+                    'success': False,
+                    'message': f'Error al guardar el repuesto: {str(e)}',
+                    'errors': form.errors.get_json_data() if hasattr(form, 'errors') else {}
+                }, status=400)
+            return super().form_invalid(form)
+
+    def form_invalid(self, form):
+        is_ajax = self.request.headers.get('x-requested-with') == 'XMLHttpRequest'
+        
+        if is_ajax:
+            # Renderizar el formulario con los errores
+            form_html = render_to_string(
+                self.template_name,
+                self.get_context_data(form=form),
+                request=self.request
+            )
+            
+            return JsonResponse({
+                'success': False,
+                'message': 'Por favor corrija los errores en el formulario',
+                'form': form_html,
+                'errors': form.errors.get_json_data()
+            }, status=400)
+            
+        return super().form_invalid(form)
+
+@method_decorator(login_required, name='dispatch')
+class RepuestoUpdateView(UpdateView):
+    model = Repuesto
+    form_class = RepuestoForm
+    template_name = 'gestion_taller/repuesto_form_modal_content.html'
+    success_url = reverse_lazy('repuestos')
+
+    def get_queryset(self):
+        perfil = self.request.user.perfilusuario
+        if perfil.rol == 'conductor' and perfil.conductor:
+            return Repuesto.objects.filter(conductor=perfil.conductor)
+        elif perfil.rol in ['admin', 'empleado'] and perfil.cliente:
+            return Repuesto.objects.filter(cliente=perfil.cliente)
+        return Repuesto.objects.none()
+
+    def get_form_kwargs(self):
+        kwargs = super().get_form_kwargs()
+        kwargs['user'] = self.request.user
+        kwargs['editing'] = True
+        return kwargs
+        
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        context['modal_title'] = 'Editar Repuesto'
+        return context
+
+    def get(self, request, *args, **kwargs):
+        self.object = self.get_object()
+        if request.headers.get('x-requested-with') == 'XMLHttpRequest':
+            form = self.get_form()
+            context = self.get_context_data(form=form)
+            return render(request, self.template_name, context)
+        return super().get(request, *args, **kwargs)
+
+    def form_valid(self, form):
+        # Verificar si es una petición AJAX
+        is_ajax = self.request.headers.get('x-requested-with') == 'XMLHttpRequest'
+        
+        try:
+            # Verificar si el usuario tiene perfil
+            if not hasattr(self.request.user, 'perfilusuario'):
+                raise ValueError('El usuario no tiene un perfil configurado')
+                
+            # Verificar si el perfil tiene un cliente asociado
+            if not hasattr(self.request.user.perfilusuario, 'cliente'):
+                raise ValueError('El perfil del usuario no tiene un cliente asociado')
+                
+            # Asignar el cliente al repuesto
+            form.instance.cliente = self.request.user.perfilusuario.cliente
+            
+            # Guardar el formulario
+            self.object = form.save()
+            
+            if is_ajax:
+                return JsonResponse({
+                    'success': True,
+                    'message': 'Repuesto actualizado exitosamente',
+                    'redirect': str(self.get_success_url())
+                })
+            return super().form_valid(form)
+            
+        except Exception as e:
+            if is_ajax:
+                return JsonResponse({
+                    'success': False,
+                    'message': str(e),
+                    'error_type': type(e).__name__
+                }, status=400)
+            raise
+
+    def form_invalid(self, form):
+        if self.request.headers.get('x-requested-with') == 'XMLHttpRequest':
+            # Registrar los errores del formulario para depuración
+            print("Errores del formulario:", form.errors)
+            print("Datos del formulario:", form.data)
+            
+            # Devolver los errores en un formato que el frontend pueda manejar
+            return JsonResponse({
+                'success': False,
+                'errors': form.errors,
+                'message': 'Por favor corrija los errores en el formulario',
+                'form': render_to_string(
+                    self.template_name, 
+                    {'form': form, 'object': self.object}, 
+                    request=self.request
+                )
+            }, status=400)
+        return super().form_invalid(form)
+
+@method_decorator(login_required, name='dispatch')
+class RepuestoDeleteView(DeleteView):
+    model = Repuesto
+    template_name = 'gestion_taller/repuesto_confirm_delete.html'
+    success_url = reverse_lazy('repuestos')
+    def get_queryset(self):
+        perfil = self.request.user.perfilusuario
+        if perfil.rol == 'conductor' and perfil.conductor:
+            return Repuesto.objects.filter(conductor=perfil.conductor)
+        elif perfil.rol in ['admin', 'empleado'] and perfil.cliente:
+            return Repuesto.objects.filter(cliente=perfil.cliente)
+        return Repuesto.objects.none()
+
+# Vistas para Conductores
+@method_decorator(login_required, name='dispatch')
+class ConductorListView(ListView):
+    model = Conductor
+    template_name = 'gestion_taller/conductor_list.html'
+    context_object_name = 'conductores'
+    def get_queryset(self):
+        perfil = self.request.user.perfilusuario
+        if perfil.rol == 'conductor' and perfil.conductor:
+            return Conductor.objects.filter(pk=perfil.conductor.pk)
+        elif perfil.rol in ['admin', 'empleado'] and perfil.cliente:
+            return Conductor.objects.filter(cliente=perfil.cliente)
+        return Conductor.objects.none()
+
+@method_decorator(login_required, name='dispatch')
+class ConductorCreateView(CreateView):
+    model = Conductor
+    form_class = ConductorForm
+    template_name = 'gestion_taller/conductor_form_modal.html'
+    success_url = reverse_lazy('conductores')
+
+    def form_valid(self, form):
+        perfil = self.request.user.perfilusuario
+        if perfil.rol in ['admin', 'empleado'] and perfil.cliente:
+            form.instance.cliente = perfil.cliente
+        self.object = form.save()
+        if self.request.headers.get('x-requested-with') == 'XMLHttpRequest':
+            conductores = Conductor.objects.filter(cliente=perfil.cliente)
+            from django.template.loader import render_to_string
+            html_tabla = render_to_string('gestion_taller/conductor_tabla.html', {'conductores': conductores})
+            from django.http import JsonResponse
+            return JsonResponse({'success': True, 'tabla': html_tabla})
+        return super().form_valid(form)
+
+    def form_invalid(self, form):
+        if self.request.headers.get('x-requested-with') == 'XMLHttpRequest':
+            from django.template.loader import render_to_string
+            html_form = render_to_string('gestion_taller/conductor_form_ajax.html', {'form': form}, request=self.request)
+            from django.http import HttpResponse
+            return HttpResponse(html_form)
+        return render(self.request, self.template_name, {'form': form})
+
+    def get(self, request, *args, **kwargs):
+        if request.headers.get('x-requested-with') == 'XMLHttpRequest':
+            self.object = None
+            form = self.get_form()
+            context = {'form': form}
+            from django.template.loader import render_to_string
+            html_form = render_to_string('gestion_taller/conductor_form_ajax.html', context, request=request)
+            from django.http import HttpResponse
+            return HttpResponse(html_form)
+        return super().get(request, *args, **kwargs)
+
+    def get_queryset(self):
+        perfil = self.request.user.perfilusuario
+        if perfil.rol in ['admin', 'empleado'] and perfil.cliente:
+            return Conductor.objects.filter(cliente=perfil.cliente)
+        return Conductor.objects.none()
+
+@method_decorator(login_required, name='dispatch')
+class ConductorUpdateView(UpdateView):
+    model = Conductor
+    form_class = ConductorForm
+    template_name = 'gestion_taller/conductor_form_modal.html'
+    success_url = reverse_lazy('conductores')
+    def get_queryset(self):
+        perfil = self.request.user.perfilusuario
+        if perfil.rol == 'conductor' and perfil.conductor:
+            return Conductor.objects.filter(pk=perfil.conductor.pk)
+        elif perfil.rol in ['admin', 'empleado'] and perfil.cliente:
+            return Conductor.objects.filter(cliente=perfil.cliente)
+        return Conductor.objects.none()
+    def form_valid(self, form):
+        perfil = self.request.user.perfilusuario
+        if perfil.rol in ['admin', 'empleado'] and perfil.cliente:
+            form.instance.cliente = perfil.cliente
+        self.object = form.save()
+        if self.request.headers.get('x-requested-with') == 'XMLHttpRequest':
+            conductores = Conductor.objects.filter(cliente=perfil.cliente)
+            from django.template.loader import render_to_string
+            html_tabla = render_to_string('gestion_taller/conductor_tabla.html', {'conductores': conductores})
+            from django.http import JsonResponse
+            return JsonResponse({'success': True, 'tabla': html_tabla})
+        return super().form_valid(form)
+
+    def form_invalid(self, form):
+        if self.request.headers.get('x-requested-with') == 'XMLHttpRequest':
+            from django.template.loader import render_to_string
+            html_form = render_to_string('gestion_taller/conductor_form_modal_editar.html', {'form': form}, request=self.request)
+            from django.http import HttpResponse
+            return HttpResponse(html_form)
+        return super().form_invalid(form)
+
+    def get(self, request, *args, **kwargs):
+        if request.headers.get('x-requested-with') == 'XMLHttpRequest':
+            self.object = self.get_object()
+            form = self.get_form()
+            context = {'form': form}
+            from django.template.loader import render_to_string
+            html_form = render_to_string('gestion_taller/conductor_form_modal_editar.html', context, request=request)
+            from django.http import HttpResponse
+            return HttpResponse(html_form)
+        return super().get(request, *args, **kwargs)
+
+    def form_invalid(self, form):
+        if self.request.headers.get('x-requested-with') == 'XMLHttpRequest':
+            from django.template.loader import render_to_string
+            html_form = render_to_string('gestion_taller/conductor_form_modal_editar.html', {'form': form}, request=self.request)
+            from django.http import HttpResponse
+            return HttpResponse(html_form)
+        return super().form_invalid(form)
+
+@method_decorator(login_required, name='dispatch')
+class ConductorDeleteView(DeleteView):
+    model = Conductor
+    template_name = 'gestion_taller/conductor_confirm_delete_modal.html'
+    success_url = reverse_lazy('conductores')
+
+    def get(self, request, *args, **kwargs):
+        if request.headers.get('x-requested-with') == 'XMLHttpRequest':
+            self.object = self.get_object()
+            context = self.get_context_data(object=self.object)
+            from django.template.loader import render_to_string
+            html = render_to_string(self.template_name, context, request=request)
+            from django.http import HttpResponse
+            return HttpResponse(html)
+        return super().get(request, *args, **kwargs)
+
+    def get_queryset(self):
+        perfil = self.request.user.perfilusuario
+        if perfil.rol == 'conductor' and perfil.conductor:
+            return Conductor.objects.filter(pk=perfil.conductor.pk)
+        elif perfil.rol in ['admin', 'empleado'] and perfil.cliente:
+            return Conductor.objects.filter(cliente=perfil.cliente)
+        return Conductor.objects.none()
+
+    def delete(self, request, *args, **kwargs):
+        self.object = self.get_object()
+        perfil = self.request.user.perfilusuario
+        self.object.delete()
+        if request.headers.get('x-requested-with') == 'XMLHttpRequest':
+            conductores = Conductor.objects.filter(cliente=perfil.cliente)
+            from django.template.loader import render_to_string
+            html_tabla = render_to_string('gestion_taller/conductor_tabla.html', {'conductores': conductores})
+            from django.http import JsonResponse
+            return JsonResponse({'success': True, 'tabla': html_tabla})
+        
+        from django.http import HttpResponseRedirect
+        return HttpResponseRedirect(self.get_success_url())
+
+# Vistas para Servicios
+
+from .models import OrdenServicio
+from django.views.generic import CreateView, ListView, DetailView
+from django.contrib.auth.mixins import LoginRequiredMixin
+
+class OrdenServicioListView(LoginRequiredMixin, ListView):
+    model = OrdenServicio
+    template_name = 'gestion_taller/orden_servicio_list.html'
+    context_object_name = 'ordenes'
+    paginate_by = 10
+
+    def get_queryset(self):
+        qs = super().get_queryset()
+        perfil = self.request.user.perfilusuario
+        if perfil.cliente:
+            qs = qs.filter(cliente=perfil.cliente)
+        # Filtros avanzados
+        estado = self.request.GET.get('estado')
+        vehiculo = self.request.GET.get('vehiculo')
+        if estado:
+            qs = qs.filter(estado=estado)
+        if vehiculo:
+            qs = qs.filter(vehiculo__placa__icontains=vehiculo)
+        return qs.order_by('-fecha_creacion')
+
+class OrdenServicioDetailView(LoginRequiredMixin, DetailView):
+    model = OrdenServicio
+    template_name = 'gestion_taller/orden_servicio_detail.html'
+    context_object_name = 'orden'
+    
+    def get_queryset(self):
+        qs = super().get_queryset()
+        perfil = self.request.user.perfilusuario
+        if perfil.cliente:
+            qs = qs.filter(cliente=perfil.cliente)
+        return qs
+
+class OrdenServicioCreateView(LoginRequiredMixin, CreateView):
+    model = OrdenServicio
+    form_class = OrdenServicioForm
+    template_name = 'gestion_taller/orden_servicio_form.html'
+    success_url = reverse_lazy('orden_servicio_listado')
+
+    def get_form_kwargs(self):
+        kwargs = super().get_form_kwargs()
+        kwargs['user'] = self.request.user
+        return kwargs
+        
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        if 'form' not in context:
+            context['form'] = self.get_form()
+        return context
+        
+    def get_form(self, form_class=None):
+        if form_class is None:
+            form_class = self.get_form_class()
+        kwargs = self.get_form_kwargs()
+        kwargs['user'] = self.request.user
+        return form_class(**kwargs)
+
+    def form_valid(self, form):
+        # Verificar perfil y cliente
+        if not hasattr(self.request.user, 'perfilusuario') or not self.request.user.perfilusuario.cliente:
+            form.add_error(None, 'No tiene un cliente asociado a su perfil')
+            return self.form_invalid(form)
+            
+        perfil = self.request.user.perfilusuario
+        vehiculo = form.cleaned_data.get('vehiculo')
+        
+        if not vehiculo:
+            form.add_error('vehiculo', 'Debe seleccionar un vehículo')
+            return self.form_invalid(form)
+            
+        try:
+            self.object = form.save(commit=False)
+            self.object.cliente = perfil.cliente
+            
+            # Asignar conductor automáticamente del vehículo si no viene en el formulario
+            if not self.object.conductor and vehiculo.conductor:
+                self.object.conductor = vehiculo.conductor
+                messages.info(self.request, f'Conductor asignado automáticamente: {vehiculo.conductor.nombre}')
+                
+            # Validar que tenga conductor
+            if not self.object.conductor:
+                form.add_error(None, 'El vehículo seleccionado no tiene conductor asignado')
+                return self.form_invalid(form)
+                
+            self.object.save()
+            form.save_m2m()
+            
+            # Notificación por Telegram
+            try:
+                chat_id = getattr(perfil, 'telegram_chat_id', None)
+                if chat_id and hasattr(self.object, 'vehiculo') and self.object.vehiculo:
+                    from .utils import enviar_telegram
+                    mensaje = (
+                        f"¡Nueva orden de servicio creada!\n"
+                        f"Vehículo: {self.object.vehiculo.placa}\n"
+                        f"Conductor: {self.object.conductor.nombre if self.object.conductor else 'No asignado'}\n"
+                        f"Estado: {self.object.get_estado_display()}"
+                    )
+                    enviar_telegram(chat_id, mensaje)
+            except Exception as e:
+                print(f"[Telegram] Error enviando notificación: {e}")
+                
+            messages.success(self.request, 'Orden de servicio creada exitosamente.')
+            return redirect(self.get_success_url())
+            
+        except Exception as e:
+            form.add_error(None, f'Error al guardar la orden: {str(e)}')
+            return self.form_invalid(form)
+        
+    def form_invalid(self, form):
+        if self.request.headers.get('x-requested-with') == 'XMLHttpRequest':
+            return JsonResponse({
+                'success': False,
+                'errors': form.errors,
+                'message': 'Por favor corrija los errores en el formulario',
+                'form': render_to_string(
+                    self.template_name,
+                    {'form': form},
+                    request=self.request
+                )
+            }, status=400)
+        return super().form_invalid(form)
+
+# --- API: Vinculación de Telegram ---
+from django.views.decorators.csrf import csrf_exempt
+from django.contrib.auth import authenticate
+from django.http import JsonResponse
+import json
+
+@csrf_exempt
+def vincular_telegram(request):
+    if request.method != 'POST':
+        return JsonResponse({'ok': False, 'error': 'Solo POST'}, status=405)
+    data = json.loads(request.body.decode())
+    correo = data.get('correo')
+    password = data.get('password')
+    chat_id = data.get('chat_id')
+    if not correo or not password or not chat_id:
+        return JsonResponse({'ok': False, 'error': 'Faltan datos'}, status=400)
+    user = authenticate(username=correo, password=password)
+    if not user:
+        return JsonResponse({'ok': False, 'error': 'Credenciales inválidas'}, status=401)
+    perfil = getattr(user, 'perfilusuario', None)
+    if perfil:
+        perfil.telegram_chat_id = chat_id
+        perfil.save()
+        return JsonResponse({'ok': True, 'msg': 'Vinculado como usuario'})
+    conductor = Conductor.objects.filter(correo=correo).first()
+    if conductor:
+        conductor.telegram_chat_id = chat_id
+        conductor.save()
+        return JsonResponse({'ok': True, 'msg': 'Vinculado como conductor'})
+    return JsonResponse({'ok': False, 'error': 'No encontrado'}, status=404)
+
+# --- Catálogo profesional de servicios ---
+from django.utils.decorators import method_decorator
+
+@method_decorator(login_required, name='dispatch')
+class ServicioCatalogoListView(ListView):
+    model = ServicioCatalogo
+    template_name = 'gestion_taller/servicio_catalogo_list.html'
+    context_object_name = 'servicios'
+    paginate_by = 20
+
+    def get_queryset(self):
+        qs = ServicioCatalogo.objects.all()
+        perfil = self.request.user.perfilusuario
+        if perfil.cliente:
+            # Si tienes multi-taller, puedes filtrar servicios por cliente si lo deseas
+            pass
+        q = self.request.GET.get('q')
+        if q:
+            qs = qs.filter(nombre__icontains=q) | qs.filter(descripcion__icontains=q)
+        precio_min = self.request.GET.get('precio_min')
+        if precio_min:
+            try:
+                qs = qs.filter(precio_base__gte=float(precio_min))
+            except ValueError:
+                pass
+        precio_max = self.request.GET.get('precio_max')
+        if precio_max:
+            try:
+                qs = qs.filter(precio_base__lte=float(precio_max))
+            except ValueError:
+                pass
+        activo = self.request.GET.get('activo')
+        if activo == '1':
+            qs = qs.filter(activo=True)
+        elif activo == '0':
+            qs = qs.filter(activo=False)
+        return qs.order_by('nombre')
+
+# --- AJAX: sugerir servicios por kilometraje ---
+from django.views.decorators.http import require_GET, require_http_methods
+from django.http import JsonResponse, HttpResponseBadRequest
+from django.views.decorators.csrf import csrf_exempt
+from .utils import sugerir_servicios_por_kilometraje
+from django.contrib.auth.decorators import login_required
+
+@login_required
+def api_conductores(request):
+    """
+    API para buscar conductores. Usada por Select2.
+    """
+    try:
+        # Verificar que el usuario tenga un perfil y cliente asociado
+        if not hasattr(request.user, 'perfilusuario') or not request.user.perfilusuario.cliente:
+            return JsonResponse(
+                {'results': [], 'error': 'No tiene un cliente asociado a su perfil'}, 
+                status=400
+            )
+            
+        # Obtener parámetros de búsqueda
+        search = request.GET.get('q', '')
+        cliente = request.user.perfilusuario.cliente
+        
+        # Filtrar conductores
+        conductores = Conductor.objects.filter(
+            cliente=cliente,
+            nombre__icontains=search
+        ).order_by('nombre')
+        
+        # Formatear resultados para Select2
+        results = [{
+            'id': c.id,
+            'text': f"{c.nombre}",
+            'telefono': c.telefono or ''
+        } for c in conductores]
+        
+        return JsonResponse({
+            'results': results,
+            'pagination': {'more': False}
+        })
+        
+    except Exception as e:
+        return JsonResponse(
+            {'results': [], 'error': str(e)}, 
+            status=500
+        )
+
+@login_required
+def conductor_por_vehiculo(request, vehiculo_id):
+    """Obtiene el conductor asociado a un vehículo"""
+    try:
+        # Verificar cliente asociado
+        if not hasattr(request.user, 'perfilusuario') or not request.user.perfilusuario.cliente:
+            return JsonResponse({'success': False, 'error': 'Usuario no tiene cliente asociado'}, status=400)
+            
+        cliente = request.user.perfilusuario.cliente
+        
+        # Obtener vehículo con conductor (optimizado con select_related)
+        vehiculo = Vehiculo.objects.select_related('conductor').filter(
+            id=vehiculo_id,
+            cliente=cliente
+        ).first()
+        
+        if not vehiculo:
+            return JsonResponse({
+                'success': False,
+                'error': 'Vehículo no existe o no pertenece a su cliente'
+            }, status=404)
+            
+        response_data = {'success': True, 'conductor': None}
+        
+        if vehiculo.conductor:
+            response_data['conductor'] = {
+                'id': vehiculo.conductor.id,
+                'nombre': vehiculo.conductor.nombre,
+                'telefono': vehiculo.conductor.telefono or ''
+            }
+            
+        return JsonResponse(response_data)
+        
+    except Exception as e:
+        return JsonResponse({
+            'success': False,
+            'error': f'Error interno: {str(e)}'
+        }, status=500)
+
+@require_GET
+@login_required
+def sugerir_servicios_ajax(request):
+    vehiculo_id = request.GET.get('vehiculo_id')
+    kilometraje = request.GET.get('kilometraje')
+    try:
+        vehiculo_id = int(vehiculo_id)
+        kilometraje = int(kilometraje)
+    except (TypeError, ValueError):
+        return JsonResponse({'sugeridos': []})
+    from .models import Vehiculo
+    try:
+        vehiculo = Vehiculo.objects.get(id=vehiculo_id)
+    except Vehiculo.DoesNotExist:
+        return JsonResponse({'sugeridos': []})
+    sugeridos = sugerir_servicios_por_kilometraje(vehiculo, kilometraje)
+    sugeridos_ids = [s.id for s in sugeridos]
+    return JsonResponse({'sugeridos': sugeridos_ids})
+
+@login_required
+def get_productos_servicio(request, servicio_id):
+    """
+    Vista para obtener los productos asociados a un servicio
+    """
+    try:
+        if not hasattr(request.user, 'perfilusuario') or not request.user.perfilusuario.cliente:
+            return JsonResponse({'error': 'No tiene un cliente asociado'}, status=400)
+            
+        cliente = request.user.perfilusuario.cliente
+        servicio = ServicioCatalogo.objects.get(id=servicio_id)
+        
+        # Obtener productos asociados al servicio y al cliente
+        productos = servicio.productos.filter(cliente=cliente).values('id', 'nombre')
+        
+        return JsonResponse({
+            'success': True,
+            'productos': list(productos)
+        })
+        
+    except ServicioCatalogo.DoesNotExist:
+        return JsonResponse({'success': False, 'error': 'Servicio no encontrado'}, status=404)
+    except Exception as e:
+        return JsonResponse({'success': False, 'error': str(e)}, status=500)
+
+@method_decorator(login_required, name='dispatch')
+class ServicioListView(ListView):
+    model = Servicio
+    template_name = 'gestion_taller/servicio_list.html'
+    context_object_name = 'servicios'
+    def get_queryset(self):
+        perfil = self.request.user.perfilusuario
+        if perfil.rol == 'conductor' and perfil.conductor:
+            return Servicio.objects.filter(vehiculo__conductor=perfil.conductor)
+        elif perfil.rol in ['admin', 'empleado'] and perfil.cliente:
+            return Servicio.objects.filter(vehiculo__cliente=perfil.cliente)
+        return Servicio.objects.none()
+
+@method_decorator(login_required, name='dispatch')
+class ServicioCreateView(CreateView):
+    model = Servicio
+    form_class = ServicioForm
+    template_name = 'gestion_taller/servicio_form.html'
+    success_url = reverse_lazy('servicios')
+
+    def get_form_kwargs(self):
+        kwargs = super().get_form_kwargs()
+        kwargs['user'] = self.request.user
+        return kwargs
+
+    def form_valid(self, form):
+        perfil = self.request.user.perfilusuario
+        if perfil.rol in ['admin', 'empleado'] and perfil.cliente:
+            form.instance.cliente = perfil.cliente
+        servicio = form.save()
+        
+        # Manejar detalles de repuestos
+        detalles_data = self.request.POST.getlist('detalle-repuesto')
+        cantidades = self.request.POST.getlist('detalle-cantidad')
+        precios = self.request.POST.getlist('detalle-precio_unitario')
+        
+        for i in range(len(detalles_data)):
+            if detalles_data[i] and cantidades[i] and precios[i]:
+                detalle_form = DetalleServicioForm({
+                    'repuesto': detalles_data[i],
+                    'cantidad': cantidades[i],
+                    'precio_unitario': precios[i]
+                }, servicio=servicio)
+                if detalle_form.is_valid():
+                    detalle = detalle_form.save(commit=False)
+                    detalle.servicio = servicio
+                    detalle.save()
+                    
+                    # Actualizar stock del repuesto
+                    repuesto = detalle.repuesto
+                    repuesto.stock -= detalle.cantidad
+                    repuesto.save()
+        
+        return super().form_valid(form)
+
+    def form_invalid(self, form):
+        if self.request.headers.get('x-requested-with') == 'XMLHttpRequest':
+            return render(self.request, 'gestion_taller/servicio_form_ajax.html', {'form': form})
+        return render(self.request, self.template_name, {'form': form})
+
+@method_decorator(login_required, name='dispatch')
+class ServicioDeleteView(DeleteView):
+    model = Servicio
+    template_name = 'gestion_taller/servicio_confirm_delete.html'
+    success_url = reverse_lazy('servicios')
+    def get_queryset(self):
+        perfil = self.request.user.perfilusuario
+        if perfil.rol == 'conductor' and perfil.conductor:
+            return Servicio.objects.filter(vehiculo__conductor=perfil.conductor)
+        elif perfil.rol in ['admin', 'empleado'] and perfil.cliente:
+            return Servicio.objects.filter(vehiculo__cliente=perfil.cliente)
+        return Servicio.objects.none()
+class ServicioListView(LoginRequiredMixin, ListView):
+    model = Servicio
+    template_name = 'gestion_taller/servicio_list.html'
+    context_object_name = 'servicios'
+
+    def get_queryset(self):
+        if hasattr(self.request.user, 'perfilusuario') and self.request.user.perfilusuario.cliente:
+            return Servicio.objects.filter(cliente=self.request.user.perfilusuario.cliente)
+        return Servicio.objects.all()
+
+class ServicioCreateView(LoginRequiredMixin, CreateView):
+    model = Servicio
+    form_class = ServicioForm
+    template_name = 'gestion_taller/servicio_modal.html'
+    success_url = reverse_lazy('servicios')
+
+    def get_form_kwargs(self):
+        kwargs = super().get_form_kwargs()
+        if hasattr(self.request.user, 'perfilusuario'):
+            kwargs['user'] = self.request.user
+        return kwargs
+
+    def get(self, request, *args, **kwargs):
+        form = self.get_form()
+        if request.headers.get('x-requested-with') == 'XMLHttpRequest':
+            # Para peticiones AJAX, devolvemos solo el contenido del formulario
+            return render(request, 'gestion_taller/servicio_modal_content.html', {'form': form})
+        return super().get(request, *args, **kwargs)
+
+    def form_valid(self, form):
+        if not form.instance.cliente and hasattr(self.request.user, 'perfilusuario'):
+            form.instance.cliente = self.request.user.perfilusuario.cliente
+        
+        response = super().form_valid(form)
+        
+        if self.request.headers.get('x-requested-with') == 'XMLHttpRequest':
+            servicios = self.get_queryset()
+            html_grid = render_to_string('gestion_taller/includes/servicio_grid.html', 
+                                       {'servicios': servicios}, 
+                                       request=self.request)
+            return JsonResponse({'success': True, 'grid': html_grid})
+        return response
+
+    def form_invalid(self, form):
+        response = super().form_invalid(form)
+        if self.request.headers.get('x-requested-with') == 'XMLHttpRequest':
+            return render(self.request, self.template_name, 
+                         {'form': form}, status=400)
+        return response
+
+class ServicioUpdateView(LoginRequiredMixin, UpdateView):
+    model = Servicio
+    form_class = ServicioForm
+    template_name = 'gestion_taller/servicio_modal.html'
+    success_url = reverse_lazy('servicios')
+
+    def get_form_kwargs(self):
+        kwargs = super().get_form_kwargs()
+        if hasattr(self.request.user, 'perfilusuario'):
+            kwargs['user'] = self.request.user
+        return kwargs
+
+    def get_queryset(self):
+        if hasattr(self.request.user, 'perfilusuario') and self.request.user.perfilusuario.cliente:
+            return Servicio.objects.filter(cliente=self.request.user.perfilusuario.cliente)
+        return Servicio.objects.all()
+
+    def get(self, request, *args, **kwargs):
+        self.object = self.get_object()
+        if request.headers.get('x-requested-with') == 'XMLHttpRequest':
+            return render(request, self.template_name, 
+                        {'form': self.get_form(), 'object': self.object})
+        return super().get(request, *args, **kwargs)
+
+    def form_valid(self, form):
+        response = super().form_valid(form)
+        if self.request.headers.get('x-requested-with') == 'XMLHttpRequest':
+            servicios = Servicio.objects.filter(cliente=self.request.user.perfilusuario.cliente)
+            html_grid = render_to_string('gestion_taller/includes/servicio_grid.html', 
+                                       {'servicios': servicios}, 
+                                       request=self.request)
+            return JsonResponse({'success': True, 'grid': html_grid})
+        return response
+
+    def form_invalid(self, form):
+        response = super().form_invalid(form)
+        if self.request.headers.get('x-requested-with') == 'XMLHttpRequest':
+            return render(self.request, self.template_name, 
+                        {'form': form, 'object': self.object}, status=400)
+        return response
+
+class ServicioDeleteView(LoginRequiredMixin, DeleteView):
+    model = Servicio
+    template_name = 'gestion_taller/servicio_confirm_delete.html'
+    success_url = reverse_lazy('servicios')
+
+    def get_queryset(self):
+        if hasattr(self.request.user, 'perfilusuario') and self.request.user.perfilusuario.cliente:
+            return Servicio.objects.filter(cliente=self.request.user.perfilusuario.cliente)
+        return Servicio.objects.none()
+
+    def delete(self, request, *args, **kwargs):
+        self.object = self.get_object()
+        success_url = self.get_success_url()
+        self.object.delete()
+        
+        if request.headers.get('x-requested-with') == 'XMLHttpRequest':
+            servicios = Servicio.objects.filter(cliente=request.user.perfilusuario.cliente)
+            html_grid = render_to_string('gestion_taller/includes/servicio_grid.html', 
+                                       {'servicios': servicios}, 
+                                       request=request)
+            return JsonResponse({'success': True, 'grid': html_grid})
+        return HttpResponseRedirect(success_url)
+
+# Vista para perfil de usuario
+@method_decorator(login_required, name='dispatch')
+class PerfilUsuarioView(UpdateView):
+    model = User
+    form_class = PerfilUsuarioForm
+    template_name = 'gestion_taller/perfil.html'
+    success_url = reverse_lazy('home')
+
+    def get_object(self, queryset=None):
+        return self.request.user.perfilusuario
+@login_required
+def home(request):
+    cliente = None
+    logo_url = None
+    
+    # Obtener datos del cliente si existe
+    if hasattr(request.user, 'perfilusuario') and request.user.perfilusuario.cliente:
+        cliente = request.user.perfilusuario.cliente
+        logo_url = cliente.logo.url if cliente.logo else None
+        
+        # Obtener estadísticas filtradas por cliente
+        stats = {
+            'total_vehiculos': Vehiculo.objects.filter(cliente=cliente).count(),
+            'total_conductores': Conductor.objects.filter(cliente=cliente).count(),
+            'total_servicios': Servicio.objects.filter(vehiculo__cliente=cliente).count(),
+            'total_repuestos': Repuesto.objects.filter(cliente=cliente).count(),
+            'total_ordenes': OrdenServicio.objects.filter(cliente=cliente).count(),
+            'ultimos_servicios': Servicio.objects.filter(
+                vehiculo__cliente=cliente
+            ).order_by('-fecha_creacion')[:5],
+            'vehiculos_servicio': Vehiculo.objects.filter(
+                cliente=cliente,
+                fecha_ultimo_servicio__isnull=False
+            ).order_by('fecha_ultimo_servicio')[:5],
+            'repuestos_bajos': Repuesto.objects.filter(
+                cliente=cliente,
+                stock__lte=F('stock_minimo')
+            ).order_by('stock')[:5],
+        }
+    else:
+        # Si no hay cliente asociado, mostrar datos vacíos
+        stats = {
+            'total_vehiculos': 0,
+            'total_conductores': 0,
+            'total_servicios': 0,
+            'total_repuestos': 0,
+            'total_ordenes': 0,
+            'ultimos_servicios': [],
+            'vehiculos_servicio': [],
+            'repuestos_bajos': [],
+        }
+    
+    context = {
+        'logo_url': logo_url, 
+        'cliente': cliente,
+        'stats': stats,
+    }
+    
+    return render(request, 'gestion_taller/home.html', context)

@@ -1,0 +1,38 @@
+<script>
+document.getElementById('nuevoServicioBtn').addEventListener('click', function() {
+  fetch("{% url 'servicio_nuevo' %}", {
+    headers: {'X-Requested-With': 'XMLHttpRequest'}
+  })
+  .then(response => response.text())
+  .then(html => {
+    document.getElementById('modalServicioBody').innerHTML = html;
+    attachServicioFormHandler();
+  });
+});
+
+function attachServicioFormHandler() {
+  const form = document.querySelector('#modalServicioBody form');
+  if (form) {
+    form.onsubmit = async function(e) {
+      e.preventDefault();
+      const formData = new FormData(form);
+      const response = await fetch(form.action, {
+        method: 'POST',
+        body: formData,
+        headers: {'X-Requested-With': 'XMLHttpRequest'},
+      });
+      const contentType = response.headers.get('content-type');
+      const isJson = contentType && contentType.includes('application/json');
+      const data = isJson ? await response.json() : await response.text();
+      if (isJson && data.success) {
+        var modal = bootstrap.Modal.getInstance(document.getElementById('modalServicio'));
+        modal.hide();
+        setTimeout(() => location.reload(), 400);
+      } else {
+        document.getElementById('modalServicioBody').innerHTML = data;
+        attachServicioFormHandler();
+      }
+    }
+  }
+}
+</script>

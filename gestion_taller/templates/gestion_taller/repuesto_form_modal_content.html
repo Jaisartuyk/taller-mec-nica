@@ -1,0 +1,145 @@
+{% load crispy_forms_tags %}
+{% load static %}
+
+<div id="repuestoFormContainer">
+  <form id="formRepuesto" method="post" enctype="multipart/form-data" 
+        action="{% if form.instance.pk %}/repuestos/editar/{{ form.instance.pk }}/{% else %}/repuestos/nuevo/{% endif %}">
+    {% csrf_token %}
+    
+    {% if form.instance.pk %}
+      <input type="hidden" name="id" value="{{ form.instance.pk }}">
+    {% endif %}
+    
+    {% if form.non_field_errors %}
+      <div class="alert alert-danger">
+        {% for error in form.non_field_errors %}
+          {{ error }}
+        {% endfor %}
+      </div>
+    {% endif %}
+    
+    <div class="row">
+      {% for field in form %}
+        <div class="col-12 mb-3">
+          <label for="{{ field.id_for_label }}" class="form-label">
+            {{ field.label }}
+            {% if field.field.required %}<span class="text-danger">*</span>{% endif %}
+          </label>
+          {{ field }}
+          {% if field.help_text %}
+            <div class="form-text">{{ field.help_text }}</div>
+          {% endif %}
+          {% if field.errors %}
+            <div class="invalid-feedback d-block">
+              {{ field.errors|join:", " }}
+            </div>
+          {% endif %}
+        </div>
+      {% endfor %}
+    </div>
+    
+    <div class="d-flex justify-content-end gap-2 mt-4">
+      <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">
+        <i class="bi bi-x-circle me-1"></i> Cancelar
+      </button>
+      <button type="submit" class="btn btn-primary">
+        <span class="btn-text">Guardar</span>
+        <span class="spinner-border spinner-border-sm d-none" role="status" aria-hidden="true"></span>
+      </button>
+    </div>
+  </form>
+</div>
+
+<script>
+// Asegurarse de que los select2 se inicialicen correctamente
+$(document).ready(function() {
+  // Inicializar select2 si existe
+  if ($.fn.select2) {
+    $('select:not([multiple])').select2({
+      theme: 'bootstrap-5',
+      width: '100%',
+      dropdownParent: $('#modalRepuesto')
+    });
+  }
+  
+  // Manejar el evento de cierre del modal para limpiar el formulario
+  const modal = document.getElementById('modalRepuesto');
+  if (modal) {
+    modal.addEventListener('hidden.bs.modal', function () {
+      const form = document.getElementById('formRepuesto');
+      if (form) {
+        form.reset();
+        // Limpiar errores de validación
+        form.querySelectorAll('.is-invalid').forEach(el => el.classList.remove('is-invalid'));
+        form.querySelectorAll('.invalid-feedback').forEach(el => el.remove());
+      }
+    });
+  }
+});
+</script>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const form = document.getElementById('formRepuesto');
+    if (form) {
+        form.addEventListener('submit', function(e) {
+            e.preventDefault();
+            const formData = new FormData(this);
+            const url = this.action;
+            const submitButton = form.querySelector('button[type="submit"]');
+            const spinner = submitButton.querySelector('.spinner-border');
+            const buttonText = submitButton.querySelector('.btn-text');
+            
+            // Mostrar spinner y deshabilitar botón
+            spinner.classList.remove('d-none');
+            buttonText.textContent = 'Guardando...';
+            submitButton.disabled = true;
+            
+            fetch(url, {
+                method: 'POST',
+                body: formData,
+                headers: {
+                    'X-Requested-With': 'XMLHttpRequest',
+                    'X-CSRFToken': '{{ csrf_token }}'
+                },
+                credentials: 'same-origin'
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    // Mostrar mensaje de éxito
+                    showToast('success', data.message);
+                    
+                    // Cerrar el modal después de 1.5 segundos
+                    setTimeout(() => {
+                        const modal = bootstrap.Modal.getInstance(document.getElementById('modalRepuesto'));
+                        if (modal) modal.hide();
+                        
+                        // Recargar la página para ver los cambios
+                        if (data.redirect) {
+                            window.location.href = data.redirect;
+                        }
+                    }, 1500);
+                } else {
+                    // Mostrar errores del formulario
+                    const formContainer = document.getElementById('repuestoFormContainer');
+                    if (formContainer) {
+                        formContainer.innerHTML = data.form;
+                    }
+                }
+            })
+            .catch(error => {
+                console.error('Error:', error);
+                showToast('danger', 'Error al procesar la solicitud');
+            })
+            .finally(() => {
+                // Restaurar el botón
+                spinner.classList.add('d-none');
+                buttonText.textContent = 'Guardar';
+                submitButton.disabled = false;
+            });
+        });
+    }
+});
+</script>
+

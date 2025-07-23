@@ -1,0 +1,9 @@
+django>=4.2
+django-allauth>=0.60.0
+requests
+django-crispy-forms
+crispy-bootstrap5
+Pillow
+python-telegram-bot
+transformers
+torch

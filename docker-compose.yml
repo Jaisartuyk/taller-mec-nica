@@ -1,0 +1,31 @@
+version: '3.9'
+
+services:
+  django:
+    build: .
+    container_name: taller_django
+    volumes:
+      - .:/app
+      - static_volume:/app/static
+      - ./media:/app/media
+      - ./db.sqlite3:/app/db.sqlite3
+    ports:
+      - "8000:8000"
+    environment:
+      - PYTHONUNBUFFERED=1
+    depends_on: []
+
+  bot:
+    build:
+      context: .
+      dockerfile: Dockerfile.bot
+    container_name: taller_bot
+    volumes:
+      - .:/app
+    environment:
+      - DJANGO_API_URL=http://django:8000/api/vincular-telegram/
+    depends_on:
+      - django
+
+volumes:
+  static_volume:

@@ -1,0 +1,152 @@
+{% extends 'gestion_taller/base.html' %}
+{% load static %}
+
+{% block extra_css %}
+<link href="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/css/select2.min.css" rel="stylesheet">
+<link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.8.1/font/bootstrap-icons.css" rel="stylesheet">
+<style>
+    .conductor-info { margin-top: 0.25rem; font-size: 0.875em; }
+    .conductor-error { color: #dc3545; }
+    #conductor-spinner { display: none; }
+    .spinner-border { width: 1rem; height: 1rem; border-width: 0.2em; }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container py-4">
+    <div class="row justify-content-center">
+        <div class="col-lg-10">
+            <div class="card shadow">
+                <div class="card-header bg-primary text-white">
+                    <h4 class="mb-0">{% if form.instance.pk %}Editar{% else %}Nueva{% endif %} Orden de Servicio</h4>
+                </div>
+                <div class="card-body">
+                    <form method="post" id="ordenServicioForm">
+                        {% csrf_token %}
+                        {{ form.non_field_errors }}
+                        
+                        <div class="row g-3">
+                            <!-- Campo Vehículo -->
+                            <div class="col-md-6">
+                                <label for="id_vehiculo" class="form-label">Vehículo</label>
+                                {{ form.vehiculo }}
+                            </div>
+
+                            <!-- Campo Conductor -->
+                            <div class="col-md-6">
+                                <label for="conductor-display" class="form-label">Conductor</label>
+                                <div class="input-group">
+                                    <input type="text" id="conductor-display" class="form-control" 
+                                           value="{% if form.instance.vehiculo and form.instance.vehiculo.conductor %}{{ form.instance.vehiculo.conductor.nombre }}{% else %}Seleccione un vehículo{% endif %}" 
+                                           readonly>
+                                    <span id="conductor-spinner" class="input-group-text">
+                                        <div class="spinner-border spinner-border-sm" role="status">
+                                            <span class="visually-hidden">Cargando...</span>
+                                        </div>
+                                    </span>
+                                </div>
+                                {{ form.conductor }}
+                                <div id="conductor-info" class="conductor-info text-muted">
+                                    {% if form.instance.vehiculo and form.instance.vehiculo.conductor and form.instance.vehiculo.conductor.telefono %}
+                                        <i class="bi bi-telephone"></i> {{ form.instance.vehiculo.conductor.telefono }}
+                                    {% endif %}
+                                </div>
+                            </div>
+
+                            <!-- Resto de campos -->
+                            <div class="col-md-6">
+                                <label for="id_kilometraje" class="form-label">Kilometraje</label>
+                                {{ form.kilometraje }}
+                            </div>
+                            <div class="col-md-6">
+                              <label for="id_servicios" class="form-label">Servicios</label>
+                              {{ form.servicios }}
+                            </div>
+              
+                            <div class="col-md-6">
+                              <label for="id_metodo_pago" class="form-label">Método de pago</label>
+                              {{ form.metodo_pago }}
+                            </div>
+              
+                            <div class="col-md-6">
+                              <label for="id_productos" class="form-label">Productos</label>
+                              {{ form.productos }}
+                            </div>
+              
+                            <div class="col-md-6">
+                              <label for="id_estado" class="form-label">Estado</label>
+                              {{ form.estado }}
+                            </div>
+                            
+                            <!-- ... otros campos del formulario ... -->
+                            
+                            <div class="col-12 mt-4">
+                                <button type="submit" class="btn btn-primary">
+                                    <i class="bi bi-save me-2"></i>Guardar
+                                </button>
+                            </div>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/js/select2.min.js"></script>
+<script>
+$(document).ready(function() {
+    // Inicializar Select2
+    $('select').select2({theme: 'bootstrap-5'});
+
+    // Manejar cambio de vehículo
+    $('#id_vehiculo').on('change', function() {
+        const vehiculoId = $(this).val();
+        const display = $('#conductor-display');
+        const spinner = $('#conductor-spinner');
+        
+        if (!vehiculoId) {
+            display.val('Seleccione un vehículo');
+            $('#id_conductor').val('');
+            return;
+        }
+
+        display.val('Buscando conductor...');
+        spinner.show();
+
+        $.ajax({
+            url: `/orden_servicio/conductor-por-vehiculo/${vehiculoId}/`,
+            method: 'GET',
+            success: function(data) {
+                if (data.success && data.conductor) {
+                    display.val(data.conductor.nombre);
+                    $('#id_conductor').val(data.conductor.id);
+                    $('#conductor-info').html(
+                        data.conductor.telefono ? 
+                        `<i class="bi bi-telephone"></i> ${data.conductor.telefono}` : ''
+                    );
+                } else {
+                    display.val('Sin conductor asignado');
+                    $('#id_conductor').val('');
+                }
+            },
+            error: function() {
+                display.val('Error al cargar conductor').addClass('conductor-error');
+                $('#id_conductor').val('');
+            },
+            complete: function() {
+                spinner.hide();
+            }
+        });
+    });
+
+    // Cargar conductor inicial si hay vehículo seleccionado
+    if ($('#id_vehiculo').val()) {
+        $('#id_vehiculo').trigger('change');
+    }
+});
+</script>
+{% endblock %}

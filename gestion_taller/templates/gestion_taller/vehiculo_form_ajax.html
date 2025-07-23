@@ -1,0 +1,13 @@
+{% load crispy_forms_tags %}
+
+<form method="post" id="vehiculoFormAjax" action="">
+    {% csrf_token %}
+    <div class="modal-body">
+        <p class="text-muted">Complete los campos para agregar o editar un vehículo.</p>
+        {{ form|crispy }}
+    </div>
+    <div class="modal-footer">
+        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+        <button type="submit" class="btn btn-primary">Guardar Vehículo</button>
+    </div>
+</form>

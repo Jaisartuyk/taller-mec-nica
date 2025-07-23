@@ -1,0 +1,14 @@
+{% extends 'gestion_taller/base.html' %}
+{% block title %}Mi perfil{% endblock %}
+{% block content %}
+<div class="row justify-content-center mt-5">
+    <div class="col-md-6">
+        <h2>Mi perfil</h2>
+        <form method="post">
+            {% csrf_token %}
+            {{ form.as_p }}
+            <button type="submit" class="btn btn-success">Guardar cambios</button>
+        </form>
+    </div>
+</div>
+{% endblock %}

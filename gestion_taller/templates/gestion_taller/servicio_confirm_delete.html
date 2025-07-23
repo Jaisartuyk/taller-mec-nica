@@ -1,0 +1,11 @@
+{% extends 'gestion_taller/base.html' %}
+{% block title %}Eliminar Servicio{% endblock %}
+{% block content %}
+<h2>¿Estás seguro que deseas eliminar este servicio?</h2>
+<p><strong>{{ object.vehiculo }} - {{ object.get_tipo_servicio_display }} ({{ object.fecha }})</strong></p>
+<form method="post">
+    {% csrf_token %}
+    <button type="submit" class="btn btn-danger">Sí, eliminar</button>
+    <a href="{% url 'servicios' %}" class="btn btn-secondary">Cancelar</a>
+</form>
+{% endblock %}

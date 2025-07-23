@@ -1,0 +1,22 @@
+{% load crispy_forms_tags %}
+
+<form method="post" action="">
+    {% csrf_token %}
+    
+    {% for field in form %}
+        <div class="mb-3">
+            {{ field.label_tag }}
+            {{ field }}
+            {% if field.errors %}
+                <div class="invalid-feedback d-block">
+                    {{ field.errors|striptags }}
+                </div>
+            {% endif %}
+        </div>
+    {% endfor %}
+
+    <div class="modal-footer mt-3">
+        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+        <button type="submit" class="btn btn-primary">Guardar</button>
+    </div>
+</form>

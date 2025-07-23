@@ -1,0 +1,94 @@
+<!-- Contenido del formulario de vehículo -->
+<form method="post" id="vehiculoForm" action="{% if form.instance.pk %}{% url 'vehiculo_editar' form.instance.pk %}{% else %}{% url 'vehiculo_nuevo' %}{% endif %}">
+  {% csrf_token %}
+  
+  {% if form.non_field_errors %}
+  <div class="alert alert-danger">
+    {% for error in form.non_field_errors %}
+      {{ error }}
+    {% endfor %}
+  </div>
+  {% endif %}
+
+  <div class="row g-3">
+    {% for field in form %}
+    <div class="col-md-6">
+      <div class="form-group">
+        <label for="{{ field.id_for_label }}" class="form-label">{{ field.label }}</label>
+        {{ field }}
+        {% if field.help_text %}
+          <small class="form-text text-muted">{{ field.help_text }}</small>
+        {% endif %}
+        {% if field.errors %}
+          <div class="invalid-feedback d-block">
+            {{ field.errors|join:", " }}
+          </div>
+        {% endif %}
+      </div>
+    </div>
+    {% endfor %}
+  </div>
+  
+  <div class="modal-footer mt-3">
+    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">
+      <i class="bi bi-x-circle me-1"></i> Cancelar
+    </button>
+    <button type="submit" class="btn btn-primary">
+      <i class="bi bi-save me-1"></i> Guardar
+    </button>
+  </div>
+</form>
+
+<script>
+// Manejar el envío del formulario
+document.getElementById('vehiculoForm')?.addEventListener('submit', function(e) {
+    e.preventDefault();
+    
+    const form = e.target;
+    const submitButton = form.querySelector('button[type="submit"]');
+    
+    if (submitButton) {
+        submitButton.disabled = true;
+        submitButton.innerHTML = '<span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span> Procesando...';
+    }
+    
+    fetch(form.action, {
+        method: 'POST',
+        headers: {
+            'X-Requested-With': 'XMLHttpRequest',
+            'X-CSRFToken': '{{ csrf_token }}'
+        },
+        body: new FormData(form)
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            // Cerrar el modal y recargar la página
+            const modal = bootstrap.Modal.getInstance(document.getElementById('modalVehiculo'));
+            if (modal) {
+                modal.hide();
+                setTimeout(() => window.location.reload(), 300);
+            }
+        } else {
+            // Mostrar errores de validación
+            const modalBody = document.querySelector('#modalVehiculo .modal-body');
+            if (modalBody) {
+                modalBody.innerHTML = data.form || 'Error al procesar el formulario';
+            }
+            
+            if (submitButton) {
+                submitButton.disabled = false;
+                submitButton.innerHTML = '<i class="bi bi-save me-1"></i> Guardar';
+            }
+        }
+    })
+    .catch(error => {
+        console.error('Error:', error);
+        alert('Error al procesar la solicitud. Por favor, intente de nuevo.');
+        if (submitButton) {
+            submitButton.disabled = false;
+            submitButton.innerHTML = '<i class="bi bi-save me-1"></i> Guardar';
+        }
+    });
+});
+</script>

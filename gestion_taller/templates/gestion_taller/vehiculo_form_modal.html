@@ -1,0 +1,163 @@
+{% load static %}
+<div class="modal-dialog modal-lg" role="document">
+    <div class="modal-content">
+        <div class="modal-header">
+            <h5 class="modal-title">
+                {% if form.instance.pk %}Editar{% else %}Nuevo{% endif %} Vehículo
+            </h5>
+            <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Cerrar"></button>
+        </div>
+        <form method="post" action="{% if form.instance.pk %}{% url 'vehiculo_editar' form.instance.pk %}{% else %}{% url 'vehiculo_nuevo' %}{% endif %}" id="vehiculoForm">
+            <div class="modal-body">
+                {% csrf_token %}
+                
+                {% if form.non_field_errors %}
+                <div class="alert alert-danger">
+                    {% for error in form.non_field_errors %}
+                        {{ error }}
+                    {% endfor %}
+                </div>
+                {% endif %}
+
+                <div class="row g-3">
+                    <div class="col-md-6">
+                        <div class="form-group">
+                            <label for="{{ form.marca.id_for_label }}" class="form-label">{{ form.marca.label }}</label>
+                            {{ form.marca }}
+                            {% if form.marca.errors %}
+                                <div class="invalid-feedback d-block">
+                                    {{ form.marca.errors|join:", " }}
+                                </div>
+                            {% endif %}
+                        </div>
+                    </div>
+                    <div class="col-md-6">
+                        <div class="form-group">
+                            <label for="{{ form.modelo.id_for_label }}" class="form-label">{{ form.modelo.label }}</label>
+                            {{ form.modelo }}
+                            {% if form.modelo.errors %}
+                                <div class="invalid-feedback d-block">
+                                    {{ form.modelo.errors|join:", " }}
+                                </div>
+                            {% endif %}
+                        </div>
+                    </div>
+                    <div class="col-md-6">
+                        <div class="form-group">
+                            <label for="{{ form.anio.id_for_label }}" class="form-label">{{ form.anio.label }}</label>
+                            {{ form.anio }}
+                            {% if form.anio.errors %}
+                                <div class="invalid-feedback d-block">
+                                    {{ form.anio.errors|join:", " }}
+                                </div>
+                            {% endif %}
+                        </div>
+                    </div>
+                    <div class="col-md-6">
+                        <div class="form-group">
+                            <label for="{{ form.placa.id_for_label }}" class="form-label">{{ form.placa.label }}</label>
+                            {{ form.placa }}
+                            {% if form.placa.errors %}
+                                <div class="invalid-feedback d-block">
+                                    {{ form.placa.errors|join:", " }}
+                                </div>
+                            {% endif %}
+                        </div>
+                    </div>
+                    <div class="col-md-6">
+                        <div class="form-group">
+                            <label for="{{ form.vin.id_for_label }}" class="form-label">{{ form.vin.label }}</label>
+                            {{ form.vin }}
+                            {% if form.vin.errors %}
+                                <div class="invalid-feedback d-block">
+                                    {{ form.vin.errors|join:", " }}
+                                </div>
+                            {% endif %}
+                        </div>
+                    </div>
+                    <div class="col-md-6">
+                        <div class="form-group">
+                            <label for="{{ form.color.id_for_label }}" class="form-label">{{ form.color.label }}</label>
+                            {{ form.color }}
+                            {% if form.color.errors %}
+                                <div class="invalid-feedback d-block">
+                                    {{ form.color.errors|join:", " }}
+                                </div>
+                            {% endif %}
+                        </div>
+                    </div>
+                    <div class="col-md-6">
+                        <div class="form-group">
+                            <label for="{{ form.kilometraje.id_for_label }}" class="form-label">{{ form.kilometraje.label }}</label>
+                            {{ form.kilometraje }}
+                            {% if form.kilometraje.errors %}
+                                <div class="invalid-feedback d-block">
+                                    {{ form.kilometraje.errors|join:", " }}
+                                </div>
+                            {% endif %}
+                        </div>
+                    </div>
+                    <div class="col-md-6">
+                        <div class="form-group">
+                            <label for="{{ form.conductor.id_for_label }}" class="form-label">{{ form.conductor.label }}</label>
+                            {{ form.conductor }}
+                            {% if form.conductor.errors %}
+                                <div class="invalid-feedback d-block">
+                                    {{ form.conductor.errors|join:", " }}
+                                </div>
+                            {% endif %}
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+                <button type="submit" class="btn btn-primary">
+                    <i class="bi bi-save me-1"></i> Guardar
+                </button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<script>
+$(document).ready(function() {
+    // Inicializar tooltips
+    var tooltipTriggerList = [].slice.call(document.querySelectorAll('[data-bs-toggle="tooltip"]'));
+    var tooltipList = tooltipTriggerList.map(function (tooltipTriggerEl) {
+        return new bootstrap.Tooltip(tooltipTriggerEl);
+    });
+
+    // Manejar el envío del formulario vía AJAX
+    $('#vehiculoForm').on('submit', function(e) {
+        e.preventDefault();
+        var form = $(this);
+        
+        $.ajax({
+            url: form.attr('action'),
+            type: 'POST',
+            data: form.serialize(),
+            success: function(response) {
+                if (response.success) {
+                    // Cerrar el modal
+                    var modal = bootstrap.Modal.getInstance(document.getElementById('modalVehiculo'));
+                    modal.hide();
+                    
+                    // Recargar la tabla de vehículos
+                    $('#vehiculosTable').html(response.tabla);
+                    
+                    // Mostrar notificación de éxito
+                    showToast('Vehículo guardado correctamente', 'success');
+                } else {
+                    // Mostrar errores de validación
+                    $('#modalVehiculo .modal-body').html(response.form);
+                }
+            },
+            error: function(xhr, status, error) {
+                console.error('Error al guardar el vehículo:', error);
+                showToast('Error al guardar el vehículo', 'error');
+            }
+        });
+    });
+});
+</script>

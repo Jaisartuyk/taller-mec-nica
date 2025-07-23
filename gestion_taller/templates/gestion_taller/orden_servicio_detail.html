@@ -1,0 +1,58 @@
+{% extends 'gestion_taller/base.html' %}
+{% load static %}
+{% block content %}
+<div class="container py-4">
+  <div class="row justify-content-center">
+    <div class="col-lg-10">
+      <div class="card shadow mb-4">
+        <div class="card-header bg-primary text-white d-flex justify-content-between align-items-center">
+          <h4 class="mb-0">Detalle de Orden #{{ orden.id }}</h4>
+          <a href="{% url 'orden_servicio_listado' %}" class="btn btn-outline-light btn-sm"><i class="bi bi-arrow-left"></i> Volver</a>
+        </div>
+        <div class="card-body">
+          <div class="row mb-3">
+            <div class="col-md-6">
+              <strong>Vehículo:</strong> {{ orden.vehiculo }}<br>
+              <strong>Conductor:</strong> {{ orden.conductor }}<br>
+              <strong>Estado:</strong> <span class="badge
+                {% if orden.estado == 'pendiente' %}bg-secondary
+                {% elif orden.estado == 'en_progreso' %}bg-warning text-dark
+                {% elif orden.estado == 'completada' %}bg-success
+                {% elif orden.estado == 'facturada' %}bg-primary
+                {% elif orden.estado == 'anulada' %}bg-danger
+                {% endif %}">{{ orden.get_estado_display }}</span><br>
+              <strong>Método de Pago:</strong> {{ orden.metodo_pago }}<br>
+              <strong>Pagada:</strong> {% if orden.pagada %}<span class="badge bg-success">Sí</span>{% else %}<span class="badge bg-danger">No</span>{% endif %}<br>
+              <strong>Fecha de creación:</strong> {{ orden.fecha_creacion|date:"d/m/Y H:i" }}
+            </div>
+            <div class="col-md-6">
+              <strong>Servicios:</strong><br>
+              <ul>
+                {% for s in orden.servicios.all %}
+                  <li>{{ s.nombre }} <span class="text-muted">(${{ s.precio_base|floatformat:2 }})</span></li>
+                {% empty %}<li>-</li>{% endfor %}
+              </ul>
+              <strong>Productos:</strong><br>
+              <ul>
+                {% for p in orden.productos.all %}
+                  <li>{{ p.nombre }} <span class="text-muted">(${{ p.precio_venta|floatformat:2 }})</span></li>
+                {% empty %}<li>-</li>{% endfor %}
+              </ul>
+            </div>
+          </div>
+          <hr>
+          <div class="row">
+            <div class="col-md-6">
+              <h5>Total: <span class="badge bg-dark">${{ orden.total|floatformat:2 }}</span></h5>
+            </div>
+            <div class="col-md-6 text-end">
+              <a href="#" class="btn btn-outline-secondary"><i class="bi bi-printer"></i> Imprimir</a>
+              {% if not orden.pagada %}<a href="#" class="btn btn-success"><i class="bi bi-cash"></i> Registrar Pago</a>{% endif %}
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}

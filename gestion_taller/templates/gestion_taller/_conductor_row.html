@@ -1,0 +1,10 @@
+<tr>
+    <td>{{ conductor.nombre }}</td>
+    <td>{{ conductor.telefono }}</td>
+    <td>{{ conductor.correo }}</td>
+    <td>{{ conductor.direccion }}</td>
+    <td>
+        <a href="{% url 'conductor_editar' conductor.pk %}" class="btn btn-primary btn-sm">Editar</a>
+        <a href="{% url 'conductor_eliminar' conductor.pk %}" class="btn btn-danger btn-sm">Eliminar</a>
+    </td>
+</tr>

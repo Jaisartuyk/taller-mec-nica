@@ -1,0 +1,11 @@
+{% extends 'gestion_taller/base.html' %}
+{% block title %}Eliminar Vehículo{% endblock %}
+{% block content %}
+<h2>¿Estás seguro que deseas eliminar este vehículo?</h2>
+<p><strong>{{ object.placa }} - {{ object.marca }} {{ object.modelo }}</strong></p>
+<form method="post">
+    {% csrf_token %}
+    <button type="submit" class="btn btn-danger">Sí, eliminar</button>
+    <a href="{% url 'vehiculos' %}" class="btn btn-secondary">Cancelar</a>
+</form>
+{% endblock %}

@@ -1,0 +1,11 @@
+{% extends 'gestion_taller/base.html' %}
+{% block title %}Eliminar Conductor{% endblock %}
+{% block content %}
+<h2>¿Estás seguro que deseas eliminar este conductor?</h2>
+<p><strong>{{ object.nombre }}</strong></p>
+<form method="post">
+    {% csrf_token %}
+    <button type="submit" class="btn btn-danger">Sí, eliminar</button>
+    <a href="{% url 'conductores' %}" class="btn btn-secondary">Cancelar</a>
+</form>
+{% endblock %}

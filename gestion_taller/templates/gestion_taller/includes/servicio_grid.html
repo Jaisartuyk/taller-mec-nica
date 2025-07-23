@@ -1,0 +1,123 @@
+<div class="table-responsive">
+    <table class="table table-hover table-striped">
+        <thead class="table-light">
+            <tr>
+                <th>Vehículo</th>
+                <th>Fecha</th>
+                <th>Tipo</th>
+                <th>Descripción</th>
+                <th>Repuestos</th>
+                <th class="text-end">Costo</th>
+                <th class="text-center">Acciones</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% if servicios %}
+                {% for servicio in servicios %}
+                <tr>
+                    <td>
+                        <div class="d-flex flex-column">
+                            <span class="fw-bold">{{ servicio.vehiculo.marca }} {{ servicio.vehiculo.modelo }}</span>
+                            <small class="text-muted">{{ servicio.vehiculo.placa }}</small>
+                        </div>
+                    </td>
+                    <td>{{ servicio.fecha|date:"d/m/Y" }}</td>
+                    <td>
+                        <span class="badge bg-info">{{ servicio.get_tipo_servicio_display }}</span>
+                    </td>
+                    <td>
+                        <div class="text-truncate" style="max-width: 250px;" title="{{ servicio.descripcion }}">
+                            {{ servicio.descripcion|truncatechars:50 }}
+                        </div>
+                    </td>
+                    <td>
+                        {% if servicio.repuestos.exists %}
+                            <div class="dropdown">
+                                <button class="btn btn-sm btn-outline-secondary dropdown-toggle" type="button" 
+                                        id="dropdownRepuestos{{ servicio.id }}" data-bs-toggle="dropdown" 
+                                        aria-expanded="false">
+                                    {{ servicio.repuestos.count }} repuesto{{ servicio.repuestos.count|pluralize }}
+                                </button>
+                                <ul class="dropdown-menu" aria-labelledby="dropdownRepuestos{{ servicio.id }}">
+                                    {% for repuesto in servicio.repuestos.all %}
+                                        <li><a class="dropdown-item" href="#">{{ repuesto.nombre }}</a></li>
+                                    {% endfor %}
+                                </ul>
+                            </div>
+                        {% else %}
+                            <span class="text-muted">Ninguno</span>
+                        {% endif %}
+                    </td>
+                    <td class="text-end">
+                        <span class="fw-bold">${{ servicio.costo|floatformat:2 }}</span>
+                    </td>
+                    <td class="text-center">
+                        <div class="btn-group btn-group-sm" role="group">
+                            <button class="btn btn-outline-primary btn-edit-servicio" 
+                                    data-url="{% url 'servicio_editar' servicio.pk %}"
+                                    title="Editar">
+                                <i class="fas fa-edit"></i>
+                            </button>
+                            <button class="btn btn-outline-danger btn-eliminar-servicio"
+                                    data-url="{% url 'servicio_eliminar' servicio.pk %}"
+                                    title="Eliminar">
+                                <i class="fas fa-trash-alt"></i>
+                            </button>
+                        </div>
+                    </td>
+                </tr>
+                {% endfor %}
+            {% else %}
+                <tr>
+                    <td colspan="7" class="text-center py-4">
+                        <div class="text-muted">
+                            <i class="fas fa-inbox fa-3x mb-3"></i>
+                            <p class="mb-0">No hay servicios registrados</p>
+                            <small>Haz clic en "Nuevo Servicio" para comenzar</small>
+                        </div>
+                    </td>
+                </tr>
+            {% endif %}
+        </tbody>
+    </table>
+    
+    {% if is_paginated %}
+    <nav aria-label="Paginación" class="mt-4">
+        <ul class="pagination justify-content-center">
+            {% if page_obj.has_previous %}
+                <li class="page-item">
+                    <a class="page-link" href="?page=1" aria-label="Primera">
+                        <span aria-hidden="true">&laquo;&laquo;</span>
+                    </a>
+                </li>
+                <li class="page-item">
+                    <a class="page-link" href="?page={{ page_obj.previous_page_number }}" aria-label="Anterior">
+                        <span aria-hidden="true">&laquo;</span>
+                    </a>
+                </li>
+            {% endif %}
+            
+            {% for num in page_obj.paginator.page_range %}
+                {% if page_obj.number == num %}
+                    <li class="page-item active"><span class="page-link">{{ num }}</span></li>
+                {% elif num > page_obj.number|add:'-3' and num < page_obj.number|add:'3' %}
+                    <li class="page-item"><a class="page-link" href="?page={{ num }}">{{ num }}</a></li>
+                {% endif %}
+            {% endfor %}
+            
+            {% if page_obj.has_next %}
+                <li class="page-item">
+                    <a class="page-link" href="?page={{ page_obj.next_page_number }}" aria-label="Siguiente">
+                        <span aria-hidden="true">&raquo;</span>
+                    </a>
+                </li>
+                <li class="page-item">
+                    <a class="page-link" href="?page={{ page_obj.paginator.num_pages }}" aria-label="Última">
+                        <span aria-hidden="true">&raquo;&raquo;</span>
+                    </a>
+                </li>
+            {% endif %}
+        </ul>
+    </nav>
+    {% endif %}
+</div>
