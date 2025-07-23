@@ -9,7 +9,9 @@ import torch
 import os
 
 # Configura tu token de bot y la URL de tu API
-TELEGRAM_BOT_TOKEN = '8098388898:AAFBQN4AGi4ki66E8GgGl63iAV60aXDlFcg'
+import os
+TELEGRAM_BOT_TOKEN = os.environ.get('TELEGRAM_BOT_TOKEN')  # Ahora el token se toma de la variable de entorno
+'8098388898:AAFBQN4AGi4ki66E8GgGl63iAV60aXDlFcg'
 API_URL = os.environ.get('DJANGO_API_URL', 'http://localhost:8000/api/vincular-telegram/')
 
 # Carga el modelo conversacional de Hugging Face (GPT-2 español)

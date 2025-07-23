@@ -24,6 +24,7 @@ services:
       - .:/app
     environment:
       - DJANGO_API_URL=http://django:8000/api/vincular-telegram/
+      - TELEGRAM_BOT_TOKEN=${TELEGRAM_BOT_TOKEN}
     depends_on:
       - django
 
