@@ -1,0 +1,25 @@
+# Byte-compiled / optimized / DLL files
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+
+# Django stuff:
+*.sqlite3
+*.db
+.env
+.env.*
+/media
+/staticfiles
+
+# VSCode, PyCharm, OS junk
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db
+
+# Node/npm
+node_modules/
+
+# Others
+*.log
