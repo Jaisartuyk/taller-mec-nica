@@ -9,4 +9,4 @@ transformers
 torch
 gunicorn
 dj-database-url
-psycopg2-binary
+psycopg2-binary # trigger rebuild
