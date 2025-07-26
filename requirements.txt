@@ -8,3 +8,5 @@ python-telegram-bot
 transformers
 torch
 gunicorn
+dj-database-url
+psycopg2-binary
