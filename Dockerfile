@@ -17,4 +17,5 @@ COPY . .
 EXPOSE 8000
 
 # Comando por defecto: runserver (solo para pruebas/desarrollo)
-CMD ["gunicorn", "--bind", "0.0.0.0:$PORT", "taller_mecanica.wsgi:application"]
+CMD gunicorn --bind 0.0.0.0:$PORT taller_mecanica.wsgi:application
+
