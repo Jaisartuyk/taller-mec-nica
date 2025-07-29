@@ -26,7 +26,16 @@ SECRET_KEY = 'django-insecure-$z=w!70h%+p*jrb2go45!t41i0rp%36@z&*6bf^^13&@049%$0
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = True
 
-ALLOWED_HOSTS = os.environ.get('ALLOWED_HOSTS', 'localhost,127.0.0.1,django').split(',')
+ALLOWED_HOSTS = os.environ.get(
+    'ALLOWED_HOSTS',
+    'localhost,127.0.0.1,django,iqautoec.com,www.iqautoec.com,oqcfncr6.up.railway.app'
+).split(',')
+
+CSRF_TRUSTED_ORIGINS = [
+    "https://iqautoec.com",
+    "https://www.iqautoec.com",
+]
+
 
 
 import dj_database_url
