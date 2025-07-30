@@ -7,7 +7,7 @@
 <div class="container">
     <div class="form-container">
         <h2 class="mb-4">{% if view.object %}Editar{% else %}Nuevo{% endif %} Conductor</h2>
-        <form method="post" action="{% if view.object %}{% url 'conductor_editar' view.object.pk %}{% else %}{% url 'conductor_nuevo' %}{% endif %}" hx-post="" hx-target="#modalConductorBody" hx-swap="outerHTML">
+        <form method="post" action="{% if view.object %}{% url 'conductor_editar' view.object.pk %}{% else %}{% url 'conductor_nuevo' %}{% endif %}">
             {% csrf_token %}
             <div class="row g-3">
                 {% for field in form %}

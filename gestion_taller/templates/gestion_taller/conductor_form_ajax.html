@@ -1,6 +1,6 @@
 {% load crispy_forms_tags %}
 
-<form method="post" action="">
+<form method="post" action="{% if form.instance.pk %}{% url 'conductor_editar' form.instance.pk %}{% else %}{% url 'conductor_nuevo' %}{% endif %}">
     {% csrf_token %}
     
     {% for field in form %}
