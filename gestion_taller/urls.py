@@ -18,6 +18,7 @@ urlpatterns = [
     path('api/vincular-telegram/', vincular_telegram, name='vincular_telegram'),
     path('', home, name='home'),
     path('perfil/', PerfilUsuarioView.as_view(), name='perfil_usuario'),
+    path('mi-perfil/', views.perfil_usuario_view, name='mi_perfil_usuario'),
     # Conductores
     path('conductores/', ConductorListView.as_view(), name='conductores'),
     path('conductores/nuevo/', ConductorCreateView.as_view(), name='conductor_nuevo'),

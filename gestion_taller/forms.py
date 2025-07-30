@@ -208,7 +208,9 @@ class DetalleServicioForm(forms.ModelForm):
 
 from django.contrib.auth.models import User
 
+from .models import PerfilUsuario
+
 class PerfilUsuarioForm(forms.ModelForm):
     class Meta:
-        model = User
-        fields = ['first_name', 'last_name', 'email']
+        model = PerfilUsuario
+        fields = ['telegram_chat_id', 'rol', 'conductor']

@@ -23,6 +23,17 @@ class VehiculoListView(ListView):
     template_name = 'gestion_taller/vehiculo_list.html'
     context_object_name = 'vehiculos'
 
+    def dispatch(self, request, *args, **kwargs):
+        from django.core.exceptions import ObjectDoesNotExist
+        from django.contrib import messages
+        from django.shortcuts import redirect
+        try:
+            _ = request.user.perfilusuario
+        except ObjectDoesNotExist:
+            messages.warning(request, "Debes crear tu perfil de usuario antes de continuar.")
+            return redirect('mi_perfil_usuario')
+        return super().dispatch(request, *args, **kwargs)
+
     def get_queryset(self):
         perfil = self.request.user.perfilusuario
         if perfil.cliente:
@@ -1029,6 +1040,36 @@ class ServicioDeleteView(LoginRequiredMixin, DeleteView):
                                        request=request)
             return JsonResponse({'success': True, 'grid': html_grid})
         return HttpResponseRedirect(success_url)
+
+# Vista para crear/editar perfil de usuario
+from django.contrib.auth.decorators import login_required
+from django.shortcuts import render, redirect
+from .models import PerfilUsuario
+from .forms import PerfilUsuarioForm
+
+@login_required
+def perfil_usuario_view(request):
+    try:
+        perfil = request.user.perfilusuario
+        editando = True
+    except PerfilUsuario.DoesNotExist:
+        perfil = None
+        editando = False
+
+    if request.method == 'POST':
+        form = PerfilUsuarioForm(request.POST, instance=perfil)
+        if form.is_valid():
+            perfil = form.save(commit=False)
+            perfil.user = request.user
+            perfil.save()
+            return redirect('perfil_usuario')
+    else:
+        form = PerfilUsuarioForm(instance=perfil)
+
+    return render(request, 'gestion_taller/perfil_usuario_form.html', {
+        'form': form,
+        'editando': editando,
+    })
 
 # Vista para perfil de usuario
 @method_decorator(login_required, name='dispatch')
