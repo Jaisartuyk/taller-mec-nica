@@ -400,8 +400,12 @@ class ConductorCreateView(CreateView):
 
     def form_valid(self, form):
         perfil = self.request.user.perfilusuario
-        if perfil.rol in ['admin', 'empleado'] and perfil.cliente:
+        # Siempre asigna el cliente si existe en el perfil
+        if perfil.cliente:
             form.instance.cliente = perfil.cliente
+        else:
+            form.add_error(None, "No se puede crear un conductor sin un cliente asociado al usuario.")
+            return self.form_invalid(form)
         self.object = form.save()
         if self.request.headers.get('x-requested-with') == 'XMLHttpRequest':
             conductores = Conductor.objects.filter(cliente=perfil.cliente)
