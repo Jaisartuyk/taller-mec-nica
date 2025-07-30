@@ -1,11 +1,41 @@
 {% extends "gestion_taller/base.html" %}
 {% block content %}
-  <div class="container mt-4">
-    <h2>{{ editando|yesno:"Editar,Crear" }} Perfil de Usuario</h2>
-    <form method="post">
-      {% csrf_token %}
-      {{ form.as_p }}
-      <button type="submit" class="btn btn-primary">Guardar</button>
-    </form>
+<div class="container mt-4">
+  <div class="row justify-content-center">
+    <div class="col-md-8 col-lg-6">
+      <div class="card shadow">
+        <div class="card-header bg-primary text-white">
+          <h4 class="mb-0">{{ editando|yesno:"Editar,Crear" }} Perfil de Usuario</h4>
+        </div>
+        <div class="card-body">
+          <form method="post" novalidate>
+            {% csrf_token %}
+            {% if form.non_field_errors %}
+              <div class="alert alert-danger">
+                {{ form.non_field_errors }}
+              </div>
+            {% endif %}
+            <div class="mb-3">
+              <label for="id_rol" class="form-label">{{ form.rol.label }}</label>
+              {{ form.rol|as_widget }}
+              {% if form.rol.errors %}
+                <div class="text-danger small">{{ form.rol.errors }}</div>
+              {% endif %}
+              <div class="form-text">Selecciona el tipo de usuario que mejor describe tu función en el sistema.</div>
+            </div>
+            <div class="mb-3">
+              <label for="id_conductor" class="form-label">{{ form.conductor.label }}</label>
+              {{ form.conductor|as_widget }}
+              {% if form.conductor.errors %}
+                <div class="text-danger small">{{ form.conductor.errors }}</div>
+              {% endif %}
+              <div class="form-text">Puedes asociar tu perfil a un conductor (opcional).</div>
+            </div>
+            <button type="submit" class="btn btn-primary w-100">Guardar</button>
+          </form>
+        </div>
+      </div>
+    </div>
   </div>
+</div>
 {% endblock %}

@@ -213,4 +213,12 @@ from .models import PerfilUsuario
 class PerfilUsuarioForm(forms.ModelForm):
     class Meta:
         model = PerfilUsuario
-        fields = ['telegram_chat_id', 'rol', 'conductor']
+        fields = ['rol', 'conductor']
+        labels = {
+            'rol': 'Rol de usuario',
+            'conductor': 'Conductor asociado (opcional)',
+        }
+        widgets = {
+            'rol': forms.Select(attrs={'class': 'form-select'}),
+            'conductor': forms.Select(attrs={'class': 'form-select'}),
+        }
