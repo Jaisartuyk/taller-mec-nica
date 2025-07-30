@@ -17,7 +17,7 @@
             {% endif %}
             <div class="mb-3">
               <label for="id_rol" class="form-label">{{ form.rol.label }}</label>
-              {{ form.rol|as_widget }}
+              {{ form.rol }}
               {% if form.rol.errors %}
                 <div class="text-danger small">{{ form.rol.errors }}</div>
               {% endif %}
@@ -25,7 +25,7 @@
             </div>
             <div class="mb-3">
               <label for="id_conductor" class="form-label">{{ form.conductor.label }}</label>
-              {{ form.conductor|as_widget }}
+              {{ form.conductor }}
               {% if form.conductor.errors %}
                 <div class="text-danger small">{{ form.conductor.errors }}</div>
               {% endif %}
