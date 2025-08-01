@@ -1,5 +1,5 @@
 from django.urls import path
-from . import views
+from gestion_taller import views
 from .views import home
 
 from .views import (
@@ -15,6 +15,7 @@ from .views import (
 from .views import vincular_telegram
 
 urlpatterns = [
+    path('telegram_webhook/', views.telegram_webhook, name='telegram_webhook'),
     path('api/vincular-telegram/', vincular_telegram, name='vincular_telegram'),
     path('', home, name='home'),
     path('perfil/', PerfilUsuarioView.as_view(), name='perfil_usuario'),

@@ -650,6 +650,116 @@ class OrdenServicioCreateView(LoginRequiredMixin, CreateView):
         return super().form_invalid(form)
 
 # --- API: Vinculación de Telegram ---
+
+from django.views.decorators.csrf import csrf_exempt
+from django.http import JsonResponse, HttpResponse
+import os
+import json
+import requests
+
+TELEGRAM_BOT_TOKEN = os.environ.get('TELEGRAM_BOT_TOKEN')
+
+# --- Lógica de FAQ y IA ---
+FAQ = {
+    "¿cómo vinculo mi cuenta?": "Para vincular tu cuenta, usa el comando /start y sigue las instrucciones para ingresar tu correo y contraseña.",
+    "¿qué servicios ofrecen?": "Ofrecemos mantenimiento preventivo, correctivo, diagnóstico, alineación, balanceo y más. ¡Pregunta por tu servicio!",
+    "¿cómo contacto al taller?": "Puedes contactarnos al teléfono 555-123-4567 o por este chat de Telegram.",
+    "¿cuándo es mi próximo mantenimiento?": "Puedes consultar tu próximo mantenimiento en la app web o escribirnos aquí para más detalles.",
+}
+
+def buscar_faq(pregunta):
+    pregunta = pregunta.lower().strip()
+    for key in FAQ:
+        if key in pregunta:
+            return FAQ[key]
+    return None
+
+# --- IA: usando Hugging Face (debes instalar transformers y torch en Railway) ---
+try:
+    from transformers import AutoModelForCausalLM, AutoTokenizer
+    import torch
+    MODEL_NAME = "datificate/gpt2-small-spanish"
+    tokenizer = AutoTokenizer.from_pretrained(MODEL_NAME)
+    model = AutoModelForCausalLM.from_pretrained(MODEL_NAME)
+    IA_READY = True
+except Exception:
+    IA_READY = False
+    tokenizer = None
+    model = None
+
+def obtener_respuesta_ia(mensaje_usuario):
+    if not IA_READY:
+        return "Lo siento, la IA no está disponible en este momento."
+    prompt = f"Usuario: {mensaje_usuario}\nIA: "
+    inputs = tokenizer.encode(prompt, return_tensors="pt")
+    outputs = model.generate(inputs, max_new_tokens=60, pad_token_id=tokenizer.eos_token_id)
+    respuesta = tokenizer.decode(outputs[0], skip_special_tokens=True)
+    partes = respuesta.split("IA:")
+    if len(partes) > 1:
+        respuesta_ia = partes[-1].strip()
+    else:
+        respuesta_ia = respuesta.strip()
+    if not respuesta_ia or respuesta_ia.lower() in ["", "ia", "jo:"] or respuesta_ia.startswith("JO:"):
+        respuesta_ia = "Lo siento, no entendí la pregunta. ¿Puedes reformularla?"
+    return respuesta_ia
+
+@csrf_exempt
+def telegram_webhook(request):
+    if request.method == "POST":
+        try:
+            data = json.loads(request.body.decode("utf-8"))
+            if "message" in data:
+                chat_id = data["message"]["chat"]["id"]
+                text = data["message"].get("text", "")
+                # Procesamiento de comandos y preguntas
+                if text.startswith("/start"):
+                    reply = "¡Hola! Por favor, usa /faq para preguntas frecuentes o /ia seguido de tu pregunta para hablar con la IA."
+                elif text.startswith("/faq"):
+                    texto_faq = "Preguntas frecuentes:\n"
+                    for i, q in enumerate(FAQ.keys(), 1):
+                        texto_faq += f"{i}. {q.capitalize()}\n"
+                    texto_faq += "\nEscribe la pregunta exacta o usa /ia para otras dudas."
+                    reply = texto_faq
+                elif text.startswith("/ia"):
+                    pregunta = text[3:].strip()
+                    if not pregunta:
+                        reply = "Por favor, escribe tu pregunta después de /ia"
+                    else:
+                        respuesta_faq = buscar_faq(pregunta)
+                        if respuesta_faq:
+                            reply = respuesta_faq
+                        else:
+                            reply = "Pensando... (esto puede tardar unos segundos la primera vez)"
+                            # Enviar respuesta de espera primero
+                            send_message_url = f"https://api.telegram.org/bot{TELEGRAM_BOT_TOKEN}/sendMessage"
+                            requests.post(send_message_url, json={
+                                "chat_id": chat_id,
+                                "text": reply
+                            })
+                            # Generar respuesta IA y enviar después
+                            respuesta_ia = obtener_respuesta_ia(pregunta)
+                            requests.post(send_message_url, json={
+                                "chat_id": chat_id,
+                                "text": respuesta_ia
+                            })
+                            return JsonResponse({"ok": True})
+                else:
+                    respuesta_faq = buscar_faq(text)
+                    if respuesta_faq:
+                        reply = respuesta_faq
+                    else:
+                        reply = "Comando o pregunta no reconocida. Usa /faq o /ia."
+                # Envía la respuesta al usuario
+                send_message_url = f"https://api.telegram.org/bot{TELEGRAM_BOT_TOKEN}/sendMessage"
+                requests.post(send_message_url, json={
+                    "chat_id": chat_id,
+                    "text": reply
+                })
+            return JsonResponse({"ok": True})
+        except Exception as e:
+            return JsonResponse({"ok": False, "error": str(e)}, status=500)
+    return HttpResponse("Método no permitido", status=405)
+
 from django.views.decorators.csrf import csrf_exempt
 from django.contrib.auth import authenticate
 from django.http import JsonResponse
