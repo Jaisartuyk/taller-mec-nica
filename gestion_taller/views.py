@@ -103,7 +103,7 @@ class VehiculoUpdateView(UpdateView):
         if request.headers.get('x-requested-with') == 'XMLHttpRequest':
             self.object = self.get_object()
             form = self.get_form()
-            html_form = render_to_string('gestion_taller/vehiculo_form_ajax.html', {'form': form}, request=request)
+            html_form = render_to_string('gestion_taller/vehiculo_form_modal.html', {'form': form}, request=request)
             return HttpResponse(html_form)
         return super().get(request, *args, **kwargs)
 
