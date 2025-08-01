@@ -705,52 +705,111 @@ def obtener_respuesta_ia(mensaje_usuario):
 
 @csrf_exempt
 def telegram_webhook(request):
+    from django.contrib.auth import authenticate
+    from gestion_taller.models import PerfilUsuario, Conductor
     if request.method == "POST":
         try:
             data = json.loads(request.body.decode("utf-8"))
             if "message" in data:
-                chat_id = data["message"]["chat"]["id"]
-                text = data["message"].get("text", "")
-                # Procesamiento de comandos y preguntas
-                if text.startswith("/start"):
-                    reply = "¡Hola! Por favor, usa /faq para preguntas frecuentes o /ia seguido de tu pregunta para hablar con la IA."
-                elif text.startswith("/faq"):
-                    texto_faq = "Preguntas frecuentes:\n"
-                    for i, q in enumerate(FAQ.keys(), 1):
-                        texto_faq += f"{i}. {q.capitalize()}\n"
-                    texto_faq += "\nEscribe la pregunta exacta o usa /ia para otras dudas."
-                    reply = texto_faq
-                elif text.startswith("/ia"):
-                    pregunta = text[3:].strip()
-                    if not pregunta:
-                        reply = "Por favor, escribe tu pregunta después de /ia"
-                    else:
-                        respuesta_faq = buscar_faq(pregunta)
-                        if respuesta_faq:
-                            reply = respuesta_faq
-                        else:
-                            reply = "Pensando... (esto puede tardar unos segundos la primera vez)"
-                            # Enviar respuesta de espera primero
-                            send_message_url = f"https://api.telegram.org/bot{TELEGRAM_BOT_TOKEN}/sendMessage"
-                            requests.post(send_message_url, json={
-                                "chat_id": chat_id,
-                                "text": reply
-                            })
-                            # Generar respuesta IA y enviar después
-                            respuesta_ia = obtener_respuesta_ia(pregunta)
-                            requests.post(send_message_url, json={
-                                "chat_id": chat_id,
-                                "text": respuesta_ia
-                            })
-                            return JsonResponse({"ok": True})
-                else:
-                    respuesta_faq = buscar_faq(text)
-                    if respuesta_faq:
-                        reply = respuesta_faq
-                    else:
-                        reply = "Comando o pregunta no reconocida. Usa /faq o /ia."
-                # Envía la respuesta al usuario
+                chat_id = str(data["message"]["chat"]["id"])
+                text = data["message"].get("text", "").strip()
                 send_message_url = f"https://api.telegram.org/bot{TELEGRAM_BOT_TOKEN}/sendMessage"
+                # --- 1. Identificación por chat_id ---
+                perfil = PerfilUsuario.objects.filter(telegram_chat_id=chat_id).first()
+                conductor = Conductor.objects.filter(telegram_chat_id=chat_id).first()
+                # --- 2. Si ya está vinculado ---
+                if perfil:
+                    if perfil.rol == 'admin':
+                        # Comandos solo para admin
+                        if text == '/start':
+                            reply = "¡Hola, administrador! Puedes consultar el estado del taller, recibir notificaciones y gestionar todo desde aquí. Usa /faq o /ayuda para ver comandos."
+                        elif text == '/taller_info':
+                            reply = f"Taller: {perfil.cliente.nombre}\nConductores: {perfil.cliente.usuarios.filter(rol='conductor').count()}\nVehículos: {perfil.cliente.vehiculos.count()}\nRepuestos: {perfil.cliente.repuestos.count()}\nÓrdenes: {perfil.cliente.ordenes_servicio.count()}"
+                        else:
+                            reply = "Comando no reconocido para admin. Usa /faq o /ayuda."
+                    else:
+                        # Empleado o usuario normal
+                        reply = f"¡Hola {perfil.user.first_name}! Tu rol: {perfil.get_rol_display()}. Usa /faq o /ayuda para opciones."
+                elif conductor:
+                    # Comandos solo para conductor
+                    if text == '/start':
+                        reply = f"¡Hola {conductor.nombre}! Puedes consultar tus órdenes con /mis_ordenes, productos con /mis_productos y servicios con /servicios."
+                    elif text == '/mis_ordenes':
+                        ordenes = conductor.ordenes_servicio.all()
+                        if ordenes.exists():
+                            reply = 'Tus órdenes:\n' + '\n'.join([f"#{o.id}: {o.estado} - {o.fecha_creacion.date()}" for o in ordenes])
+                        else:
+                            reply = "No tienes órdenes registradas."
+                    elif text == '/servicios':
+                        servicios = conductor.servicios.all()
+                        if servicios.exists():
+                            reply = 'Tus servicios:\n' + '\n'.join([f"{s.descripcion} - {s.fecha_servicio.date()}" for s in servicios])
+                        else:
+                            reply = "No tienes servicios registrados."
+                    elif text == '/mis_productos':
+                        ordenes = conductor.ordenes_servicio.all()
+                        productos = set()
+                        for o in ordenes:
+                            productos.update(o.productos.values_list('nombre', flat=True))
+                        if productos:
+                            reply = 'Tus productos/repuestos:\n' + '\n'.join(productos)
+                        else:
+                            reply = "No tienes productos asignados."
+                    else:
+                        reply = "Comando no reconocido para conductor. Usa /faq o /ayuda."
+                # --- 3. Si NO está vinculado, iniciar flujo de vinculación ---
+                else:
+                    # Guardar estado conversacional en memoria (simple, por chat_id)
+                    if not hasattr(telegram_webhook, 'pending'): telegram_webhook.pending = {}
+                    pending = telegram_webhook.pending
+                    if chat_id not in pending:
+                        # Preguntar tipo
+                        if text.lower() in ['usuario', 'conductor']:
+                            pending[chat_id] = {'tipo': text.lower(), 'step': 1}
+                            reply = 'Por favor, escribe tu correo:'
+                        else:
+                            reply = '¿Eres usuario (admin/empleado) o conductor? Responde: usuario o conductor.'
+                    else:
+                        tipo = pending[chat_id]['tipo']
+                        step = pending[chat_id]['step']
+                        if step == 1:
+                            pending[chat_id]['correo'] = text
+                            pending[chat_id]['step'] = 2
+                            if tipo == 'usuario':
+                                reply = 'Por favor, escribe tu contraseña:'
+                            else:
+                                reply = 'Verificando...'
+                                # Buscar conductor
+                                conductor = Conductor.objects.filter(correo=text).first()
+                                if conductor:
+                                    conductor.telegram_chat_id = chat_id
+                                    conductor.save()
+                                    del pending[chat_id]
+                                    reply = f'¡Vinculación exitosa como conductor {conductor.nombre}!'
+                                else:
+                                    del pending[chat_id]
+                                    reply = 'No se encontró conductor con ese correo.'
+                        elif step == 2 and tipo == 'usuario':
+                            correo = pending[chat_id]['correo']
+                            password = text
+                            user = authenticate(username=correo, password=password)
+                            if user:
+                                perfil = getattr(user, 'perfilusuario', None)
+                                if perfil:
+                                    perfil.telegram_chat_id = chat_id
+                                    perfil.save()
+                                    del pending[chat_id]
+                                    reply = f'¡Vinculación exitosa como usuario {user.first_name} ({perfil.get_rol_display()})!'
+                                else:
+                                    del pending[chat_id]
+                                    reply = 'No se encontró perfil asociado.'
+                            else:
+                                del pending[chat_id]
+                                reply = 'Credenciales incorrectas.'
+                        else:
+                            del pending[chat_id]
+                            reply = 'Ocurrió un error en el proceso de vinculación. Intenta de nuevo.'
+                # Envía la respuesta al usuario
                 requests.post(send_message_url, json={
                     "chat_id": chat_id,
                     "text": reply
