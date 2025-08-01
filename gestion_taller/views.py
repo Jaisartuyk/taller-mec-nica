@@ -722,11 +722,74 @@ def telegram_webhook(request):
                     if perfil.rol == 'admin':
                         # Comandos solo para admin
                         if text == '/start':
-                            reply = "¡Hola, administrador! Puedes consultar el estado del taller, recibir notificaciones y gestionar todo desde aquí. Usa /faq o /ayuda para ver comandos."
+                            reply = "¡Hola, administrador! Puedes consultar el estado del taller, recibir notificaciones y gestionar todo desde aquí. Usa /faq, /ayuda, /taller_info, /conductores, /vehiculos, /ordenes o /notificar."
                         elif text == '/taller_info':
-                            reply = f"Taller: {perfil.cliente.nombre}\nConductores: {perfil.cliente.usuarios.filter(rol='conductor').count()}\nVehículos: {perfil.cliente.vehiculos.count()}\nRepuestos: {perfil.cliente.repuestos.count()}\nÓrdenes: {perfil.cliente.ordenes_servicio.count()}"
+                            reply = (
+                                f"Taller: {perfil.cliente.nombre}\n"
+                                f"Conductores: {perfil.cliente.conductores.count()}\n"
+                                f"Vehículos: {perfil.cliente.vehiculos.count()}\n"
+                                f"Repuestos: {perfil.cliente.repuestos.count()}\n"
+                                f"Órdenes: {perfil.cliente.ordenes_servicio.count()}"
+                            )
+                            # Agregar nombres de conductores
+                            conductores = perfil.cliente.conductores.all()
+                            if conductores.exists():
+                                nombres = ', '.join([c.nombre for c in conductores])
+                                reply += f"\nNombres de conductores: {nombres}"
+                            else:
+                                reply += "\nNo hay conductores registrados."
+                        elif text == '/conductores':
+                            conductores = perfil.cliente.conductores.all()
+                            if conductores.exists():
+                                reply = 'Conductores:\n' + '\n'.join([f"{c.nombre} | {c.correo or '-'} | {c.telefono or '-'}" for c in conductores])
+                            else:
+                                reply = 'No hay conductores registrados.'
+                        elif text == '/vehiculos':
+                            vehiculos = perfil.cliente.vehiculos.all()
+                            if vehiculos.exists():
+                                reply = 'Vehículos:\n' + '\n'.join([f"{v.placa} | {v.marca} {v.modelo} | {v.color or '-'}" for v in vehiculos])
+                            else:
+                                reply = 'No hay vehículos registrados.'
+                        elif text == '/ordenes':
+                            ordenes = perfil.cliente.ordenes_servicio.all().order_by('-fecha_creacion')[:20]
+                            if ordenes.exists():
+                                reply = 'Órdenes recientes:\n' + '\n'.join([f"#{o.id}: {o.estado} | {o.vehiculo.placa} | {o.fecha_creacion.date()}" for o in ordenes])
+                            else:
+                                reply = 'No hay órdenes registradas.'
+                        elif text.startswith('/notificar'):
+                            mensaje = text[len('/notificar'):].strip()
+                            if not mensaje:
+                                reply = 'Debes escribir el mensaje después de /notificar. Ejemplo:\n/notificar Mañana hay reunión.'
+                            else:
+                                # Notificar a empleados y conductores vinculados
+                                chat_ids = set()
+                                # Empleados (PerfilUsuario) con chat_id
+                                for usuario in perfil.cliente.usuarios.exclude(telegram_chat_id__isnull=True).exclude(telegram_chat_id=''):
+                                    chat_ids.add(usuario.telegram_chat_id)
+                                # Conductores con chat_id
+                                for c in perfil.cliente.conductores.exclude(telegram_chat_id__isnull=True).exclude(telegram_chat_id=''):
+                                    chat_ids.add(c.telegram_chat_id)
+                                enviados = 0
+                                for cid in chat_ids:
+                                    try:
+                                        requests.post(send_message_url, json={"chat_id": cid, "text": f"[Notificación del taller]:\n{mensaje}"})
+                                        enviados += 1
+                                    except Exception:
+                                        pass
+                                reply = f'Notificación enviada a {enviados} destinatarios.'
+                        elif text in ['/ayuda', '/help']:
+                            reply = (
+                                "Comandos admin disponibles:\n"
+                                "/taller_info — Estado general del taller\n"
+                                "/conductores — Lista todos los conductores\n"
+                                "/vehiculos — Lista todos los vehículos\n"
+                                "/ordenes — Lista las órdenes recientes\n"
+                                "/notificar <mensaje> — Envía notificación a empleados y conductores\n"
+                                "/faq — Preguntas frecuentes\n"
+                                "/ia <pregunta> — Pregunta a la IA\n"
+                            )
                         else:
-                            reply = "Comando no reconocido para admin. Usa /faq o /ayuda."
+                            reply = "Comando no reconocido para admin. Usa /ayuda para ver opciones."
                     else:
                         # Empleado o usuario normal
                         reply = f"¡Hola {perfil.user.first_name}! Tu rol: {perfil.get_rol_display()}. Usa /faq o /ayuda para opciones."
