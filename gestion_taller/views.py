@@ -284,9 +284,7 @@ class RepuestoUpdateView(UpdateView):
 
     def get_queryset(self):
         perfil = self.request.user.perfilusuario
-        if perfil.rol == 'conductor' and perfil.conductor:
-            return Repuesto.objects.filter(conductor=perfil.conductor)
-        elif perfil.rol in ['admin', 'empleado'] and perfil.cliente:
+        if perfil.cliente:
             return Repuesto.objects.filter(cliente=perfil.cliente)
         return Repuesto.objects.none()
 
@@ -371,9 +369,7 @@ class RepuestoDeleteView(DeleteView):
     success_url = reverse_lazy('repuestos')
     def get_queryset(self):
         perfil = self.request.user.perfilusuario
-        if perfil.rol == 'conductor' and perfil.conductor:
-            return Repuesto.objects.filter(conductor=perfil.conductor)
-        elif perfil.rol in ['admin', 'empleado'] and perfil.cliente:
+        if perfil.cliente:
             return Repuesto.objects.filter(cliente=perfil.cliente)
         return Repuesto.objects.none()
 
@@ -385,9 +381,7 @@ class ConductorListView(ListView):
     context_object_name = 'conductores'
     def get_queryset(self):
         perfil = self.request.user.perfilusuario
-        if perfil.rol == 'conductor' and perfil.conductor:
-            return Conductor.objects.filter(pk=perfil.conductor.pk)
-        elif perfil.rol in ['admin', 'empleado'] and perfil.cliente:
+        if perfil.cliente:
             return Conductor.objects.filter(cliente=perfil.cliente)
         return Conductor.objects.none()
 
@@ -448,9 +442,7 @@ class ConductorUpdateView(UpdateView):
     success_url = reverse_lazy('conductores')
     def get_queryset(self):
         perfil = self.request.user.perfilusuario
-        if perfil.rol == 'conductor' and perfil.conductor:
-            return Conductor.objects.filter(pk=perfil.conductor.pk)
-        elif perfil.rol in ['admin', 'empleado'] and perfil.cliente:
+        if perfil.cliente:
             return Conductor.objects.filter(cliente=perfil.cliente)
         return Conductor.objects.none()
     def form_valid(self, form):
@@ -511,9 +503,7 @@ class ConductorDeleteView(DeleteView):
 
     def get_queryset(self):
         perfil = self.request.user.perfilusuario
-        if perfil.rol == 'conductor' and perfil.conductor:
-            return Conductor.objects.filter(pk=perfil.conductor.pk)
-        elif perfil.rol in ['admin', 'empleado'] and perfil.cliente:
+        if perfil.cliente:
             return Conductor.objects.filter(cliente=perfil.cliente)
         return Conductor.objects.none()
 
