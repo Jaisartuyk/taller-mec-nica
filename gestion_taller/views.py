@@ -16,6 +16,27 @@ from django.db.models import F
 # Vistas para Vehículos (con AJAX para modales)
 from django.http import JsonResponse, HttpResponse, HttpResponseRedirect
 from django.template.loader import render_to_string
+from django.views.decorators.http import require_GET
+
+@require_GET
+def productos_por_servicios_ajax(request):
+    """
+    Vista AJAX: recibe IDs de servicios y devuelve los productos sugeridos para esos servicios.
+    """
+    servicios_ids = request.GET.getlist('servicios[]')
+    from .models import ServicioCatalogo, Repuesto
+    productos_set = set()
+    for sid in servicios_ids:
+        try:
+            servicio = ServicioCatalogo.objects.get(pk=sid)
+            productos_set.update(servicio.productos_requeridos.all())
+        except ServicioCatalogo.DoesNotExist:
+            pass
+    productos = [
+        {'id': p.id, 'nombre': str(p)} for p in productos_set
+    ]
+    return JsonResponse({'success': True, 'productos': productos})
+
 
 @method_decorator(login_required, name='dispatch')
 class VehiculoListView(ListView):
@@ -612,7 +633,15 @@ class OrdenServicioCreateView(LoginRequiredMixin, CreateView):
                 
             self.object.save()
             form.save_m2m()
-            
+
+            # --- Asociación automática de repuestos requeridos según los servicios seleccionados ---
+            servicios = form.cleaned_data.get('servicios')
+            repuestos_requeridos = set()
+            for servicio in servicios:
+                repuestos_requeridos.update(servicio.productos_requeridos.all())
+            if repuestos_requeridos:
+                self.object.productos.set(repuestos_requeridos)
+
             # Notificación por Telegram
             try:
                 chat_id = getattr(perfil, 'telegram_chat_id', None)

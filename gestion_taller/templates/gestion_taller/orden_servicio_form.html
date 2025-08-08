@@ -102,6 +102,29 @@ $(document).ready(function() {
     // Inicializar Select2
     $('select').select2({theme: 'bootstrap-5'});
 
+    // --- Sugerir productos según servicios seleccionados ---
+    $('#id_servicios').on('change', function() {
+        const servicios = $(this).val();
+        if (!servicios || servicios.length === 0) {
+            $('#id_productos').val(null).trigger('change');
+            return;
+        }
+        $.ajax({
+            url: '/ajax/productos-por-servicios/',
+            method: 'GET',
+            data: { 'servicios': servicios },
+            traditional: true,
+            success: function(data) {
+                if (data.success) {
+                    // Obtener los IDs de productos sugeridos
+                    const ids = data.productos.map(p => p.id.toString());
+                    // Preseleccionar productos sugeridos
+                    $('#id_productos').val(ids).trigger('change');
+                }
+            }
+        });
+    });
+
     // Manejar cambio de vehículo
     $('#id_vehiculo').on('change', function() {
         const vehiculoId = $(this).val();
