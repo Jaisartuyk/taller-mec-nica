@@ -125,9 +125,7 @@ $(document).ready(function() {
         });
     });
 
-    // Manejar cambio de vehículo
-    $('#id_vehiculo').on('change', function() {
-        const vehiculoId = $(this).val();
+    function actualizarConductorPorVehiculo(vehiculoId) {
         if (!vehiculoId) {
             $('#conductor-display').val('');
             $('#id_conductor').val('');
@@ -161,12 +159,18 @@ $(document).ready(function() {
                 $('#conductor-info').text('');
             }
         });
-    });
-
-    // Cargar conductor inicial si hay vehículo seleccionado
-    if ($('#id_vehiculo').val()) {
-        $('#id_vehiculo').trigger('change');
     }
+
+    // Inicializar conductor al cargar la página si ya hay un vehículo seleccionado
+    var vehiculoInicial = $('#id_vehiculo').val();
+    if (vehiculoInicial) {
+        actualizarConductorPorVehiculo(vehiculoInicial);
+    }
+
+    // Manejar cambio de vehículo
+    $('#id_vehiculo').on('change', function() {
+        actualizarConductorPorVehiculo($(this).val());
+    });
 });
 </script>
 {% endblock %}
