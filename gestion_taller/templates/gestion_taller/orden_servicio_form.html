@@ -37,7 +37,7 @@
                                 <label for="conductor-display" class="form-label">Conductor</label>
                                 <div class="input-group">
                                     <input type="text" id="conductor-display" class="form-control" 
-                                           value="{% if form.instance.vehiculo and form.instance.vehiculo.conductor %}{{ form.instance.vehiculo.conductor.nombre }}{% else %}Seleccione un vehículo{% endif %}" 
+                                           value="{% if form.instance.vehiculo and form.instance.vehiculo.conductor %}{{ form.instance.vehiculo.conductor.nombre }}{% else %}{% endif %}" 
                                            readonly>
                                     <span id="conductor-spinner" class="input-group-text">
                                         <div class="spinner-border spinner-border-sm" role="status">
@@ -128,40 +128,37 @@ $(document).ready(function() {
     // Manejar cambio de vehículo
     $('#id_vehiculo').on('change', function() {
         const vehiculoId = $(this).val();
-        const display = $('#conductor-display');
-        const spinner = $('#conductor-spinner');
-        
         if (!vehiculoId) {
-            display.val('Seleccione un vehículo');
+            $('#conductor-display').val('');
             $('#id_conductor').val('');
+            $('#conductor-info').text('');
             return;
         }
-
-        display.val('Buscando conductor...');
-        spinner.show();
-
+        $('#conductor-spinner').show();
         $.ajax({
-            url: `/orden_servicio/conductor-por-vehiculo/${vehiculoId}/`,
+            url: `/api/vehiculo/${vehiculoId}/conductor/`,
             method: 'GET',
             success: function(data) {
-                if (data.success && data.conductor) {
-                    display.val(data.conductor.nombre);
-                    $('#id_conductor').val(data.conductor.id);
-                    $('#conductor-info').html(
-                        data.conductor.telefono ? 
-                        `<i class="bi bi-telephone"></i> ${data.conductor.telefono}` : ''
-                    );
+                $('#conductor-spinner').hide();
+                if (data.success) {
+                    $('#conductor-display').val(data.nombre);
+                    $('#id_conductor').val(data.id);
+                    if (data.telefono) {
+                        $('#conductor-info').html(`<i class="bi bi-telephone"></i> ${data.telefono}`);
+                    } else {
+                        $('#conductor-info').text('');
+                    }
                 } else {
-                    display.val('Sin conductor asignado');
+                    $('#conductor-display').val('');
                     $('#id_conductor').val('');
+                    $('#conductor-info').text('');
                 }
             },
             error: function() {
-                display.val('Error al cargar conductor').addClass('conductor-error');
+                $('#conductor-spinner').hide();
+                $('#conductor-display').val('');
                 $('#id_conductor').val('');
-            },
-            complete: function() {
-                spinner.hide();
+                $('#conductor-info').text('');
             }
         });
     });
