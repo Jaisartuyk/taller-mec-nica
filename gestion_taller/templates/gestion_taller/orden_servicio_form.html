@@ -37,7 +37,7 @@
                                 <label for="conductor-display" class="form-label">Conductor</label>
                                 <div class="input-group">
                                     <input type="text" id="conductor-display" class="form-control" 
-                                           value="{% if form.instance.vehiculo and form.instance.vehiculo.conductor %}{{ form.instance.vehiculo.conductor.nombre }}{% else %}{% endif %}" 
+                                           value="{% if form.instance.conductor %}{{ form.instance.conductor.nombre }}{% elif form.instance.vehiculo and form.instance.vehiculo.conductor %}{{ form.instance.vehiculo.conductor.nombre }}{% else %}{% endif %}" 
                                            readonly>
                                     <span id="conductor-spinner" class="input-group-text">
                                         <div class="spinner-border spinner-border-sm" role="status">
