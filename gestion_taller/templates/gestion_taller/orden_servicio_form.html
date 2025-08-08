@@ -33,25 +33,31 @@
                             </div>
 
                             <!-- Campo Conductor -->
+                            <!-- Campo Conductor -->
                             <div class="col-md-6">
                                 <label for="conductor-display" class="form-label">Conductor</label>
                                 <div class="input-group">
                                     <input type="text" id="conductor-display" class="form-control" 
-                                           value="{% if form.instance.conductor %}{{ form.instance.conductor.nombre }}{% elif form.instance.vehiculo and form.instance.vehiculo.conductor %}{{ form.instance.vehiculo.conductor.nombre }}{% else %}{% endif %}" 
-                                           readonly>
+                                        value="{% if form.instance.conductor %}{{ form.instance.conductor.nombre }}{% elif form.instance.vehiculo and form.instance.vehiculo.conductor %}{{ form.instance.vehiculo.conductor.nombre }}{% else %}{% endif %}" 
+                                        readonly>
                                     <span id="conductor-spinner" class="input-group-text">
                                         <div class="spinner-border spinner-border-sm" role="status">
                                             <span class="visually-hidden">Cargando...</span>
                                         </div>
                                     </span>
                                 </div>
-                                {{ form.conductor }}
+
+                                <!-- Campo oculto para guardar el ID del conductor -->
+                                <input type="hidden" name="conductor" id="id_conductor" 
+                                    value="{% if form.instance.conductor %}{{ form.instance.conductor.id }}{% elif form.instance.vehiculo and form.instance.vehiculo.conductor %}{{ form.instance.vehiculo.conductor.id }}{% endif %}">
+
                                 <div id="conductor-info" class="conductor-info text-muted">
                                     {% if form.instance.vehiculo and form.instance.vehiculo.conductor and form.instance.vehiculo.conductor.telefono %}
                                         <i class="bi bi-telephone"></i> {{ form.instance.vehiculo.conductor.telefono }}
                                     {% endif %}
                                 </div>
                             </div>
+
 
                             <!-- Resto de campos -->
                             <div class="col-md-6">
