@@ -140,11 +140,11 @@ $(document).ready(function() {
             method: 'GET',
             success: function(data) {
                 $('#conductor-spinner').hide();
-                if (data.success) {
-                    $('#conductor-display').val(data.nombre);
-                    $('#id_conductor').val(data.id);
-                    if (data.telefono) {
-                        $('#conductor-info').html(`<i class="bi bi-telephone"></i> ${data.telefono}`);
+                if (data.success && data.conductor) {
+                    $('#conductor-display').val(data.conductor.nombre);
+                    $('#id_conductor').val(data.conductor.id);
+                    if (data.conductor.telefono) {
+                        $('#conductor-info').html(`<i class="bi bi-telephone"></i> ${data.conductor.telefono}`);
                     } else {
                         $('#conductor-info').text('');
                     }
