@@ -75,6 +75,7 @@
                             <div class="col-md-6">
                                 <label for="id_productos" class="form-label">Productos</label>
                                 {{ form.productos }}
+                                <div id="total-a-pagar" class="mt-2 fw-bold text-success"></div>
                             </div>
 
                             <div class="col-md-6">
@@ -101,6 +102,31 @@
 <script src="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/js/select2.min.js"></script>
 <script>
 $(document).ready(function() {
+    // --- Cálculo en tiempo real del total ---
+    function calcularTotal() {
+        let total = 0;
+        // Sumar precios de productos seleccionados
+        $('#id_productos option:selected').each(function() {
+            let precio = parseFloat($(this).data('precio'));
+            if (!isNaN(precio)) {
+                total += precio;
+            }
+        });
+        // Sumar precios de servicios seleccionados
+        $('#id_servicios option:selected').each(function() {
+            let precio = parseFloat($(this).data('precio'));
+            if (!isNaN(precio)) {
+                total += precio;
+            }
+        });
+        $('#total-a-pagar').text('Total: $' + total.toFixed(2));
+    }
+
+    // Ejecutar al cambiar productos o servicios
+    $('#id_productos, #id_servicios').on('change', calcularTotal);
+    // Ejecutar al cargar la página
+    calcularTotal();
+
     // Inicializar Select2
     $('select').select2({theme: 'bootstrap-5'});
 
