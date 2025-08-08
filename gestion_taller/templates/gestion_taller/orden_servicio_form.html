@@ -163,11 +163,50 @@ $(document).ready(function() {
         });
     }
 
-    // Inicializar conductor al cargar la página si ya hay un vehículo seleccionado
-    var vehiculoInicial = $('#id_vehiculo').val();
-    if (vehiculoInicial) {
-        actualizarConductorPorVehiculo(vehiculoInicial);
+    // Función robusta para actualizar el conductor
+    function actualizarConductorPorVehiculo(vehiculoId) {
+        if (!vehiculoId) {
+            $('#conductor-display').val('');
+            $('#id_conductor').val('');
+            $('#conductor-info').text('');
+            return;
+        }
+        $('#conductor-spinner').show();
+        $.ajax({
+            url: `/api/vehiculo/${vehiculoId}/conductor/`,
+            method: 'GET',
+            success: function(data) {
+                $('#conductor-spinner').hide();
+                if (data.success && data.conductor) {
+                    $('#conductor-display').val(data.conductor.nombre);
+                    $('#id_conductor').val(data.conductor.id);
+                    if (data.conductor.telefono) {
+                        $('#conductor-info').html(`<i class="bi bi-telephone"></i> ${data.conductor.telefono}`);
+                    } else {
+                        $('#conductor-info').text('');
+                    }
+                } else {
+                    $('#conductor-display').val('');
+                    $('#id_conductor').val('');
+                    $('#conductor-info').text('');
+                }
+            },
+            error: function() {
+                $('#conductor-spinner').hide();
+                $('#conductor-display').val('');
+                $('#id_conductor').val('');
+                $('#conductor-info').text('');
+            }
+        });
     }
+
+    // Inicializar conductor al cargar la página SIEMPRE
+    setTimeout(function() {
+        var vehiculoInicial = $('#id_vehiculo').val();
+        if (vehiculoInicial) {
+            actualizarConductorPorVehiculo(vehiculoInicial);
+        }
+    }, 200);
 
     // Manejar cambio de vehículo
     $('#id_vehiculo').on('change', function() {

@@ -634,13 +634,6 @@ class OrdenServicioCreateView(LoginRequiredMixin, CreateView):
             self.object.save()
             form.save_m2m()
 
-            # --- Asociación automática de repuestos requeridos según los servicios seleccionados ---
-            servicios = form.cleaned_data.get('servicios')
-            repuestos_requeridos = set()
-            for servicio in servicios:
-                repuestos_requeridos.update(servicio.productos_requeridos.all())
-            if repuestos_requeridos:
-                self.object.productos.set(repuestos_requeridos)
 
             # Notificación por Telegram
             try:
