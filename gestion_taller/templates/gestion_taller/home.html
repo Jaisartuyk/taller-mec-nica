@@ -103,27 +103,7 @@
         </div>
       </div>
     </div>
-    <div class="col-xl-3 col-md-6">
-      <div class="card h-100 border-0 shadow-sm">
-        <div class="card-body">
-          <div class="d-flex justify-content-between align-items-center">
-            <div>
-              <h6 class="text-uppercase text-muted mb-2">Servicios</h6>
-              <h2 class="mb-0">{{ stats.total_servicios }}</h2>
-            </div>
-            <div class="bg-warning bg-opacity-10 p-3 rounded-circle">
-              <i class="bi bi-tools fs-3 text-warning"></i>
-            </div>
-          </div>
-        </div>
-        <div class="card-footer bg-transparent border-top-0">
-          <a href="{% url 'orden_servicio_listado' %}" class="btn btn-link px-0 text-decoration-none">
-            Ver todos <i class="bi bi-arrow-right ms-1"></i>
-          </a>
-        </div>
-      </div>
-    </div>
-  </div>
+    
 
   <!-- Sección de accesos rápidos -->
   <div class="row g-4 mb-4">
@@ -152,25 +132,26 @@
         </div>
         <div class="card-body p-0">
           <div class="list-group list-group-flush">
-            {% for servicio in stats.ultimos_servicios %}
+            {% for orden in stats.ultimos_servicios %}
             <div class="list-group-item border-0 py-3">
               <div class="d-flex justify-content-between align-items-center">
                 <div>
-                  <h6 class="mb-1">{{ servicio.vehiculo.marca }} {{ servicio.vehiculo.modelo }}</h6>
+                  <h6 class="mb-1">{{ orden.vehiculo.marca }} {{ orden.vehiculo.modelo }}</h6>
                   <p class="text-muted small mb-0">
-                    {{ servicio.tipo_servicio }} - {{ servicio.fecha_creacion|localtime|date:"d/m/Y H:i" }}
-                    {% if servicio.ordenservicio_set.all %}
-                      <br><span class="fw-bold">N° Orden: {{ servicio.ordenservicio_set.first.numero_orden }}</span>
-                    {% endif %}
+                    N° Orden: <span class="fw-bold">{{ orden.id }}</span> <br>
+                    Fecha: {{ orden.fecha_creacion|localtime|date:"d/m/Y H:i" }} <br>
+                    Total a pagar: <span class="fw-bold">${{ orden.total|floatformat:2 }}</span>
                   </p>
                 </div>
-                {% if servicio.estado %}
-                  {% if servicio.estado|lower == 'completado' %}
+                {% if orden.estado %}
+                  {% if orden.estado|lower == 'completada' or orden.estado|lower == 'facturada' %}
                     <span class="badge bg-success">
+                  {% elif orden.estado|lower == 'pendiente' %}
+                    <span class="badge bg-warning text-dark">
                   {% else %}
                     <span class="badge bg-secondary">
                   {% endif %}
-                  {{ servicio.estado|capfirst }}
+                  {{ orden.estado|capfirst }}
                   </span>
                 {% else %}
                   <span class="badge bg-secondary">Pendiente</span>

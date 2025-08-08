@@ -1353,9 +1353,9 @@ def home(request):
             'total_servicios': Servicio.objects.filter(vehiculo__cliente=cliente).count(),
             'total_repuestos': Repuesto.objects.filter(cliente=cliente).count(),
             'total_ordenes': OrdenServicio.objects.filter(cliente=cliente).count(),
-            'ultimos_servicios': Servicio.objects.filter(
-                vehiculo__cliente=cliente
-            ).order_by('-fecha_creacion')[:5],
+            'ultimos_servicios': OrdenServicio.objects.filter(
+                cliente=cliente
+            ).select_related('vehiculo', 'conductor').order_by('-fecha_creacion')[:5],
             'vehiculos_servicio': Vehiculo.objects.filter(
                 cliente=cliente,
                 fecha_ultimo_servicio__isnull=False

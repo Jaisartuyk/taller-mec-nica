@@ -35,7 +35,7 @@
           <th>Conductor</th>
           <th>Servicios</th>
           <th>Estado</th>
-          <th>Total</th>
+          <th>Total a Pagar</th>
           <th>Fecha</th>
           <th></th>
         </tr>
@@ -50,6 +50,9 @@
             {% for s in orden.servicios.all %}
               <span class="badge bg-info text-dark">{{ s.nombre }}</span>
             {% empty %}-{% endfor %}
+          </td>
+          <td>
+            <span class="fw-bold text-success">${{ orden.total|floatformat:2 }}</span>
           </td>
           <td>
             <span class="badge
