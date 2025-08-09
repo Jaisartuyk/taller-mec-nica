@@ -145,27 +145,6 @@ class RepuestoForm(forms.ModelForm):
         }
 
 
-class ServicioForm(forms.ModelForm):
-    class Meta:
-        model = Servicio
-        exclude = ['cliente', 'fecha_creacion', 'costo_total']
-        widgets = {
-            'descripcion': forms.Textarea(attrs={'rows': 3}),
-            'notas_tecnico': forms.Textarea(attrs={'rows': 4}),
-        }
-
-    def __init__(self, *args, **kwargs):
-        user = kwargs.pop('user', None)
-        super().__init__(*args, **kwargs)
-        if user and hasattr(user, 'perfilusuario') and user.perfilusuario.cliente:
-            self.fields['vehiculo'].queryset = Vehiculo.objects.filter(cliente=user.perfilusuario.cliente)
-            self.fields['conductor'].queryset = Conductor.objects.filter(cliente=user.perfilusuario.cliente)
-
-    def save(self, commit=True):
-        servicio = super().save(commit=False)
-        if commit:
-            servicio.save()
-        return servicio
 
 class PreguntaFrecuenteForm(forms.ModelForm):
     class Meta:

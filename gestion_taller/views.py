@@ -2,8 +2,8 @@ from django.shortcuts import render
 from django.urls import reverse_lazy
 from django.views.generic import ListView, CreateView, UpdateView, DeleteView
 from django.contrib import messages
-from .models import Vehiculo, Repuesto, Servicio, ServicioCatalogo, PerfilUsuario, Conductor, User, CategoriaRepuesto
-from .forms import VehiculoForm, RepuestoForm, ServicioForm, PerfilUsuarioForm, ConductorForm, OrdenServicioForm
+from .models import Vehiculo, Repuesto, ServicioCatalogo, PerfilUsuario, Conductor, User
+from .forms import VehiculoForm, RepuestoForm, PerfilUsuarioForm, ConductorForm, OrdenServicioForm
 from .models import Conductor
 from django.urls import reverse_lazy
 from django.views.generic import ListView, CreateView, UpdateView, DeleteView
@@ -189,7 +189,7 @@ class RepuestoListView(ListView):
 
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
-        categorias = CategoriaRepuesto.objects.all()
+        categorias = []  # Eliminado: CategoriaRepuesto ya no se usa
         context['categorias'] = categorias
         context['categoria_seleccionada'] = self.request.GET.get('categoria', '')
         return context
