@@ -51,7 +51,7 @@ urlpatterns = [
     path('ordenes-servicio/nueva/', OrdenServicioCreateView.as_view(), name='orden_servicio_nueva'),
     path('ordenes-servicio/<int:pk>/', OrdenServicioDetailView.as_view(), name='orden_servicio_detalle'),
     path('ajax/sugerir-servicios/', sugerir_servicios_ajax, name='sugerir_servicios_ajax'),
-    path('ajax/productos-por-servicios/', views.productos_por_servicios_ajax, name='productos_por_servicios_ajax'),
+
     path('catalogo-servicios/', ServicioCatalogoListView.as_view(), name='catalogo_servicios'),
     path('orden_servicio/conductor-por-vehiculo/<int:vehiculo_id>/', 
          views.conductor_por_vehiculo, 
