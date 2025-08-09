@@ -38,6 +38,22 @@ def productos_por_servicios_ajax(request):
     return JsonResponse({'success': True, 'productos': productos})
 
 
+@login_required
+@require_GET
+def conductor_por_vehiculo(request, vehiculo_id):
+    try:
+        vehiculo = Vehiculo.objects.select_related('conductor').filter(id=vehiculo_id).first()
+        response_data = {'success': True, 'conductor': None}
+        if vehiculo and vehiculo.conductor:
+            response_data['conductor'] = {
+                'id': vehiculo.conductor.id,
+                'nombre': vehiculo.conductor.nombre,
+                'telefono': vehiculo.conductor.telefono or ''
+            }
+        return JsonResponse(response_data)
+    except Exception as e:
+        return JsonResponse({'success': False, 'error': f'Error interno: {str(e)}'}, status=500)
+
 @method_decorator(login_required, name='dispatch')
 class VehiculoListView(ListView):
     model = Vehiculo
