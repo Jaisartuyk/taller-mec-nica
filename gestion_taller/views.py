@@ -18,6 +18,74 @@ from django.http import JsonResponse, HttpResponse, HttpResponseRedirect
 from django.template.loader import render_to_string
 from django.views.decorators.http import require_GET
 
+from django.http import HttpResponse
+
+# --- STUBS PARA VISTAS FALTANTES ---
+def home(request):
+    return HttpResponse("Vista home (stub)")
+
+class PerfilUsuarioView(ListView):
+    def get(self, request, *args, **kwargs):
+        return HttpResponse("PerfilUsuarioView (stub)")
+
+class RepuestoListView(ListView):
+    def get(self, request, *args, **kwargs):
+        return HttpResponse("RepuestoListView (stub)")
+
+class RepuestoCreateView(CreateView):
+    def get(self, request, *args, **kwargs):
+        return HttpResponse("RepuestoCreateView (stub)")
+
+class RepuestoUpdateView(UpdateView):
+    def get(self, request, *args, **kwargs):
+        return HttpResponse("RepuestoUpdateView (stub)")
+
+class RepuestoDeleteView(DeleteView):
+    def get(self, request, *args, **kwargs):
+        return HttpResponse("RepuestoDeleteView (stub)")
+
+class ConductorListView(ListView):
+    def get(self, request, *args, **kwargs):
+        return HttpResponse("ConductorListView (stub)")
+
+class ConductorCreateView(CreateView):
+    def get(self, request, *args, **kwargs):
+        return HttpResponse("ConductorCreateView (stub)")
+
+class ConductorUpdateView(UpdateView):
+    def get(self, request, *args, **kwargs):
+        return HttpResponse("ConductorUpdateView (stub)")
+
+class ConductorDeleteView(DeleteView):
+    def get(self, request, *args, **kwargs):
+        return HttpResponse("ConductorDeleteView (stub)")
+
+class OrdenServicioCreateView(CreateView):
+    def get(self, request, *args, **kwargs):
+        return HttpResponse("OrdenServicioCreateView (stub)")
+
+class OrdenServicioListView(ListView):
+    def get(self, request, *args, **kwargs):
+        return HttpResponse("OrdenServicioListView (stub)")
+
+class OrdenServicioDetailView(ListView):
+    def get(self, request, *args, **kwargs):
+        return HttpResponse("OrdenServicioDetailView (stub)")
+
+def telegram_webhook(request):
+    return HttpResponse("telegram_webhook (stub)")
+
+def perfil_usuario_view(request):
+    return HttpResponse("perfil_usuario_view (stub)")
+
+def api_conductores(request):
+    return HttpResponse("api_conductores (stub)")
+
+def vincular_telegram(request):
+    return HttpResponse("vincular_telegram (stub)")
+
+# --- FIN STUBS ---
+
 @require_GET
 def productos_por_servicios_ajax(request):
     """
