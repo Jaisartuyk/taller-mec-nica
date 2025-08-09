@@ -5,7 +5,6 @@ from .views import home
 from .views import (
     VehiculoListView, VehiculoCreateView, VehiculoUpdateView, VehiculoDeleteView,
     RepuestoListView, RepuestoCreateView, RepuestoUpdateView, RepuestoDeleteView,
-    ServicioListView, ServicioCreateView, ServicioUpdateView, ServicioDeleteView,
     PerfilUsuarioView,
     ConductorListView, ConductorCreateView, ConductorUpdateView, ConductorDeleteView,
     OrdenServicioCreateView, OrdenServicioListView, OrdenServicioDetailView,
@@ -44,15 +43,9 @@ urlpatterns = [
     path('repuestos/editar/<int:pk>/', RepuestoUpdateView.as_view(), name='repuesto_editar'),
     path('repuestos/eliminar/<int:pk>/', RepuestoDeleteView.as_view(), name='repuesto_eliminar'),
 
-    # Servicios
-    path('servicios/', ServicioListView.as_view(), name='servicios'),
-    path('servicios/nuevo/', ServicioCreateView.as_view(), name='servicio_nuevo'),
-    path('servicios/editar/<int:pk>/', ServicioUpdateView.as_view(), name='servicio_editar'),
-    path('servicios/eliminar/<int:pk>/', ServicioDeleteView.as_view(), name='servicio_eliminar'),
-    
+
     # API para obtener conductor de un vehículo
     path('api/vehiculo/<int:vehiculo_id>/conductor/', views.conductor_por_vehiculo, name='conductor_por_vehiculo'),
-    path('api/servicio/<int:servicio_id>/productos/', views.get_productos_servicio, name='get_productos_servicio'),
     # Órdenes de Servicio
     path('ordenes-servicio/', OrdenServicioListView.as_view(), name='orden_servicio_listado'),
     path('ordenes-servicio/nueva/', OrdenServicioCreateView.as_view(), name='orden_servicio_nueva'),
