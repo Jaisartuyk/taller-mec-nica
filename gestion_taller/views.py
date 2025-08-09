@@ -1265,7 +1265,7 @@ class ServicioUpdateView(LoginRequiredMixin, UpdateView):
     def form_valid(self, form):
         response = super().form_valid(form)
         if self.request.headers.get('x-requested-with') == 'XMLHttpRequest':
-            servicios = ServicioCatalogo.objects.filter(cliente=self.request.user.perfilusuario.cliente)
+            servicios = ServicioCatalogo.objects.all()
             html_grid = render_to_string('gestion_taller/includes/servicio_grid.html', 
                                        {'servicios': servicios}, 
                                        request=self.request)
@@ -1285,9 +1285,7 @@ class ServicioDeleteView(LoginRequiredMixin, DeleteView):
     success_url = reverse_lazy('servicios')
 
     def get_queryset(self):
-        if hasattr(self.request.user, 'perfilusuario') and self.request.user.perfilusuario.cliente:
-            return ServicioCatalogo.objects.filter(cliente=self.request.user.perfilusuario.cliente)
-        return ServicioCatalogo.objects.none()
+        return ServicioCatalogo.objects.all()
 
     def delete(self, request, *args, **kwargs):
         self.object = self.get_object()
@@ -1295,7 +1293,7 @@ class ServicioDeleteView(LoginRequiredMixin, DeleteView):
         self.object.delete()
         
         if request.headers.get('x-requested-with') == 'XMLHttpRequest':
-            servicios = ServicioCatalogo.objects.filter(cliente=request.user.perfilusuario.cliente)
+            servicios = ServicioCatalogo.objects.all()
             html_grid = render_to_string('gestion_taller/includes/servicio_grid.html', 
                                        {'servicios': servicios}, 
                                        request=request)
@@ -1356,7 +1354,7 @@ def home(request):
         stats = {
             'total_vehiculos': Vehiculo.objects.filter(cliente=cliente).count(),
             'total_conductores': Conductor.objects.filter(cliente=cliente).count(),
-            'total_servicios': ServicioCatalogo.objects.filter(cliente=cliente).count(),
+            'total_servicios': ServicioCatalogo.objects.all().count(),
             'total_repuestos': Repuesto.objects.filter(cliente=cliente).count(),
             'total_ordenes': OrdenServicio.objects.filter(cliente=cliente).count(),
             'ultimos_servicios': OrdenServicio.objects.filter(
