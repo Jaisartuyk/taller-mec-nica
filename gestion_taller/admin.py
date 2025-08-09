@@ -109,10 +109,6 @@ class CitaAdmin(admin.ModelAdmin):
             return qs.filter(cliente=request.user.perfilusuario.cliente)
         return qs.none()
 
-@admin.register(CategoriaRepuesto)
-class CategoriaRepuestoAdmin(admin.ModelAdmin):
-    list_display = ('nombre', 'descripcion')
-    search_fields = ('nombre',)
 
 @admin.register(Repuesto)
 class RepuestoAdmin(admin.ModelAdmin):
@@ -139,19 +135,6 @@ class RepuestoAdmin(admin.ModelAdmin):
             return qs.filter(cliente=request.user.perfilusuario.cliente)
         return qs.none()
 
-@admin.register(Servicio)
-class ServicioAdmin(admin.ModelAdmin):
-    list_display = ('vehiculo', 'conductor', 'fecha_servicio', 'estado', 'costo_total')
-    search_fields = ('vehiculo__placa', 'conductor__nombre')
-    list_filter = ('cliente', 'estado', 'fecha_servicio')
-    
-    def get_queryset(self, request):
-        qs = super().get_queryset(request)
-        if request.user.is_superuser:
-            return qs
-        if hasattr(request.user, 'perfilusuario') and request.user.perfilusuario.cliente:
-            return qs.filter(cliente=request.user.perfilusuario.cliente)
-        return qs.none()
 
 @admin.register(PreguntaFrecuente)
 class PreguntaFrecuenteAdmin(admin.ModelAdmin):
