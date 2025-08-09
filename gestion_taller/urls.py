@@ -8,7 +8,7 @@ from .views import (
     PerfilUsuarioView,
     ConductorListView, ConductorCreateView, ConductorUpdateView, ConductorDeleteView,
     OrdenServicioCreateView, OrdenServicioListView, OrdenServicioDetailView,
-    sugerir_servicios_ajax, ServicioCatalogoListView, conductor_por_vehiculo
+    conductor_por_vehiculo
 )
 
 from .views import vincular_telegram
@@ -53,7 +53,5 @@ urlpatterns = [
 
 
 
-    path('orden_servicio/conductor-por-vehiculo/<int:vehiculo_id>/', 
-         views.conductor_por_vehiculo, 
-         name='conductor_por_vehiculo'),
+
 ]   
