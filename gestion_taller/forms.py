@@ -1,5 +1,5 @@
 from django import forms
-from .models import Vehiculo, Repuesto, Servicio, Conductor, Cliente, PreguntaFrecuente, DetalleServicio, OrdenServicio, ServicioCatalogo
+from .models import Vehiculo, Repuesto, Conductor, Cliente, PreguntaFrecuente, DetalleServicio, OrdenServicio, ServicioCatalogo
 
 class OrdenServicioForm(forms.ModelForm):
     class Meta:

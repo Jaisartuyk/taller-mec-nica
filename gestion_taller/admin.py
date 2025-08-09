@@ -1,5 +1,5 @@
 from django.contrib import admin
-from .models import Vehiculo, Repuesto, Servicio, Conductor, Cliente, PerfilUsuario, PreguntaFrecuente, ServicioCatalogo, Notificacion, OrdenServicio, Pago, Cita, CategoriaRepuesto
+from .models import Vehiculo, Repuesto, Conductor, Cliente, PerfilUsuario, PreguntaFrecuente, ServicioCatalogo, Notificacion, OrdenServicio, Pago, Cita
 from django.contrib.auth.admin import UserAdmin as BaseUserAdmin
 from django.contrib.auth.models import User
 
