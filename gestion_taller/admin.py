@@ -67,7 +67,6 @@ class ConductorAdmin(admin.ModelAdmin):
 class VehiculoAdmin(admin.ModelAdmin):
     list_display = ('placa', 'marca', 'modelo', 'anio', 'conductor', 'cliente', 'fecha_creacion')
 
-
 @admin.register(ServicioCatalogo)
 class ServicioCatalogoAdmin(admin.ModelAdmin):
     list_display = ('nombre', 'precio_base', 'frecuencia_km', 'frecuencia_meses', 'activo')
@@ -97,18 +96,6 @@ class CitaAdmin(admin.ModelAdmin):
     list_display = ('id', 'vehiculo', 'conductor', 'fecha_cita', 'estado')
     search_fields = ('vehiculo__placa', 'conductor__nombre')
     list_filter = ('estado', 'fecha_cita')
-
-    search_fields = ('placa', 'marca', 'modelo')
-    list_filter = ('cliente', 'conductor', 'fecha_creacion')
-    
-    def get_queryset(self, request):
-        qs = super().get_queryset(request)
-        if request.user.is_superuser:
-            return qs
-        if hasattr(request.user, 'perfilusuario') and request.user.perfilusuario.cliente:
-            return qs.filter(cliente=request.user.perfilusuario.cliente)
-        return qs.none()
-
 
 @admin.register(Repuesto)
 class RepuestoAdmin(admin.ModelAdmin):

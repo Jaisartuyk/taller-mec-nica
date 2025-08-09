@@ -78,23 +78,11 @@ class RepuestoForm(forms.ModelForm):
         if 'cliente' in self.fields:
             del self.fields['cliente']
 
-        # Si estamos editando, permitir dejar el campo código vacío para mantener el actual
-        if instance and self.editing:
-            self.fields['codigo'].required = False
-            self.fields['codigo'].help_text = 'Dejar en blanco para mantener el código actual.'
-
-        # Estilizar campos con Bootstrap
-        for field in self.fields.values():
-            if not isinstance(field.widget, forms.FileInput):
-                field.widget.attrs.update({'class': 'form-control'})
-
-        # Ajuste específico para 'categoria'
-        if 'categoria' in self.fields:
-            self.fields['categoria'].widget.attrs.update({
-                'class': 'form-select',
-                'data-placeholder': 'Seleccione una categoría',
-                'data-allow-clear': 'true'
-            })
+# --- Formulario para ServicioCatalogo ---
+class ServicioCatalogoForm(forms.ModelForm):
+    class Meta:
+        model = ServicioCatalogo
+        fields = '__all__'
 
     def clean_codigo(self):
         codigo = self.cleaned_data.get('codigo')
@@ -132,7 +120,6 @@ class RepuestoForm(forms.ModelForm):
         model = Repuesto
         exclude = ['cliente', 'fecha_creacion']
         widgets = {
-            'categoria': forms.Select(attrs={'class': 'form-select'}),
             'nombre': forms.TextInput(attrs={'class': 'form-control'}),
             'codigo': forms.TextInput(attrs={'class': 'form-control'}),
             'descripcion': forms.Textarea(attrs={'class': 'form-control', 'rows': 3}),

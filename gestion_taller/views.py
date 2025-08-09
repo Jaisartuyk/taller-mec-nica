@@ -3,7 +3,7 @@ from django.urls import reverse_lazy
 from django.views.generic import ListView, CreateView, UpdateView, DeleteView
 from django.contrib import messages
 from .models import Vehiculo, Repuesto, ServicioCatalogo, PerfilUsuario, Conductor, User
-from .forms import VehiculoForm, RepuestoForm, PerfilUsuarioForm, ConductorForm, OrdenServicioForm
+from .forms import VehiculoForm, RepuestoForm, PerfilUsuarioForm, ConductorForm, OrdenServicioForm, ServicioCatalogoForm
 from .models import Conductor
 from django.urls import reverse_lazy
 from django.views.generic import ListView, CreateView, UpdateView, DeleteView
@@ -273,7 +273,7 @@ class RepuestoListView(ListView):
 
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
-        categorias = []  # Eliminado: CategoriaRepuesto ya no se usa
+        categorias = []  
         context['categorias'] = categorias
         context['categoria_seleccionada'] = self.request.GET.get('categoria', '')
         return context
@@ -1189,96 +1189,25 @@ def get_productos_servicio(request, servicio_id):
 
 @method_decorator(login_required, name='dispatch')
 class ServicioListView(ListView):
-    model = Servicio
+    model = ServicioCatalogo
     template_name = 'gestion_taller/servicio_list.html'
     context_object_name = 'servicios'
+
     def get_queryset(self):
-        perfil = self.request.user.perfilusuario
-        if perfil.rol == 'conductor' and perfil.conductor:
-            return Servicio.objects.filter(vehiculo__conductor=perfil.conductor)
-        elif perfil.rol in ['admin', 'empleado'] and perfil.cliente:
-            return Servicio.objects.filter(vehiculo__cliente=perfil.cliente)
-        return Servicio.objects.none()
+        if hasattr(self.request.user, 'perfilusuario') and self.request.user.perfilusuario.cliente:
+            return ServicioCatalogo.objects.filter(cliente=self.request.user.perfilusuario.cliente)
+        return ServicioCatalogo.objects.all()
 
 @method_decorator(login_required, name='dispatch')
 class ServicioCreateView(CreateView):
-    model = Servicio
-    form_class = ServicioForm
+    model = ServicioCatalogo
+    form_class = ServicioCatalogoForm
     template_name = 'gestion_taller/servicio_form.html'
     success_url = reverse_lazy('servicios')
 
     def get_form_kwargs(self):
         kwargs = super().get_form_kwargs()
         kwargs['user'] = self.request.user
-        return kwargs
-
-    def form_valid(self, form):
-        perfil = self.request.user.perfilusuario
-        if perfil.rol in ['admin', 'empleado'] and perfil.cliente:
-            form.instance.cliente = perfil.cliente
-        servicio = form.save()
-        
-        # Manejar detalles de repuestos
-        detalles_data = self.request.POST.getlist('detalle-repuesto')
-        cantidades = self.request.POST.getlist('detalle-cantidad')
-        precios = self.request.POST.getlist('detalle-precio_unitario')
-        
-        for i in range(len(detalles_data)):
-            if detalles_data[i] and cantidades[i] and precios[i]:
-                detalle_form = DetalleServicioForm({
-                    'repuesto': detalles_data[i],
-                    'cantidad': cantidades[i],
-                    'precio_unitario': precios[i]
-                }, servicio=servicio)
-                if detalle_form.is_valid():
-                    detalle = detalle_form.save(commit=False)
-                    detalle.servicio = servicio
-                    detalle.save()
-                    
-                    # Actualizar stock del repuesto
-                    repuesto = detalle.repuesto
-                    repuesto.stock -= detalle.cantidad
-                    repuesto.save()
-        
-        return super().form_valid(form)
-
-    def form_invalid(self, form):
-        if self.request.headers.get('x-requested-with') == 'XMLHttpRequest':
-            return render(self.request, 'gestion_taller/servicio_form_ajax.html', {'form': form})
-        return render(self.request, self.template_name, {'form': form})
-
-@method_decorator(login_required, name='dispatch')
-class ServicioDeleteView(DeleteView):
-    model = Servicio
-    template_name = 'gestion_taller/servicio_confirm_delete.html'
-    success_url = reverse_lazy('servicios')
-    def get_queryset(self):
-        perfil = self.request.user.perfilusuario
-        if perfil.rol == 'conductor' and perfil.conductor:
-            return Servicio.objects.filter(vehiculo__conductor=perfil.conductor)
-        elif perfil.rol in ['admin', 'empleado'] and perfil.cliente:
-            return Servicio.objects.filter(vehiculo__cliente=perfil.cliente)
-        return Servicio.objects.none()
-class ServicioListView(LoginRequiredMixin, ListView):
-    model = Servicio
-    template_name = 'gestion_taller/servicio_list.html'
-    context_object_name = 'servicios'
-
-    def get_queryset(self):
-        if hasattr(self.request.user, 'perfilusuario') and self.request.user.perfilusuario.cliente:
-            return Servicio.objects.filter(cliente=self.request.user.perfilusuario.cliente)
-        return Servicio.objects.all()
-
-class ServicioCreateView(LoginRequiredMixin, CreateView):
-    model = Servicio
-    form_class = ServicioForm
-    template_name = 'gestion_taller/servicio_modal.html'
-    success_url = reverse_lazy('servicios')
-
-    def get_form_kwargs(self):
-        kwargs = super().get_form_kwargs()
-        if hasattr(self.request.user, 'perfilusuario'):
-            kwargs['user'] = self.request.user
         return kwargs
 
     def get(self, request, *args, **kwargs):
@@ -1310,8 +1239,8 @@ class ServicioCreateView(LoginRequiredMixin, CreateView):
         return response
 
 class ServicioUpdateView(LoginRequiredMixin, UpdateView):
-    model = Servicio
-    form_class = ServicioForm
+    model = ServicioCatalogo
+    form_class = ServicioCatalogoForm
     template_name = 'gestion_taller/servicio_modal.html'
     success_url = reverse_lazy('servicios')
 
@@ -1323,8 +1252,8 @@ class ServicioUpdateView(LoginRequiredMixin, UpdateView):
 
     def get_queryset(self):
         if hasattr(self.request.user, 'perfilusuario') and self.request.user.perfilusuario.cliente:
-            return Servicio.objects.filter(cliente=self.request.user.perfilusuario.cliente)
-        return Servicio.objects.all()
+            return ServicioCatalogo.objects.filter(cliente=self.request.user.perfilusuario.cliente)
+        return ServicioCatalogo.objects.all()
 
     def get(self, request, *args, **kwargs):
         self.object = self.get_object()
@@ -1336,7 +1265,7 @@ class ServicioUpdateView(LoginRequiredMixin, UpdateView):
     def form_valid(self, form):
         response = super().form_valid(form)
         if self.request.headers.get('x-requested-with') == 'XMLHttpRequest':
-            servicios = Servicio.objects.filter(cliente=self.request.user.perfilusuario.cliente)
+            servicios = ServicioCatalogo.objects.filter(cliente=self.request.user.perfilusuario.cliente)
             html_grid = render_to_string('gestion_taller/includes/servicio_grid.html', 
                                        {'servicios': servicios}, 
                                        request=self.request)
@@ -1351,14 +1280,14 @@ class ServicioUpdateView(LoginRequiredMixin, UpdateView):
         return response
 
 class ServicioDeleteView(LoginRequiredMixin, DeleteView):
-    model = Servicio
+    model = ServicioCatalogo
     template_name = 'gestion_taller/servicio_confirm_delete.html'
     success_url = reverse_lazy('servicios')
 
     def get_queryset(self):
         if hasattr(self.request.user, 'perfilusuario') and self.request.user.perfilusuario.cliente:
-            return Servicio.objects.filter(cliente=self.request.user.perfilusuario.cliente)
-        return Servicio.objects.none()
+            return ServicioCatalogo.objects.filter(cliente=self.request.user.perfilusuario.cliente)
+        return ServicioCatalogo.objects.none()
 
     def delete(self, request, *args, **kwargs):
         self.object = self.get_object()
@@ -1366,7 +1295,7 @@ class ServicioDeleteView(LoginRequiredMixin, DeleteView):
         self.object.delete()
         
         if request.headers.get('x-requested-with') == 'XMLHttpRequest':
-            servicios = Servicio.objects.filter(cliente=request.user.perfilusuario.cliente)
+            servicios = ServicioCatalogo.objects.filter(cliente=request.user.perfilusuario.cliente)
             html_grid = render_to_string('gestion_taller/includes/servicio_grid.html', 
                                        {'servicios': servicios}, 
                                        request=request)
@@ -1427,7 +1356,7 @@ def home(request):
         stats = {
             'total_vehiculos': Vehiculo.objects.filter(cliente=cliente).count(),
             'total_conductores': Conductor.objects.filter(cliente=cliente).count(),
-            'total_servicios': Servicio.objects.filter(vehiculo__cliente=cliente).count(),
+            'total_servicios': ServicioCatalogo.objects.filter(cliente=cliente).count(),
             'total_repuestos': Repuesto.objects.filter(cliente=cliente).count(),
             'total_ordenes': OrdenServicio.objects.filter(cliente=cliente).count(),
             'ultimos_servicios': OrdenServicio.objects.filter(

@@ -93,15 +93,8 @@ class Vehiculo(models.Model):
 
 
 
-class CategoriaRepuesto(models.Model):
-    nombre = models.CharField(max_length=100)
-    descripcion = models.TextField(blank=True)
-    def __str__(self):
-        return self.nombre
-
 class Repuesto(models.Model):
     cliente = models.ForeignKey(Cliente, on_delete=models.CASCADE, related_name='repuestos')
-    categoria = models.ForeignKey(CategoriaRepuesto, on_delete=models.SET_NULL, null=True, blank=True, related_name='repuestos')
     nombre = models.CharField(max_length=100)
     codigo = models.CharField(max_length=50, unique=True, blank=True, null=True)
     descripcion = models.TextField(blank=True)
