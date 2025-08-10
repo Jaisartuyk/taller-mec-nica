@@ -108,6 +108,25 @@ def productos_por_servicios_ajax(request):
 
 @login_required
 @require_GET
+def productos_por_servicio_catalogo(request):
+    servicio_ids = request.GET.get('servicio_ids', '')
+    ids = [int(pk) for pk in servicio_ids.split(',') if pk.isdigit()]
+    productos_set = set()
+    from .models import ServicioCatalogo
+    for pk in ids:
+        try:
+            servicio = ServicioCatalogo.objects.get(pk=pk)
+            productos_set.update(servicio.productos_requeridos.all())
+        except ServicioCatalogo.DoesNotExist:
+            pass
+    productos = [
+        {'id': p.id, 'nombre': str(p)} for p in productos_set
+    ]
+    return JsonResponse({'success': True, 'productos': productos})
+
+
+@login_required
+@require_GET
 def conductor_por_vehiculo(request, vehiculo_id):
     try:
         vehiculo = Vehiculo.objects.select_related('conductor').filter(id=vehiculo_id).first()

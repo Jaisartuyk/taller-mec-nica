@@ -222,7 +222,8 @@
               <thead class="table-light">
                 <tr>
                   <th>Repuesto</th>
-                  <th>Categoría</th>
+                  
+                  <th>Servicios donde se usa</th>
                   <th>Stock Actual</th>
                   <th>Stock Mínimo</th>
                   <th>Estado</th>
@@ -233,7 +234,16 @@
                 {% for repuesto in stats.repuestos_bajos %}
                 <tr>
                   <td>{{ repuesto.nombre }}</td>
-                  <td>{{ repuesto.categoria|default:"-" }}</td>
+                  
+                  <td>
+                    {% if repuesto.servicios_catalogo.all %}
+                      {% for servicio in repuesto.servicios_catalogo.all %}
+                        {{ servicio.nombre }}{% if not forloop.last %}, {% endif %}
+                      {% empty %}
+                        -
+                      {% endfor %}
+                    {% else %}-{% endif %}
+                  </td>
                   <td>{{ repuesto.stock }}</td>
                   <td>{{ repuesto.stock_minimo }}</td>
                   <td>
@@ -251,7 +261,7 @@
                 </tr>
                 {% empty %}
                 <tr>
-                  <td colspan="6" class="text-center py-4">
+                  <td colspan="5" class="text-center py-4">
                     <i class="bi bi-check-circle fs-1 text-success mb-2"></i>
                     <p class="text-muted mb-0">No hay repuestos con stock bajo</p>
                   </td>

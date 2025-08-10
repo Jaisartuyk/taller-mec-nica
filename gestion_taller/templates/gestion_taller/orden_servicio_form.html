@@ -102,6 +102,72 @@
 <script src="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/js/select2.min.js"></script>
 <script>
 $(document).ready(function() {
+    // --- Actualizar conductor al seleccionar vehículo ---
+    $('#id_vehiculo').on('change', function() {
+        var vehiculoId = $(this).val();
+        if (vehiculoId) {
+            $('#conductor-spinner').show();
+            $.ajax({
+                url: '/api/vehiculo/' + vehiculoId + '/conductor/',
+                method: 'GET',
+                success: function(data) {
+                    if (data.success && data.conductor) {
+                        $('#conductor-display').val(data.conductor.nombre);
+                        $('#id_conductor').val(data.conductor.id);
+                        var info = '';
+                        if (data.conductor.telefono) {
+                            info = '<i class="bi bi-telephone"></i> ' + data.conductor.telefono;
+                        }
+                        $('#conductor-info').html(info);
+                    } else {
+                        $('#conductor-display').val('');
+                        $('#id_conductor').val('');
+                        $('#conductor-info').html('');
+                    }
+                },
+                error: function() {
+                    $('#conductor-display').val('');
+                    $('#id_conductor').val('');
+                    $('#conductor-info').html('');
+                },
+                complete: function() {
+                    $('#conductor-spinner').hide();
+                }
+            });
+        } else {
+            $('#conductor-display').val('');
+            $('#id_conductor').val('');
+            $('#conductor-info').html('');
+        }
+    });
+
+    // --- Actualizar productos al seleccionar servicios ---
+    $('#id_servicios').on('change', function() {
+        var servicioIds = $(this).val(); // array
+        if (servicioIds && servicioIds.length > 0) {
+            $.ajax({
+                url: '/api/productos_por_servicio/',
+                method: 'GET',
+                data: { servicio_ids: servicioIds.join(',') },
+                success: function(data) {
+                    if (data.success) {
+                        // Des-selecciona todos los productos
+                        $('#id_productos option').prop('selected', false);
+                        // Selecciona solo los productos devueltos
+                        data.productos.forEach(function(prod) {
+                            $('#id_productos option[value="'+prod.id+'"]').prop('selected', true);
+                        });
+                        $('#id_productos').trigger('change');
+                    }
+                }
+            });
+        } else {
+            // Si no hay servicios seleccionados, des-selecciona todos los productos
+            $('#id_productos option').prop('selected', false);
+            $('#id_productos').trigger('change');
+        }
+    });
+
     // --- Cálculo en tiempo real del total ---
     function calcularTotal() {
         let total = 0;
