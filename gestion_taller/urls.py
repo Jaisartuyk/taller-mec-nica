@@ -1,4 +1,5 @@
 from django.urls import path
+from .views import RepuestoUpdateView
 from gestion_taller import views
 from .views import home
 
@@ -56,4 +57,5 @@ urlpatterns = [
 
 
 
-]   
+    path('repuestos/editar/<int:pk>/', RepuestoUpdateView.as_view(), name='repuesto_update')
+]
