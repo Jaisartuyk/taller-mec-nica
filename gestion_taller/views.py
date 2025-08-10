@@ -3,7 +3,7 @@ from django.urls import reverse_lazy
 from django.views.generic import ListView, CreateView, UpdateView, DeleteView
 from django.contrib import messages
 from .models import Vehiculo, Repuesto, ServicioCatalogo, PerfilUsuario, Conductor, User
-from .forms import VehiculoForm, RepuestoForm, PerfilUsuarioForm, ConductorForm, OrdenServicioForm, ServicioCatalogoForm
+from .forms import VehiculoForm, RepuestoForm, PerfilUsuarioForm, ConductorForm, OrdenServicioForm, ServicioCatalogoForm, ConductorUpdateForm
 from .models import Conductor
 from django.urls import reverse_lazy
 from django.views.generic import ListView, CreateView, UpdateView, DeleteView
@@ -561,8 +561,8 @@ class ConductorCreateView(CreateView):
 @method_decorator(login_required, name='dispatch')
 class ConductorUpdateView(UpdateView):
     model = Conductor
-    form_class = ConductorForm
-    template_name = 'gestion_taller/conductor_form_modal.html'
+    form_class = ConductorUpdateForm
+    template_name = 'gestion_taller/conductor_form.html'
     success_url = reverse_lazy('conductores')
     def get_queryset(self):
         perfil = self.request.user.perfilusuario

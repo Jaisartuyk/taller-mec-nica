@@ -38,14 +38,16 @@ class ClienteForm(forms.ModelForm):
         fields = ['nombre', 'telefono', 'correo', 'direccion']
 
 class ConductorForm(forms.ModelForm):
+    class Meta:
+        model = Conductor
+        exclude = ['cliente', 'fecha_registro']
+
+# Formulario exclusivo para la vista de edición con estilos
+class ConductorUpdateForm(ConductorForm):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
         for field_name, field in self.fields.items():
             field.widget.attrs.update({'class': 'form-control', 'autocomplete': 'off'})
-
-    class Meta:
-        model = Conductor
-        exclude = ['cliente', 'fecha_registro']
 
 class VehiculoForm(forms.ModelForm):
     class Meta:
