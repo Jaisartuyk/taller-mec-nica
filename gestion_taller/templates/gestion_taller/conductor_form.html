@@ -4,39 +4,57 @@
 {% block title %}{{ view.object|default_if_none:'Nuevo' }} Conductor{% endblock %}
 
 {% block content %}
-<div class="container">
-    <div class="form-container">
-        <h2 class="mb-4">{% if view.object %}Editar{% else %}Nuevo{% endif %} Conductor</h2>
-        <form method="post" action="{% if view.object %}{% url 'conductor_editar' view.object.pk %}{% else %}{% url 'conductor_nuevo' %}{% endif %}">
-            {% csrf_token %}
-            <div class="row g-3">
-                {% for field in form %}
-                <div class="col-12">
-                    <div class="mb-3">
-                        <label for="{{ field.id_for_label }}" class="form-label">
-                            {{ field.label }}
-                            {% if field.field.required %}<span class="text-danger">*</span>{% endif %}
-                        </label>
-                        {{ field|as_widget }}
-                        {% if field.help_text %}
-                        <div class="form-text">{{ field.help_text }}</div>
+<div class="container py-4">
+    <div class="row justify-content-center">
+        <div class="col-lg-7 col-md-9">
+            <div class="card shadow-lg border-0 animate__animated animate__fadeIn">
+                <div class="card-header bg-primary text-white d-flex align-items-center" style="min-height: 90px;">
+                    <div class="me-3">
+                        <div class="rounded-circle bg-white text-primary d-flex align-items-center justify-content-center" style="width:56px;height:56px;font-size:2rem;">
+                            <i class="bi bi-person-circle"></i>
+                        </div>
+                    </div>
+                    <div>
+                        <h3 class="mb-0">{% if view.object %}Editar{% else %}Nuevo{% endif %} Conductor</h3>
+                        {% if view.object %}
+                        <small class="text-white-50">ID: #{{ view.object.pk }}</small>
                         {% endif %}
-                        {% for error in field.errors %}
-                        <div class="invalid-feedback d-block">{{ error }}</div>
-                        {% endfor %}
                     </div>
                 </div>
-                {% endfor %}
+                <div class="card-body bg-light">
+                    <form method="post" action="{% if view.object %}{% url 'conductor_editar' view.object.pk %}{% else %}{% url 'conductor_nuevo' %}{% endif %}" autocomplete="off">
+                        {% csrf_token %}
+                        <div class="row g-3">
+                            {% for field in form %}
+                            <div class="col-12">
+                                <div class="mb-3">
+                                    <label for="{{ field.id_for_label }}" class="form-label fw-semibold">
+                                        {{ field.label }}
+                                        {% if field.field.required %}<span class="text-danger">*</span>{% endif %}
+                                    </label>
+                                    {{ field|as_widget:field|add_class:'form-control' }}
+                                    {% if field.help_text %}
+                                    <div class="form-text">{{ field.help_text }}</div>
+                                    {% endif %}
+                                    {% for error in field.errors %}
+                                    <div class="invalid-feedback d-block">{{ error }}</div>
+                                    {% endfor %}
+                                </div>
+                            </div>
+                            {% endfor %}
+                        </div>
+                        <div class="d-flex justify-content-between align-items-center mt-4">
+                            <a href="{% url 'conductores' %}" class="btn btn-outline-secondary">
+                                <i class="bi bi-arrow-left"></i> Cancelar
+                            </a>
+                            <button type="submit" class="btn btn-primary px-4 shadow-sm">
+                                <i class="bi bi-save"></i> Guardar
+                            </button>
+                        </div>
+                    </form>
+                </div>
             </div>
-            <div class="d-grid gap-2 d-md-flex justify-content-md-end mt-4">
-                <a href="{% url 'conductores' %}" class="btn btn-secondary me-md-2">
-                    <i class="bi bi-arrow-left"></i> Cancelar
-                </a>
-                <button type="submit" class="btn btn-success">
-                    <i class="bi bi-save"></i> Guardar
-                </button>
-            </div>
-        </form>
+        </div>
     </div>
 </div>
 {% endblock %}
