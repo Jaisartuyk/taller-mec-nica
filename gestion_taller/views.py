@@ -36,9 +36,25 @@ class RepuestoCreateView(CreateView):
     def get(self, request, *args, **kwargs):
         return HttpResponse("RepuestoCreateView (stub)")
 
+@method_decorator(login_required, name='dispatch')
 class RepuestoUpdateView(UpdateView):
-    def get(self, request, *args, **kwargs):
-        return HttpResponse("RepuestoUpdateView (stub)")
+    model = Repuesto
+    form_class = RepuestoForm
+    template_name = 'gestion_taller/repuesto_form_modal_content.html'
+
+    def get_queryset(self):
+        # Asegurar que el usuario solo pueda editar repuestos de su cliente
+        perfil = self.request.user.perfilusuario
+        if perfil.es_admin:
+            return Repuesto.objects.all()
+        return Repuesto.objects.filter(cliente=perfil.cliente)
+
+    def form_valid(self, form):
+        form.save()
+        # Enviar una respuesta vacía con un header para que HTMX sepa qué hacer
+        response = HttpResponse(status=204)
+        response['HX-Trigger'] = 'repuestoActualizado'
+        return response
 
 class RepuestoDeleteView(DeleteView):
     def get(self, request, *args, **kwargs):
