@@ -298,37 +298,36 @@
 
 <script>
     document.addEventListener('DOMContentLoaded', (event) => {
-        const modalElement = document.getElementById('modal');
-        if (!modalElement) return;
-
-        const myModal = new bootstrap.Modal(modalElement);
-
         // Mostrar el modal cuando HTMX carga el contenido del formulario
         htmx.on('htmx:afterSwap', (e) => {
             if (e.detail.target.id === "dialog") {
                 console.log('Contenido cargado en dialog, mostrando modal...');
-                myModal.show();
-            }
-        });
-        
-        // También escuchar en el documento por si el evento se propaga
-        document.addEventListener('htmx:afterSwap', (e) => {
-            if (e.detail.target.id === "dialog") {
-                console.log('Evento htmx:afterSwap detectado, mostrando modal...');
-                myModal.show();
+                const modalElement = document.getElementById('modal');
+                if (modalElement) {
+                    const myModal = new bootstrap.Modal(modalElement);
+                    myModal.show();
+                }
             }
         });
 
         // Escuchar el trigger desde la vista para cerrar el modal
         htmx.on('repuestoActualizado', () => {
-            myModal.hide();
+            const modalElement = document.getElementById('modal');
+            if (modalElement) {
+                const myModal = bootstrap.Modal.getInstance(modalElement);
+                if (myModal) {
+                    myModal.hide();
+                }
+            }
         });
 
         // Limpiar el contenido del modal cuando se cierra para evitar datos viejos
-        modalElement.addEventListener('hidden.bs.modal', () => {
-            const dialog = document.getElementById('dialog');
-            if(dialog) {
-                dialog.innerHTML = '';
+        document.addEventListener('hidden.bs.modal', (e) => {
+            if (e.target.id === 'modal') {
+                const dialog = document.getElementById('dialog');
+                if(dialog) {
+                    dialog.innerHTML = '';
+                }
             }
         });
     });
