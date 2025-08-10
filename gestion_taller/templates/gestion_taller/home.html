@@ -306,6 +306,15 @@
         // Mostrar el modal cuando HTMX carga el contenido del formulario
         htmx.on('htmx:afterSwap', (e) => {
             if (e.detail.target.id === "dialog") {
+                console.log('Contenido cargado en dialog, mostrando modal...');
+                myModal.show();
+            }
+        });
+        
+        // También escuchar en el documento por si el evento se propaga
+        document.addEventListener('htmx:afterSwap', (e) => {
+            if (e.detail.target.id === "dialog") {
+                console.log('Evento htmx:afterSwap detectado, mostrando modal...');
                 myModal.show();
             }
         });
