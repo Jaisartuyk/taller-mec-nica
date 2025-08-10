@@ -68,6 +68,10 @@ class VehiculoForm(forms.ModelForm):
 
 
 class RepuestoForm(forms.ModelForm):
+    class Meta:
+        model = Repuesto
+        fields = '__all__'
+
     def __init__(self, *args, **kwargs):
         self.user = kwargs.pop('user', None)
         self.editing = kwargs.pop('editing', False)

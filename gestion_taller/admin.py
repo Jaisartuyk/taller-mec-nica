@@ -99,13 +99,13 @@ class CitaAdmin(admin.ModelAdmin):
 
 @admin.register(Repuesto)
 class RepuestoAdmin(admin.ModelAdmin):
-    list_display = ('nombre', 'codigo', 'categoria', 'precio_venta', 'stock', 'cliente', 'fecha_creacion', 'imagen_preview')
+    list_display = ('nombre', 'codigo', 'precio_venta', 'stock', 'cliente', 'fecha_creacion', 'imagen_preview')
     search_fields = ('nombre', 'codigo')
-    list_filter = ('cliente', 'categoria', 'fecha_creacion')
+    list_filter = ('cliente', 'fecha_creacion')
     readonly_fields = ('imagen_preview',)
     fieldsets = (
         (None, {
-            'fields': ('cliente', 'categoria', 'nombre', 'codigo', 'descripcion', 'imagen', 'imagen_preview', 'precio_compra', 'precio_venta', 'stock', 'stock_minimo', 'proveedor')
+            'fields': ('cliente', 'nombre', 'codigo', 'descripcion', 'imagen', 'imagen_preview', 'precio_compra', 'precio_venta', 'stock', 'stock_minimo', 'proveedor')
         }),
     )
     def imagen_preview(self, obj):
