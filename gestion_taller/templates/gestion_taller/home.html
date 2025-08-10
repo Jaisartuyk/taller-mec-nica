@@ -255,11 +255,7 @@
                       {% endif %}
                     </td>
                     <td>
-                      <button type="button" 
-                              class="btn btn-sm btn-outline-primary"
-                              hx-get="{% url 'repuesto_editar' repuesto.pk %}"
-                              hx-target="#dialog"
-                              hx-swap="innerHTML">
+                      <button class="btn btn-warning btn-sm" hx-get="{% url 'repuesto_update' repuesto.pk %}" hx-target="#dialog" hx-swap="innerHTML" title="Reabastecer">
                         <i class="bi bi-pencil-square"></i> Reabastecer
                       </button>
                     </td>

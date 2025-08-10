@@ -2,8 +2,7 @@
 {% load static %}
 
 <div id="repuestoFormContainer">
-  <form id="formRepuesto" method="post" enctype="multipart/form-data" 
-        action="{% if form.instance.pk %}/repuestos/editar/{{ form.instance.pk }}/{% else %}/repuestos/nuevo/{% endif %}">
+  <form method="post" hx-post="{{ request.path }}" hx-target="#dialog">
     {% csrf_token %}
     
     {% if form.instance.pk %}
