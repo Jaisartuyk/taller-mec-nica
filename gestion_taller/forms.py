@@ -89,6 +89,15 @@ class RepuestoForm(forms.ModelForm):
         if 'cliente' in self.fields:
             del self.fields['cliente']
 
+        # Aplicar clases de Bootstrap a todos los campos
+        for field_name, field in self.fields.items():
+            # Para campos de selección, usar 'form-select'
+            if isinstance(field.widget, forms.Select):
+                field.widget.attrs.update({'class': 'form-select'})
+            # Para campos de número, texto, etc., usar 'form-control'
+            else:
+                field.widget.attrs.update({'class': 'form-control'})
+
 # --- Formulario para ServicioCatalogo ---
 class ServicioCatalogoForm(forms.ModelForm):
     class Meta:
