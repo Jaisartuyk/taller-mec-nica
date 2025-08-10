@@ -98,6 +98,7 @@
 <script src="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/js/select2.min.js"></script>
 <script>
 $(document).ready(function() {
+
     // ======================
     // CONDUCTOR SEGÚN VEHÍCULO
     // ======================
@@ -134,22 +135,11 @@ $(document).ready(function() {
         });
     }
 
-    // Al cargar la página, si ya hay vehículo seleccionado, obtener conductor
-    const vehiculoInicial = $('#id_vehiculo').val();
-    if (vehiculoInicial) {
-        actualizarConductorPorVehiculo(vehiculoInicial);
-    }
-
-    // Cambio de vehículo → actualizar conductor
-    $('#id_vehiculo').on('change', function() {
-        actualizarConductorPorVehiculo($(this).val());
-    });
-
     // ======================
     // PRODUCTOS SEGÚN SERVICIO(S)
     // ======================
-    $('#id_servicios').off('change').on('change', function() {
-        const servicioIds = $(this).val();
+    function actualizarProductosPorServicios() {
+        const servicioIds = $('#id_servicios').val();
 
         if (!servicioIds || servicioIds.length === 0) {
             $('#id_productos').val(null).trigger('change');
@@ -157,7 +147,7 @@ $(document).ready(function() {
             return;
         }
 
-        // Seleccionar productos asociados a los servicios elegidos
+        // Seleccionar productos asociados
         $.ajax({
             url: '/api/productos_por_servicio/',
             method: 'GET',
@@ -173,7 +163,7 @@ $(document).ready(function() {
             }
         });
 
-        // Mostrar productos agrupados por cada servicio catálogo
+        // Mostrar lista agrupada por servicio
         $('#productos-por-servicio').html('<div class="text-muted">Cargando repuestos por servicio...</div>');
         let html = '';
         let requests = [];
@@ -187,13 +177,13 @@ $(document).ready(function() {
                     method: 'GET',
                     data: { servicio_ids: servicioId },
                     success: function(data) {
-                        html += `<div class=\"mb-2\"><strong>${servicioNombre}</strong><ul class=\"mb-0\">`;
+                        html += `<div class="mb-2"><strong>${servicioNombre}</strong><ul class="mb-0">`;
                         if (data.success && data.productos.length > 0) {
                             data.productos.forEach(function(prod) {
                                 html += `<li>${prod.nombre}</li>`;
                             });
                         } else {
-                            html += '<li class=\"text-muted\">Sin repuestos asociados</li>';
+                            html += '<li class="text-muted">Sin repuestos asociados</li>';
                         }
                         html += '</ul></div>';
                     }
@@ -204,191 +194,27 @@ $(document).ready(function() {
         $.when.apply($, requests).then(function() {
             $('#productos-por-servicio').html(html);
         });
-    });
+    }
 
     // ======================
-    // SELECT2
+    // EVENTOS
     // ======================
+    const vehiculoInicial = $('#id_vehiculo').val();
+    if (vehiculoInicial) {
+        actualizarConductorPorVehiculo(vehiculoInicial);
+    }
+
+    $('#id_vehiculo').on('change', function() {
+        actualizarConductorPorVehiculo($(this).val());
+    });
+
+    $('#id_servicios').on('change', function() {
+        actualizarProductosPorServicios();
+    });
+
+    // Inicializar Select2
     $('select').select2({theme: 'bootstrap-5'});
 });
-</script>
-
-
-        // ======================
-        // FUNCIONES
-        // ======================
-
-        // 1️⃣ Actualizar conductor según vehículo
-        function actualizarConductorPorVehiculo(vehiculoId) {
-            if (!vehiculoId) {
-                $('#conductor-display').val('');
-                $('#id_conductor').val('');
-                $('#conductor-info').text('');
-                return;
-            }
-            $.ajax({
-                url: `/api/vehiculo/${vehiculoId}/conductor/`,
-                method: 'GET',
-                success: function(data) {
-                    if (data.success && data.conductor) {
-                        $('#conductor-display').val(data.conductor.nombre);
-                        $('#id_conductor').val(data.conductor.id);
-                        if (data.conductor.telefono) {
-                            $('#conductor-info').html(`<i class="bi bi-telephone"></i> ${data.conductor.telefono}`);
-                        } else {
-                            $('#conductor-info').text('');
-                        }
-                    } else {
-                        $('#conductor-display').val('');
-                        $('#id_conductor').val('');
-                        $('#conductor-info').text('');
-                    }
-                },
-                error: function() {
-                    $('#conductor-display').val('');
-                    $('#id_conductor').val('');
-                    $('#conductor-info').text('');
-                }
-            });
-        }
-
-        // 2️⃣ Actualizar productos según servicios seleccionados
-        function actualizarProductosPorServicios() {
-            const servicioIds = $('#id_servicios').val();
-
-            if (!servicioIds || servicioIds.length === 0) {
-                $('#id_productos').val(null).trigger('change');
-                $('#productos-por-servicio').html('');
-                return;
-            }
-
-            // Obtener productos asociados
-            $.ajax({
-                url: '/api/productos_por_servicio/',
-                method: 'GET',
-                data: { servicio_ids: servicioIds.join(',') },
-                success: function(data) {
-                    if (data.success) {
-                        // Seleccionar productos devueltos
-                        $('#id_productos option').prop('selected', false);
-                        data.productos.forEach(function(prod) {
-                            $('#id_productos option[value="'+prod.id+'"]').prop('selected', true);
-                        });
-                        $('#id_productos').trigger('change');
-                    }
-                }
-            });
-
-            // Mostrar lista agrupada por servicio
-            $('#productos-por-servicio').html('<div class="text-muted">Cargando repuestos por servicio...</div>');
-            let html = '';
-            let requests = [];
-
-            $('#id_servicios option:selected').each(function() {
-                const servicioId = $(this).val();
-                const servicioNombre = $(this).text();
-                requests.push(
-                    $.ajax({
-                        url: '/api/productos_por_servicio/',
-                        method: 'GET',
-                        data: { servicio_ids: servicioId },
-                        success: function(data) {
-                            html += `<div class="mb-2"><strong>${servicioNombre}</strong><ul class="mb-0">`;
-                            if (data.success && data.productos.length > 0) {
-                                data.productos.forEach(function(prod) {
-                                    html += `<li>${prod.nombre}</li>`;
-                                });
-                            } else {
-                                html += '<li class="text-muted">Sin repuestos asociados</li>';
-                            }
-                            html += '</ul></div>';
-                        }
-                    })
-                );
-            });
-
-            $.when.apply($, requests).then(function() {
-                $('#productos-por-servicio').html(html);
-            });
-        }
-
-        // ======================
-        // EVENTOS
-        // ======================
-
-        // Al cargar la página, si ya hay vehículo seleccionado, obtener conductor
-        const vehiculoInicial = $('#id_vehiculo').val();
-        if (vehiculoInicial) {
-            actualizarConductorPorVehiculo(vehiculoInicial);
-        }
-
-        // Cambio de vehículo → actualizar conductor
-        $('#id_vehiculo').on('change', function() {
-            actualizarConductorPorVehiculo($(this).val());
-        });
-
-        // Cambio de servicios → actualizar productos
-        $('#id_servicios').off('change').on('change', function() {
-            const servicioIds = $(this).val();
-
-            if (!servicioIds || servicioIds.length === 0) {
-                $('#id_productos').val(null).trigger('change');
-                $('#productos-por-servicio').html('');
-                return;
-            }
-
-            // Seleccionar productos asociados a los servicios elegidos
-            $.ajax({
-                url: '/api/productos_por_servicio/',
-                method: 'GET',
-                data: { servicio_ids: servicioIds.join(',') },
-                success: function(data) {
-                    if (data.success) {
-                        $('#id_productos option').prop('selected', false);
-                        data.productos.forEach(function(prod) {
-                            $('#id_productos option[value="'+prod.id+'"]').prop('selected', true);
-                        });
-                        $('#id_productos').trigger('change');
-                    }
-                }
-            });
-
-            // Mostrar productos agrupados por cada servicio catálogo
-            $('#productos-por-servicio').html('<div class="text-muted">Cargando repuestos por servicio...</div>');
-            let html = '';
-            let requests = [];
-
-            $('#id_servicios option:selected').each(function() {
-                const servicioId = $(this).val();
-                const servicioNombre = $(this).text();
-                requests.push(
-                    $.ajax({
-                        url: '/api/productos_por_servicio/',
-                        method: 'GET',
-                        data: { servicio_ids: servicioId },
-                        success: function(data) {
-                            html += `<div class="mb-2"><strong>${servicioNombre}</strong><ul class="mb-0">`;
-                            if (data.success && data.productos.length > 0) {
-                                data.productos.forEach(function(prod) {
-                                    html += `<li>${prod.nombre}</li>`;
-                                });
-                            } else {
-                                html += '<li class="text-muted">Sin repuestos asociados</li>';
-                            }
-                            html += '</ul></div>';
-                        }
-                    })
-                );
-            });
-
-            $.when.apply($, requests).then(function() {
-                $('#productos-por-servicio').html(html);
-            });
-        });
-
-        // Inicializar Select2
-        $('select').select2({theme: 'bootstrap-5'});
-    });
 </script>
 
 {% endblock %}
