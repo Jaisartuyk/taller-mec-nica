@@ -98,6 +98,117 @@
 <script src="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/js/select2.min.js"></script>
 <script>
 $(document).ready(function() {
+    // --- Función para actualizar conductor por vehículo ---
+    function actualizarConductorPorVehiculo(vehiculoId) {
+        if (!vehiculoId) {
+            $('#conductor-display').val('');
+            $('#id_conductor').val('');
+            $('#conductor-info').text('');
+            return;
+        }
+        $.ajax({
+            url: `/api/vehiculo/${vehiculoId}/conductor/`,
+            method: 'GET',
+            success: function(data) {
+                if (data.success && data.conductor) {
+                    $('#conductor-display').val(data.conductor.nombre);
+                    $('#id_conductor').val(data.conductor.id);
+                    if (data.conductor.telefono) {
+                        $('#conductor-info').html(`<i class="bi bi-telephone"></i> ${data.conductor.telefono}`);
+                    } else {
+                        $('#conductor-info').text('');
+                    }
+                } else {
+                    $('#conductor-display').val('');
+                    $('#id_conductor').val('');
+                    $('#conductor-info').text('');
+                }
+            },
+            error: function() {
+                $('#conductor-display').val('');
+                $('#id_conductor').val('');
+                $('#conductor-info').text('');
+            }
+        });
+    }
+
+    // Inicializar conductor al cargar la página SIEMPRE
+    setTimeout(function() {
+        var vehiculoInicial = $('#id_vehiculo').val();
+        if (vehiculoInicial) {
+            actualizarConductorPorVehiculo(vehiculoInicial);
+        }
+    }, 200);
+
+    // Manejar cambio de vehículo
+    $('#id_vehiculo').on('change', function() {
+        actualizarConductorPorVehiculo($(this).val());
+    });
+
+    // --- Actualizar productos al seleccionar servicios ---
+    $('#id_servicios').on('change', function() {
+        var servicioIds = $(this).val(); // array
+        if (servicioIds && servicioIds.length > 0) {
+            $.ajax({
+                url: '/api/productos_por_servicio/',
+                method: 'GET',
+                data: { servicio_ids: servicioIds.join(',') },
+                success: function(data) {
+                    if (data.success) {
+                        // Des-selecciona todos los productos
+                        $('#id_productos option').prop('selected', false);
+                        // Selecciona solo los productos devueltos
+                        data.productos.forEach(function(prod) {
+                            $('#id_productos option[value="'+prod.id+'"]').prop('selected', true);
+                        });
+                        $('#id_productos').trigger('change');
+                    }
+                }
+            });
+
+            // Mostrar productos agrupados por servicio
+            $('#productos-por-servicio').html('<div class="text-muted">Cargando repuestos por servicio...</div>');
+            // Obtener nombres de servicios seleccionados
+            var serviciosSeleccionados = [];
+            $('#id_servicios option:selected').each(function() {
+                serviciosSeleccionados.push({id: $(this).val(), nombre: $(this).text()});
+            });
+            if(serviciosSeleccionados.length > 0) {
+                var renderPorServicio = function(servicios) {
+                    var html = '';
+                    var ajaxs = [];
+                    servicios.forEach(function(serv) {
+                        ajaxs.push($.ajax({
+                            url: '/api/productos_por_servicio/',
+                            method: 'GET',
+                            data: { servicio_ids: serv.id },
+                            success: function(data) {
+                                html += '<div class="mb-2"><strong>'+serv.nombre+'</strong><ul class="mb-0">';
+                                if(data.success && data.productos.length > 0) {
+                                    data.productos.forEach(function(prod) {
+                                        html += '<li>'+prod.nombre+'</li>';
+                                    });
+                                } else {
+                                    html += '<li class="text-muted">Sin repuestos asociados</li>';
+                                }
+                                html += '</ul></div>';
+                            }
+                        }));
+                    });
+                    $.when.apply($, ajaxs).then(function(){
+                        $('#productos-por-servicio').html(html);
+                    });
+                };
+                renderPorServicio(serviciosSeleccionados);
+            }
+        } else {
+            // Si no hay servicios seleccionados, des-selecciona todos los productos y limpia agrupación visual
+            $('#id_productos option').prop('selected', false);
+            $('#id_productos').trigger('change');
+            $('#productos-por-servicio').html('');
+        }
+    });
+
     // --- Actualizar conductor al seleccionar vehículo ---
     $('#id_vehiculo').on('change', function() {
         var vehiculoId = $(this).val();
