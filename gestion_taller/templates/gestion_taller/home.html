@@ -255,7 +255,7 @@
                       {% endif %}
                     </td>
                     <td>
-                      <button class="btn btn-warning btn-sm" hx-get="{% url 'repuesto_update' repuesto.pk %}" hx-target="#dialog" hx-swap="innerHTML" title="Reabastecer">
+                      <button class="btn btn-warning btn-sm" hx-get="{% url 'repuesto_update' repuesto.pk %}" hx-target="#modal-content" hx-swap="innerHTML" title="Reabastecer">
                         <i class="bi bi-pencil-square"></i> Reabastecer
                       </button>
                     </td>
@@ -288,10 +288,8 @@
 <!-- Contenedor para el modal que se cargará con HTMX -->
 <div id="modal" class="modal fade" tabindex="-1" aria-hidden="true">
     <div class="modal-dialog modal-lg">
-        <div class="modal-content">
-            <div id="dialog">
-                <!-- El contenido del formulario del repuesto se cargará aquí -->
-            </div>
+        <div id="modal-content" class="modal-content">
+            <!-- El contenido del formulario del repuesto se cargará aquí -->
         </div>
     </div>
 </div>
@@ -300,8 +298,7 @@
     document.addEventListener('DOMContentLoaded', (event) => {
         // Mostrar el modal cuando HTMX carga el contenido del formulario
         htmx.on('htmx:afterSwap', (e) => {
-            if (e.detail.target.id === "dialog") {
-
+            if (e.detail.target.id === "modal-content") {
                 const modalElement = document.getElementById('modal');
                 if (modalElement) {
                     const myModal = new bootstrap.Modal(modalElement);
@@ -322,11 +319,12 @@
         });
 
         // Limpiar el contenido del modal cuando se cierra para evitar datos viejos
+        // Limpiar el contenido del modal cuando se cierra para evitar datos viejos
         document.addEventListener('hidden.bs.modal', (e) => {
             if (e.target.id === 'modal') {
-                const dialog = document.getElementById('dialog');
-                if(dialog) {
-                    dialog.innerHTML = '';
+                const modalContent = document.getElementById('modal-content');
+                if(modalContent) {
+                    modalContent.innerHTML = '';
                 }
             }
         });
