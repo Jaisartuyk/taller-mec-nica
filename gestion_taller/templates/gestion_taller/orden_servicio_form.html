@@ -36,14 +36,9 @@
                             <div class="col-md-6">
                                 <label for="conductor-display" class="form-label">Conductor</label>
                                 <div class="input-group">
-                                    <input type="text" id="conductor-display" class="form-control" 
-                                           value="{% if form.instance.conductor %}{{ form.instance.conductor.nombre }}{% elif form.instance.vehiculo and form.instance.vehiculo.conductor %}{{ form.instance.vehiculo.conductor.nombre }}{% else %}{% endif %}" 
-                                           readonly>
-                                    <span id="conductor-spinner" class="input-group-text">
-                                        <div class="spinner-border spinner-border-sm" role="status">
-                                            <span class="visually-hidden">Cargando...</span>
-                                        </div>
-                                    </span>
+                                    <input type="text" id="conductor-display" class="form-control" readonly
+    value="{% if form.instance.vehiculo and form.instance.vehiculo.conductor %}{{ form.instance.vehiculo.conductor.nombre }}{% elif form.instance.conductor %}{{ form.instance.conductor.nombre }}{% else %}{% endif %}">
+                                    
                                 </div>
 
                                 <!-- Campo oculto para guardar el ID del conductor -->
@@ -73,10 +68,11 @@
                             </div>
 
                             <div class="col-md-6">
-                                <label for="id_productos" class="form-label">Productos</label>
-                                {{ form.productos }}
-                                <div id="total-a-pagar" class="mt-2 fw-bold text-success"></div>
-                            </div>
+    <label for="id_productos" class="form-label">Productos</label>
+    {{ form.productos }}
+    <div id="productos-por-servicio" class="mt-2"></div>
+    <div id="total-a-pagar" class="mt-2 fw-bold text-success"></div>
+</div>
 
                             <div class="col-md-6">
                                 <label for="id_estado" class="form-label">Estado</label>
@@ -161,10 +157,47 @@ $(document).ready(function() {
                     }
                 }
             });
+
+            // Mostrar productos agrupados por servicio
+            $('#productos-por-servicio').html('<div class="text-muted">Cargando repuestos por servicio...</div>');
+            // Obtener nombres de servicios seleccionados
+            var serviciosSeleccionados = [];
+            $('#id_servicios option:selected').each(function() {
+                serviciosSeleccionados.push({id: $(this).val(), nombre: $(this).text()});
+            });
+            if(serviciosSeleccionados.length > 0) {
+                var renderPorServicio = function(servicios) {
+                    var html = '';
+                    var ajaxs = [];
+                    servicios.forEach(function(serv) {
+                        ajaxs.push($.ajax({
+                            url: '/api/productos_por_servicio/',
+                            method: 'GET',
+                            data: { servicio_ids: serv.id },
+                            success: function(data) {
+                                html += '<div class="mb-2"><strong>'+serv.nombre+'</strong><ul class="mb-0">';
+                                if(data.success && data.productos.length > 0) {
+                                    data.productos.forEach(function(prod) {
+                                        html += '<li>'+prod.nombre+'</li>';
+                                    });
+                                } else {
+                                    html += '<li class="text-muted">Sin repuestos asociados</li>';
+                                }
+                                html += '</ul></div>';
+                            }
+                        }));
+                    });
+                    $.when.apply($, ajaxs).then(function(){
+                        $('#productos-por-servicio').html(html);
+                    });
+                };
+                renderPorServicio(serviciosSeleccionados);
+            }
         } else {
-            // Si no hay servicios seleccionados, des-selecciona todos los productos
+            // Si no hay servicios seleccionados, des-selecciona todos los productos y limpia agrupación visual
             $('#id_productos option').prop('selected', false);
             $('#id_productos').trigger('change');
+            $('#productos-por-servicio').html('');
         }
     });
 
