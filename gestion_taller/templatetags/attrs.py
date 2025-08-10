@@ -13,3 +13,7 @@ def as_widget(field, attrs=None):
     if attrs:
         final_attrs.update(attrs)
     return field.as_widget(attrs=final_attrs)
+
+@register.filter(name='add_class')
+def add_class(field, css):
+    return field.as_widget(attrs={"class": css})
