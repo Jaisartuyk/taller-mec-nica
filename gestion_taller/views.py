@@ -585,7 +585,7 @@ class ConductorUpdateView(UpdateView):
     def form_invalid(self, form):
         if self.request.headers.get('x-requested-with') == 'XMLHttpRequest':
             from django.template.loader import render_to_string
-            html_form = render_to_string('gestion_taller/conductor_form_modal_editar.html', {'form': form}, request=self.request)
+            html_form = render_to_string('gestion_taller/conductor_form.html', {'form': form}, request=self.request)
             from django.http import HttpResponse
             return HttpResponse(html_form)
         return super().form_invalid(form)
@@ -596,7 +596,7 @@ class ConductorUpdateView(UpdateView):
             form = self.get_form()
             context = {'form': form}
             from django.template.loader import render_to_string
-            html_form = render_to_string('gestion_taller/conductor_form_modal_editar.html', context, request=request)
+            html_form = render_to_string('gestion_taller/conductor_form.html', context, request=request)
             from django.http import HttpResponse
             return HttpResponse(html_form)
         return super().get(request, *args, **kwargs)
@@ -604,7 +604,7 @@ class ConductorUpdateView(UpdateView):
     def form_invalid(self, form):
         if self.request.headers.get('x-requested-with') == 'XMLHttpRequest':
             from django.template.loader import render_to_string
-            html_form = render_to_string('gestion_taller/conductor_form_modal_editar.html', {'form': form}, request=self.request)
+            html_form = render_to_string('gestion_taller/conductor_form.html', {'form': form}, request=self.request)
             from django.http import HttpResponse
             return HttpResponse(html_form)
         return super().form_invalid(form)
