@@ -16,4 +16,10 @@ def as_widget(field, attrs=None):
 
 @register.filter(name='add_class')
 def add_class(field, css):
-    return field.as_widget(attrs={"class": css})
+    # Recupera attrs actuales si existen
+    attrs = field.field.widget.attrs.copy()
+    # Obtiene la(s) clase(s) existente(s) y agrega la nueva
+    existing_classes = attrs.get('class', '')
+    classes = f"{existing_classes} {css}".strip()
+    attrs['class'] = classes
+    return field.as_widget(attrs=attrs)
