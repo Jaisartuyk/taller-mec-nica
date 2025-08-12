@@ -255,15 +255,11 @@
                       {% endif %}
                     </td>
                     <td>
-                      <button class="btn btn-warning btn-sm" 
-                              hx-get="{% url 'repuesto_update' repuesto.pk %}" 
-                              hx-target="#modal-content" 
-                              hx-swap="innerHTML"
-                              data-bs-toggle="modal" 
-                              data-bs-target="#modal" 
-                              title="Reabastecer">
+                      <a href="{% url 'repuesto_update' repuesto.pk %}" 
+                         class="btn btn-warning btn-sm" 
+                         title="Reabastecer">
                         <i class="bi bi-pencil-square"></i> Reabastecer
-                      </button>
+                      </a>
                     </td>
                   </tr>
                   {% empty %}
@@ -288,55 +284,8 @@
     </p>
   </div>
 </div>
-
-<!-- Modal para editar repuestos -->
-<div id="modal" class="modal fade" tabindex="-1" aria-hidden="true">
-    <div class="modal-dialog modal-lg">
-        <div id="modal-content" class="modal-content">
-            <!-- El contenido del formulario del repuesto se cargará aquí -->
-        </div>
-    </div>
-</div>
 {% endblock content %}
 
 {% block extra_js %}
-
-<script>
-    document.addEventListener('DOMContentLoaded', (event) => {
-        // Mostrar el modal cuando HTMX carga el contenido del formulario
-        htmx.on('htmx:afterSwap', (e) => {
-            if (e.detail.target.id === "modal-content") {
-                const modalElement = document.getElementById('modal');
-                if (modalElement) {
-                    const myModal = new bootstrap.Modal(modalElement);
-                    myModal.show();
-                }
-            }
-        });
-
-        // Escuchar el trigger desde la vista para cerrar el modal y recargar
-        htmx.on('repuestoActualizado', () => {
-            const modalElement = document.getElementById('modal');
-            if (modalElement) {
-                const myModal = bootstrap.Modal.getInstance(modalElement);
-                if (myModal) {
-                    myModal.hide();
-                }
-            }
-            // Recargar la página para actualizar los datos del dashboard
-            window.location.reload();
-        });
-
-        // Limpiar el contenido del modal cuando se cierra para evitar datos viejos
-        // Limpiar el contenido del modal cuando se cierra para evitar datos viejos
-        document.addEventListener('hidden.bs.modal', (e) => {
-            if (e.target.id === 'modal') {
-                const modalContent = document.getElementById('modal-content');
-                if(modalContent) {
-                    modalContent.innerHTML = '';
-                }
-            }
-        });
-    });
-</script>
+<!-- No se necesita JavaScript adicional para el home -->
 {% endblock extra_js %}
