@@ -255,7 +255,13 @@
                       {% endif %}
                     </td>
                     <td>
-                      <button class="btn btn-warning btn-sm" hx-get="{% url 'repuesto_update' repuesto.pk %}" hx-target="#modal-content" hx-swap="innerHTML" title="Reabastecer">
+                      <button class="btn btn-warning btn-sm" 
+                              hx-get="{% url 'repuesto_update' repuesto.pk %}" 
+                              hx-target="#modal-content" 
+                              hx-swap="innerHTML"
+                              data-bs-toggle="modal" 
+                              data-bs-target="#modal" 
+                              title="Reabastecer">
                         <i class="bi bi-pencil-square"></i> Reabastecer
                       </button>
                     </td>
@@ -282,10 +288,8 @@
     </p>
   </div>
 </div>
-{% endblock content %}
 
-{% block extra_js %}
-<!-- Contenedor para el modal que se cargará con HTMX -->
+<!-- Modal para editar repuestos -->
 <div id="modal" class="modal fade" tabindex="-1" aria-hidden="true">
     <div class="modal-dialog modal-lg">
         <div id="modal-content" class="modal-content">
@@ -293,6 +297,9 @@
         </div>
     </div>
 </div>
+{% endblock content %}
+
+{% block extra_js %}
 
 <script>
     document.addEventListener('DOMContentLoaded', (event) => {
@@ -307,7 +314,7 @@
             }
         });
 
-        // Escuchar el trigger desde la vista para cerrar el modal
+        // Escuchar el trigger desde la vista para cerrar el modal y recargar
         htmx.on('repuestoActualizado', () => {
             const modalElement = document.getElementById('modal');
             if (modalElement) {
@@ -316,6 +323,8 @@
                     myModal.hide();
                 }
             }
+            // Recargar la página para actualizar los datos del dashboard
+            window.location.reload();
         });
 
         // Limpiar el contenido del modal cuando se cierra para evitar datos viejos
