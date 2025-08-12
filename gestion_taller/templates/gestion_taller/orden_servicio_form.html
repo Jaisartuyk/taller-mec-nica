@@ -9,6 +9,31 @@
     .conductor-error { color: #dc3545; }
     #conductor-spinner { display: none; }
     .spinner-border { width: 1rem; height: 1rem; border-width: 0.2em; }
+    
+    /* Estilos para Select2 */
+    .select2-container {
+        z-index: 1050 !important;
+    }
+    
+    .select2-container--bootstrap-5 .select2-selection {
+        border: 1px solid #ced4da;
+        border-radius: 0.375rem;
+        min-height: calc(1.5em + 0.75rem + 2px);
+    }
+    
+    .select2-container--bootstrap-5 .select2-selection--multiple {
+        min-height: calc(1.5em + 0.75rem + 2px);
+    }
+    
+    /* Evitar duplicados visuales */
+    .form-select.select2-hidden-accessible {
+        display: none !important;
+    }
+    
+    /* Asegurar que no haya elementos duplicados */
+    .select2-container + .select2-container {
+        display: none !important;
+    }
 </style>
 {% endblock %}
 
@@ -100,10 +125,33 @@
 {% endblock %}
 
 {% block extra_js %}
+<!-- jQuery y Select2 CDN -->
 <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/js/select2.min.js"></script>
 <script>
 $(document).ready(function() {
+    // Verificar si Select2 ya está inicializado para evitar duplicados
+    function initializeSelect2() {
+        // Destruir Select2 existente si ya está inicializado
+        $('#ordenServicioForm select.select2-hidden-accessible').select2('destroy');
+        
+        // Inicializar Select2 en todos los selects del formulario
+        $('#ordenServicioForm select').select2({
+            theme: 'bootstrap-5',
+            width: '100%',
+            placeholder: 'Seleccionar...',
+            allowClear: true,
+            language: {
+                noResults: function() {
+                    return "No se encontraron resultados";
+                },
+                searching: function() {
+                    return "Buscando...";
+                }
+            }
+        });
+    }
+    
     function actualizarConductorPorVehiculo(vehiculoId) {
         if (!vehiculoId) {
             $('#conductor-display').val('');
@@ -111,6 +159,7 @@ $(document).ready(function() {
             $('#conductor-info').text('');
             return;
         }
+        
         $.ajax({
             url: `/api/vehiculo/${vehiculoId}/conductor/`,
             method: 'GET',
@@ -137,16 +186,21 @@ $(document).ready(function() {
         });
     }
 
+    // Inicializar Select2 de forma segura con un pequeño retraso
+    setTimeout(function() {
+        initializeSelect2();
+    }, 100);
+    
+    // Evento cambio de vehículo
     $('#id_vehiculo').on('change', function() {
         actualizarConductorPorVehiculo($(this).val());
     });
 
+    // Cargar conductor inicial si ya hay vehículo seleccionado
     const vehiculoInicial = $('#id_vehiculo').val();
     if (vehiculoInicial) {
         actualizarConductorPorVehiculo(vehiculoInicial);
     }
-
-    $('select').select2({ theme: 'bootstrap-5' });
 });
 </script>
 
