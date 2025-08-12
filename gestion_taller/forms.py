@@ -212,8 +212,24 @@ class RepuestoForm(forms.ModelForm):
             'proveedor': forms.TextInput(attrs={'class': 'form-control'}),
         }
 
+    def __init__(self, *args, **kwargs):
+        # Extraer argumentos personalizados
+        self.user = kwargs.pop('user', None)
+        self.editing = kwargs.pop('editing', False)
+        super().__init__(*args, **kwargs)
+
     def clean_codigo(self):
         codigo = self.cleaned_data.get('codigo')
+        
+        # Si está editando y no cambió el código, no validar
+        if self.editing and self.instance and codigo == self.instance.codigo:
+            return codigo
+            
+        # Permitir dejar el campo vacío durante edición
+        if self.editing and not codigo:
+            return self.instance.codigo if self.instance else codigo
+            
+        # Validar unicidad
         if codigo:
             queryset = Repuesto.objects.filter(codigo=codigo)
             if self.instance and self.instance.pk:
@@ -221,6 +237,17 @@ class RepuestoForm(forms.ModelForm):
             if queryset.exists():
                 raise forms.ValidationError('Ya existe un repuesto con este código.')
         return codigo
+
+    def save(self, commit=True):
+        # Mantener código actual si se deja vacío durante edición
+        if self.editing and self.instance and not self.cleaned_data.get('codigo'):
+            self.cleaned_data['codigo'] = self.instance.codigo
+            
+        # Asignar cliente automáticamente si se proporciona usuario
+        if self.user and hasattr(self.user, 'perfilusuario') and hasattr(self.user.perfilusuario, 'cliente'):
+            self.instance.cliente = self.user.perfilusuario.cliente
+            
+        return super().save(commit=commit)
 
 class PerfilUsuarioForm(forms.ModelForm):
     class Meta:

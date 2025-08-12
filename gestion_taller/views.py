@@ -33,60 +33,7 @@ class RepuestoListView(ListView):
     def get(self, request, *args, **kwargs):
         return HttpResponse("RepuestoListView (stub)")
 
-@method_decorator(login_required, name='dispatch')
-class RepuestoCreateView(CreateView):
-    model = Repuesto
-    form_class = RepuestoForm
-    template_name = 'gestion_taller/repuesto_form_modal_content.html'
-
-    def form_valid(self, form):
-        # Asigna el cliente del perfil de usuario si no es admin
-        perfil = self.request.user.perfilusuario
-        if hasattr(perfil, 'cliente') and perfil.cliente:
-            form.instance.cliente = perfil.cliente
-        
-        form.save()
-        response = HttpResponse(status=204)
-        response['HX-Trigger'] = 'repuestoActualizado'
-        return response
-
-@method_decorator(login_required, name='dispatch')
-class RepuestoUpdateView(UpdateView):
-    model = Repuesto
-    form_class = RepuestoForm
-    template_name = 'gestion_taller/repuesto_form_modal_content.html'
-
-    def get_queryset(self):
-        # Asegurar que el usuario solo pueda editar repuestos de su cliente
-        perfil = self.request.user.perfilusuario
-        if perfil.es_admin:
-            return Repuesto.objects.all()
-        return Repuesto.objects.filter(cliente=perfil.cliente)
-
-    def form_valid(self, form):
-        form.save()
-        # Enviar una respuesta vacía con un header para que HTMX sepa qué hacer
-        response = HttpResponse(status=204)
-        response['HX-Trigger'] = 'repuestoActualizado'
-        return response
-
-
-@method_decorator(login_required, name='dispatch')
-class RepuestoCreateView(CreateView):
-    model = Repuesto
-    form_class = RepuestoForm
-    template_name = 'gestion_taller/repuesto_form_modal_content.html'
-
-    def form_valid(self, form):
-        # Asigna el cliente del perfil de usuario si no es admin
-        perfil = self.request.user.perfilusuario
-        if hasattr(perfil, 'cliente') and perfil.cliente:
-            form.instance.cliente = perfil.cliente
-        
-        form.save()
-        response = HttpResponse(status=204)
-        response['HX-Trigger'] = 'repuestoActualizado'
-        return response
+# Definiciones de RepuestoCreateView y RepuestoUpdateView movidas más abajo
 
 class RepuestoDeleteView(DeleteView):
     def get(self, request, *args, **kwargs):
@@ -390,9 +337,6 @@ class RepuestoCreateView(CreateView):
             raise
 
     def form_valid(self, form):
-        # Verificar si es una petición AJAX
-        is_ajax = self.request.headers.get('x-requested-with') == 'XMLHttpRequest'
-        
         try:
             # Verificar si el usuario tiene perfil
             if not hasattr(self.request.user, 'perfilusuario'):
@@ -408,24 +352,15 @@ class RepuestoCreateView(CreateView):
             # Guardar el formulario
             self.object = form.save()
             
-            if is_ajax:
-                return JsonResponse({
-                    'success': True,
-                    'message': 'Repuesto creado exitosamente',
-                    'redirect': str(self.get_success_url())
-                })
-                
-            return super().form_valid(form)
+            # Respuesta HTMX
+            response = HttpResponse(status=204)
+            response['HX-Trigger'] = 'repuestoActualizado'
+            return response
             
         except Exception as e:
             print(f"Error en form_valid: {str(e)}")
-            if is_ajax:
-                return JsonResponse({
-                    'success': False,
-                    'message': f'Error al guardar el repuesto: {str(e)}',
-                    'errors': form.errors.get_json_data() if hasattr(form, 'errors') else {}
-                }, status=400)
-            return super().form_invalid(form)
+            # En caso de error, re-renderizar el formulario con errores
+            return self.form_invalid(form)
 
     def form_invalid(self, form):
         is_ajax = self.request.headers.get('x-requested-with') == 'XMLHttpRequest'
@@ -480,40 +415,19 @@ class RepuestoUpdateView(UpdateView):
         return super().get(request, *args, **kwargs)
 
     def form_valid(self, form):
-        # Verificar si es una petición AJAX
-        is_ajax = self.request.headers.get('x-requested-with') == 'XMLHttpRequest'
-        
         try:
-            # Verificar si el usuario tiene perfil
-            if not hasattr(self.request.user, 'perfilusuario'):
-                raise ValueError('El usuario no tiene un perfil configurado')
-                
-            # Verificar si el perfil tiene un cliente asociado
-            if not hasattr(self.request.user.perfilusuario, 'cliente'):
-                raise ValueError('El perfil del usuario no tiene un cliente asociado')
-                
-            # Asignar el cliente al repuesto
-            form.instance.cliente = self.request.user.perfilusuario.cliente
-            
-            # Guardar el formulario
+            # Guardar el formulario (el cliente ya está asignado por el queryset)
             self.object = form.save()
             
-            if is_ajax:
-                return JsonResponse({
-                    'success': True,
-                    'message': 'Repuesto actualizado exitosamente',
-                    'redirect': str(self.get_success_url())
-                })
-            return super().form_valid(form)
+            # Respuesta HTMX
+            response = HttpResponse(status=204)
+            response['HX-Trigger'] = 'repuestoActualizado'
+            return response
             
         except Exception as e:
-            if is_ajax:
-                return JsonResponse({
-                    'success': False,
-                    'message': str(e),
-                    'error_type': type(e).__name__
-                }, status=400)
-            raise
+            print(f"Error en form_valid: {str(e)}")
+            # En caso de error, re-renderizar el formulario con errores
+            return self.form_invalid(form)
 
     def form_invalid(self, form):
         if self.request.headers.get('x-requested-with') == 'XMLHttpRequest':
