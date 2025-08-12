@@ -23,8 +23,8 @@ class OrdenServicioForm(forms.ModelForm):
 
         if user and hasattr(user, 'perfilusuario') and user.perfilusuario.cliente:
             cliente = user.perfilusuario.cliente
-            self.fields['vehiculo'].queryset = Vehiculo.objects.filter(cliente=cliente)
-            self.fields['productos'].queryset = Repuesto.objects.filter(cliente=cliente)
+            self.fields['vehiculo'].queryset = Vehiculo.objects.filter(cliente=cliente).distinct().order_by('placa')
+            self.fields['productos'].queryset = Repuesto.objects.filter(cliente=cliente).distinct().order_by('nombre')
 
         # Precargar conductor si ya existe
         if self.instance.pk and self.instance.vehiculo:
