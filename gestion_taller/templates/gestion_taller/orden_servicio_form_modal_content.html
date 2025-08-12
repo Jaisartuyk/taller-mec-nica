@@ -1,0 +1,149 @@
+<form method="post" id="ordenServicioForm">
+    {% csrf_token %}
+    {{ form.non_field_errors }}
+    
+    <div class="modal-header">
+        <h5 class="modal-title">{% if form.instance.pk %}Editar{% else %}Nueva{% endif %} Orden de Servicio</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+    </div>
+    
+    <div class="modal-body">
+        <div class="row g-3">
+            <!-- Campo Vehículo -->
+            <div class="col-md-6">
+                <label for="id_vehiculo" class="form-label">Vehículo *</label>
+                {{ form.vehiculo }}
+                {% if form.vehiculo.errors %}
+                    <div class="text-danger small">{{ form.vehiculo.errors }}</div>
+                {% endif %}
+            </div>
+
+            <!-- Campo Conductor -->
+            <div class="col-md-6">
+                <label for="conductor-display" class="form-label">Conductor</label>
+                <div class="input-group">
+                    <input type="text" id="conductor-display" class="form-control" readonly
+                        value="{% if form.instance.vehiculo and form.instance.vehiculo.conductor %}{{ form.instance.vehiculo.conductor.nombre }}{% elif form.instance.conductor %}{{ form.instance.conductor.nombre }}{% endif %}">
+                </div>
+
+                <!-- Campo oculto del formulario Django -->
+                {{ form.conductor }}
+
+                <div id="conductor-info" class="conductor-info text-muted mt-1">
+                    {% if form.instance.vehiculo and form.instance.vehiculo.conductor and form.instance.vehiculo.conductor.telefono %}
+                        <i class="bi bi-telephone"></i> {{ form.instance.vehiculo.conductor.telefono }}
+                    {% endif %}
+                </div>
+            </div>
+
+            <!-- Campo Kilometraje -->
+            <div class="col-md-6">
+                <label for="id_kilometraje" class="form-label">Kilometraje</label>
+                {{ form.kilometraje }}
+                {% if form.kilometraje.errors %}
+                    <div class="text-danger small">{{ form.kilometraje.errors }}</div>
+                {% endif %}
+            </div>
+            
+            <!-- Campo Estado -->
+            <div class="col-md-6">
+                <label for="id_estado" class="form-label">Estado</label>
+                {{ form.estado }}
+                {% if form.estado.errors %}
+                    <div class="text-danger small">{{ form.estado.errors }}</div>
+                {% endif %}
+            </div>
+
+            <!-- Campo Servicios -->
+            <div class="col-12">
+                <label for="id_servicios" class="form-label">Servicios *</label>
+                {{ form.servicios }}
+                {% if form.servicios.errors %}
+                    <div class="text-danger small">{{ form.servicios.errors }}</div>
+                {% endif %}
+            </div>
+
+            <!-- Campo Productos -->
+            <div class="col-12">
+                <label for="id_productos" class="form-label">Productos</label>
+                {{ form.productos }}
+                {% if form.productos.errors %}
+                    <div class="text-danger small">{{ form.productos.errors }}</div>
+                {% endif %}
+            </div>
+
+            <!-- Campo Método de Pago -->
+            <div class="col-md-6">
+                <label for="id_metodo_pago" class="form-label">Método de Pago</label>
+                {{ form.metodo_pago }}
+                {% if form.metodo_pago.errors %}
+                    <div class="text-danger small">{{ form.metodo_pago.errors }}</div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+    
+    <div class="modal-footer">
+        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+        <button type="submit" class="btn btn-primary">
+            <i class="bi bi-check-lg"></i> {% if form.instance.pk %}Actualizar{% else %}Crear{% endif %} Orden
+        </button>
+    </div>
+</form>
+
+<script>
+$(document).ready(function() {
+    // Inicializar Select2 solo en el modal
+    $('#ordenServicioForm select').select2({
+        dropdownParent: $('#ordenServicioForm').closest('.modal'),
+        width: '100%',
+        theme: 'bootstrap-5'
+    });
+    
+    // Función para actualizar conductor basado en vehículo seleccionado
+    function actualizarConductorPorVehiculo(vehiculoId) {
+        if (!vehiculoId) {
+            $('#conductor-display').val('');
+            $('#id_conductor').val('');
+            $('#conductor-info').text('');
+            return;
+        }
+        
+        $.ajax({
+            url: `/api/vehiculo/${vehiculoId}/conductor/`,
+            method: 'GET',
+            success: function(data) {
+                if (data.success && data.conductor) {
+                    $('#conductor-display').val(data.conductor.nombre);
+                    $('#id_conductor').val(data.conductor.id);
+                    if (data.conductor.telefono) {
+                        $('#conductor-info').html(`<i class="bi bi-telephone"></i> ${data.conductor.telefono}`);
+                    } else {
+                        $('#conductor-info').text('');
+                    }
+                } else {
+                    $('#conductor-display').val('');
+                    $('#id_conductor').val('');
+                    $('#conductor-info').text('');
+                }
+            },
+            error: function() {
+                $('#conductor-display').val('');
+                $('#id_conductor').val('');
+                $('#conductor-info').text('');
+            }
+        });
+    }
+
+    // Evento cambio de vehículo
+    $('#id_vehiculo').on('change', function() {
+        actualizarConductorPorVehiculo($(this).val());
+    });
+
+    // Cargar conductor inicial si ya hay vehículo seleccionado
+    const vehiculoInicial = $('#id_vehiculo').val();
+    if (vehiculoInicial) {
+        actualizarConductorPorVehiculo(vehiculoInicial);
+    }
+});
+</script>

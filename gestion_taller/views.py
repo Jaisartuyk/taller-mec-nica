@@ -664,17 +664,10 @@ class OrdenServicioCreateView(LoginRequiredMixin, CreateView):
     success_url = reverse_lazy('orden_servicio_listado')
     
     def get_template_names(self):
-        # DEBUG: Verificar headers
-        hx_request = self.request.headers.get('hx-request')
-        ajax_request = self.request.headers.get('x-requested-with')
-        print(f"DEBUG: hx-request: {hx_request}")
-        print(f"DEBUG: x-requested-with: {ajax_request}")
-        
         # Detectar peticiones HTMX o AJAX
-        if (hx_request or ajax_request == 'XMLHttpRequest'):
-            print("DEBUG: Usando plantilla modal")
+        if (self.request.headers.get('hx-request') or 
+            self.request.headers.get('x-requested-with') == 'XMLHttpRequest'):
             return ['gestion_taller/orden_servicio_form_modal_content.html']
-        print("DEBUG: Usando plantilla completa")
         return [self.template_name]
 
     def get_form_kwargs(self):

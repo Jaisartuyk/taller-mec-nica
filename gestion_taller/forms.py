@@ -23,16 +23,8 @@ class OrdenServicioForm(forms.ModelForm):
 
         if user and hasattr(user, 'perfilusuario') and user.perfilusuario.cliente:
             cliente = user.perfilusuario.cliente
-            vehiculos_qs = Vehiculo.objects.filter(cliente=cliente).distinct().order_by('placa')
-            productos_qs = Repuesto.objects.filter(cliente=cliente).distinct().order_by('nombre')
-            
-            # DEBUG: Imprimir cantidad de vehículos
-            print(f"DEBUG: Vehículos encontrados: {vehiculos_qs.count()}")
-            for v in vehiculos_qs:
-                print(f"DEBUG: Vehículo: {v.id} - {v}")
-            
-            self.fields['vehiculo'].queryset = vehiculos_qs
-            self.fields['productos'].queryset = productos_qs
+            self.fields['vehiculo'].queryset = Vehiculo.objects.filter(cliente=cliente).distinct().order_by('placa')
+            self.fields['productos'].queryset = Repuesto.objects.filter(cliente=cliente).distinct().order_by('nombre')
 
         # Precargar conductor si ya existe
         if self.instance.pk and self.instance.vehiculo:
