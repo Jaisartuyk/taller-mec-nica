@@ -13,6 +13,7 @@
             </div>
         {% endif %}
 
+        <!-- DEBUG: Inicio sección vehículo -->
         <div class="row">
             <div class="col-md-6">
                 <div class="mb-3">
@@ -100,16 +101,16 @@
 
 <script>
 $(document).ready(function() {
-    // Inicializar Select2 en el modal
-    $('.select2-single').select2({
-        dropdownParent: $('#modal-content').closest('.modal'),
-        width: '100%'
-    });
-    
-    $('.select2-multiple').select2({
-        dropdownParent: $('#modal-content').closest('.modal'),
-        width: '100%'
-    });
+    // Temporalmente deshabilitado Select2 para diagnosticar duplicaciones
+    // $('.select2-single').select2({
+    //     dropdownParent: $('#modal-content').closest('.modal'),
+    //     width: '100%'
+    // });
+    // 
+    // $('.select2-multiple').select2({
+    //     dropdownParent: $('#modal-content').closest('.modal'),
+    //     width: '100%'
+    // });
 
     // Función para actualizar conductor basado en vehículo seleccionado
     function actualizarConductor(vehiculoId) {
