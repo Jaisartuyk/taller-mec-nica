@@ -13,7 +13,7 @@
 
         <!-- Cuerpo del formulario -->
         <div class="card-body">
-            <form method="post" action="{% if view.object %}{% url 'repuesto_editar' view.object.pk %}{% else %}{% url 'repuesto_nuevo' %}{% endif %}">
+            <form method="post" enctype="multipart/form-data" action="{% if view.object %}{% url 'repuesto_update' view.object.pk %}{% else %}{% url 'repuesto_crear' %}{% endif %}">
                 {% csrf_token %}
 
                 <div class="row g-3">

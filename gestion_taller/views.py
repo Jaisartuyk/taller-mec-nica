@@ -296,7 +296,7 @@ class RepuestoListView(ListView):
 class RepuestoCreateView(CreateView):
     model = Repuesto
     form_class = RepuestoForm
-    template_name = 'gestion_taller/repuesto_form_modal_content.html'
+    template_name = 'gestion_taller/repuesto_form.html'  # Plantilla por defecto
     success_url = reverse_lazy('repuestos')
 
     def get_form_kwargs(self):
@@ -313,17 +313,19 @@ class RepuestoCreateView(CreateView):
         return context
         
     def get(self, request, *args, **kwargs):
-        is_ajax = request.headers.get('x-requested-with') == 'XMLHttpRequest'
+        is_ajax = request.headers.get('x-requested-with') == 'XMLHttpRequest' or 'HX-Request' in request.headers
         
         try:
             # Inicializar el objeto para el formulario
             self.object = None
             
             if is_ajax:
+                # Para peticiones AJAX/HTMX, usar plantilla modal
                 form = self.get_form()
                 context = self.get_context_data(form=form)
-                return render(request, self.template_name, context)
-                
+                return render(request, 'gestion_taller/repuesto_form_modal_content.html', context)
+            
+            # Para peticiones normales, usar plantilla completa
             return super().get(request, *args, **kwargs)
             
         except Exception as e:
@@ -352,10 +354,14 @@ class RepuestoCreateView(CreateView):
             # Guardar el formulario
             self.object = form.save()
             
-            # Respuesta HTMX
-            response = HttpResponse(status=204)
-            response['HX-Trigger'] = 'repuestoActualizado'
-            return response
+            # Si es petición AJAX/HTMX, respuesta especial
+            if self.request.headers.get('x-requested-with') == 'XMLHttpRequest' or 'HX-Request' in self.request.headers:
+                response = HttpResponse(status=204)
+                response['HX-Trigger'] = 'repuestoActualizado'
+                return response
+            
+            # Para peticiones normales, redirección estándar
+            return super().form_valid(form)
             
         except Exception as e:
             print(f"Error en form_valid: {str(e)}")
@@ -386,7 +392,7 @@ class RepuestoCreateView(CreateView):
 class RepuestoUpdateView(UpdateView):
     model = Repuesto
     form_class = RepuestoForm
-    template_name = 'gestion_taller/repuesto_form_modal_content.html'
+    template_name = 'gestion_taller/repuesto_form.html'  # Plantilla por defecto
     success_url = reverse_lazy('repuestos')
 
     def get_queryset(self):
@@ -408,10 +414,12 @@ class RepuestoUpdateView(UpdateView):
 
     def get(self, request, *args, **kwargs):
         self.object = self.get_object()
-        if request.headers.get('x-requested-with') == 'XMLHttpRequest':
+        if request.headers.get('x-requested-with') == 'XMLHttpRequest' or 'HX-Request' in request.headers:
+            # Para peticiones AJAX/HTMX, usar plantilla modal
             form = self.get_form()
             context = self.get_context_data(form=form)
-            return render(request, self.template_name, context)
+            return render(request, 'gestion_taller/repuesto_form_modal_content.html', context)
+        # Para peticiones normales, usar plantilla completa
         return super().get(request, *args, **kwargs)
 
     def form_valid(self, form):
@@ -419,10 +427,14 @@ class RepuestoUpdateView(UpdateView):
             # Guardar el formulario (el cliente ya está asignado por el queryset)
             self.object = form.save()
             
-            # Respuesta HTMX
-            response = HttpResponse(status=204)
-            response['HX-Trigger'] = 'repuestoActualizado'
-            return response
+            # Si es petición AJAX/HTMX, respuesta especial
+            if self.request.headers.get('x-requested-with') == 'XMLHttpRequest' or 'HX-Request' in self.request.headers:
+                response = HttpResponse(status=204)
+                response['HX-Trigger'] = 'repuestoActualizado'
+                return response
+            
+            # Para peticiones normales, redirección estándar
+            return super().form_valid(form)
             
         except Exception as e:
             print(f"Error en form_valid: {str(e)}")
