@@ -1,4 +1,5 @@
 from django.shortcuts import render
+from django.http import HttpResponse
 from django.urls import reverse_lazy
 from django.views.generic import ListView, CreateView, UpdateView, DeleteView
 from django.contrib import messages
@@ -32,9 +33,22 @@ class RepuestoListView(ListView):
     def get(self, request, *args, **kwargs):
         return HttpResponse("RepuestoListView (stub)")
 
+@method_decorator(login_required, name='dispatch')
 class RepuestoCreateView(CreateView):
-    def get(self, request, *args, **kwargs):
-        return HttpResponse("RepuestoCreateView (stub)")
+    model = Repuesto
+    form_class = RepuestoForm
+    template_name = 'gestion_taller/repuesto_form_modal_content.html'
+
+    def form_valid(self, form):
+        # Asigna el cliente del perfil de usuario si no es admin
+        perfil = self.request.user.perfilusuario
+        if hasattr(perfil, 'cliente') and perfil.cliente:
+            form.instance.cliente = perfil.cliente
+        
+        form.save()
+        response = HttpResponse(status=204)
+        response['HX-Trigger'] = 'repuestoActualizado'
+        return response
 
 @method_decorator(login_required, name='dispatch')
 class RepuestoUpdateView(UpdateView):
@@ -52,6 +66,24 @@ class RepuestoUpdateView(UpdateView):
     def form_valid(self, form):
         form.save()
         # Enviar una respuesta vacía con un header para que HTMX sepa qué hacer
+        response = HttpResponse(status=204)
+        response['HX-Trigger'] = 'repuestoActualizado'
+        return response
+
+
+@method_decorator(login_required, name='dispatch')
+class RepuestoCreateView(CreateView):
+    model = Repuesto
+    form_class = RepuestoForm
+    template_name = 'gestion_taller/repuesto_form_modal_content.html'
+
+    def form_valid(self, form):
+        # Asigna el cliente del perfil de usuario si no es admin
+        perfil = self.request.user.perfilusuario
+        if hasattr(perfil, 'cliente') and perfil.cliente:
+            form.instance.cliente = perfil.cliente
+        
+        form.save()
         response = HttpResponse(status=204)
         response['HX-Trigger'] = 'repuestoActualizado'
         return response

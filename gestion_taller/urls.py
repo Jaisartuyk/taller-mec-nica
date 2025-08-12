@@ -40,8 +40,8 @@ urlpatterns = [
 
     # Repuestos
     path('repuestos/', RepuestoListView.as_view(), name='repuestos'),
-    path('repuestos/nuevo/', RepuestoCreateView.as_view(), name='repuesto_nuevo'),
-    path('repuestos/editar/<int:pk>/', RepuestoUpdateView.as_view(), name='repuesto_editar'),
+    path('repuestos/crear/', RepuestoCreateView.as_view(), name='repuesto_crear'),
+    path('repuestos/editar/<int:pk>/', RepuestoUpdateView.as_view(), name='repuesto_update'),
     path('repuestos/eliminar/<int:pk>/', RepuestoDeleteView.as_view(), name='repuesto_eliminar'),
 
 

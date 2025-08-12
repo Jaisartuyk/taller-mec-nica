@@ -193,8 +193,34 @@ class DetalleServicioForm(forms.ModelForm):
         return detalle
 
 from django.contrib.auth.models import User
-
 from .models import PerfilUsuario
+
+
+class RepuestoForm(forms.ModelForm):
+    class Meta:
+        model = Repuesto
+        exclude = ['cliente', 'fecha_creacion']
+        widgets = {
+            'nombre': forms.TextInput(attrs={'class': 'form-control'}),
+            'codigo': forms.TextInput(attrs={'class': 'form-control'}),
+            'descripcion': forms.Textarea(attrs={'class': 'form-control', 'rows': 3}),
+            'imagen': forms.ClearableFileInput(attrs={'class': 'form-control'}),
+            'precio_compra': forms.NumberInput(attrs={'class': 'form-control', 'step': '0.01'}),
+            'precio_venta': forms.NumberInput(attrs={'class': 'form-control', 'step': '0.01'}),
+            'stock': forms.NumberInput(attrs={'class': 'form-control'}),
+            'stock_minimo': forms.NumberInput(attrs={'class': 'form-control'}),
+            'proveedor': forms.TextInput(attrs={'class': 'form-control'}),
+        }
+
+    def clean_codigo(self):
+        codigo = self.cleaned_data.get('codigo')
+        if codigo:
+            queryset = Repuesto.objects.filter(codigo=codigo)
+            if self.instance and self.instance.pk:
+                queryset = queryset.exclude(pk=self.instance.pk)
+            if queryset.exists():
+                raise forms.ValidationError('Ya existe un repuesto con este código.')
+        return codigo
 
 class PerfilUsuarioForm(forms.ModelForm):
     class Meta:
