@@ -13,42 +13,111 @@
         </div>
         <div class="card-body">
             <div id="tabla-repuestos" hx-get="{% url 'repuestos' %}" hx-trigger="repuestoActualizado from:body" hx-target="this" hx-swap="outerHTML">
-                <div class="table-responsive">
-                    <table class="table table-hover align-middle">
-                        <thead class="table-light">
-                            <tr>
-                                <th>Nombre</th>
-                                <th>Descripción</th>
-                                <th>Stock</th>
-                                <th>Precio</th>
-                                <th>Proveedor</th>
-                                <th>Acciones</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            {% for repuesto in repuestos %}
-                            <tr>
-                                <td>{{ repuesto.nombre }}</td>
-                                <td>{{ repuesto.descripcion|truncatewords:10 }}</td>
-                                <td>{{ repuesto.stock }}</td>
-                                <td>${{ repuesto.precio|default:"0.00" }}</td>
-                                <td>{{ repuesto.proveedor|default:"N/A" }}</td>
-                                <td>
-                                    <button class="btn btn-sm btn-outline-primary" hx-get="{% url 'repuesto_update' repuesto.pk %}" hx-target="#modal-content" hx-swap="innerHTML">
-                                        <i class="bi bi-pencil-square"></i> Editar
-                                    </button>
-                                    <a href="{% url 'repuesto_eliminar' repuesto.pk %}" class="btn btn-sm btn-outline-danger">
-                                        <i class="bi bi-trash"></i> Eliminar
-                                    </a>
-                                </td>
-                            </tr>
-                            {% empty %}
-                            <tr>
-                                <td colspan="6" class="text-center">No hay repuestos registrados.</td>
-                            </tr>
-                            {% endfor %}
-                        </tbody>
-                    </table>
+                <!-- Diseño de tarjetas moderno -->
+                <div class="row g-4" id="repuestos-grid">
+                    {% for repuesto in repuestos %}
+                    <div class="col-xl-3 col-lg-4 col-md-6 col-sm-12">
+                        <div class="card h-100 shadow-sm border-0 repuesto-card">
+                            <!-- Imagen del producto -->
+                            <div class="card-img-top-container" style="height: 200px; overflow: hidden; background: #f8f9fa;">
+                                {% if repuesto.imagen %}
+                                    <img src="{{ repuesto.imagen.url }}" class="card-img-top" alt="{{ repuesto.nombre }}" 
+                                         style="width: 100%; height: 100%; object-fit: cover; transition: transform 0.3s ease;">
+                                {% else %}
+                                    <div class="d-flex align-items-center justify-content-center h-100 text-muted">
+                                        <i class="bi bi-gear-fill" style="font-size: 3rem; opacity: 0.3;"></i>
+                                    </div>
+                                {% endif %}
+                            </div>
+                            
+                            <!-- Contenido de la tarjeta -->
+                            <div class="card-body d-flex flex-column">
+                                <div class="d-flex justify-content-between align-items-start mb-2">
+                                    <h6 class="card-title fw-bold text-primary mb-0">{{ repuesto.nombre }}</h6>
+                                    {% if repuesto.codigo %}
+                                        <span class="badge bg-secondary small">{{ repuesto.codigo }}</span>
+                                    {% endif %}
+                                </div>
+                                
+                                {% if repuesto.descripcion %}
+                                <p class="card-text text-muted small mb-3" style="line-height: 1.4;">
+                                    {{ repuesto.descripcion|truncatewords:12 }}
+                                </p>
+                                {% endif %}
+                                
+                                <!-- Información del producto -->
+                                <div class="mt-auto">
+                                    <div class="row g-2 mb-3">
+                                        <div class="col-6">
+                                            <div class="d-flex align-items-center">
+                                                <i class="bi bi-box-seam text-primary me-1"></i>
+                                                <small class="text-muted">Stock:</small>
+                                            </div>
+                                            <div class="fw-bold">
+                                                <span class="{% if repuesto.stock <= repuesto.stock_minimo %}text-danger{% else %}text-success{% endif %}">
+                                                    {{ repuesto.stock }}
+                                                </span>
+                                                {% if repuesto.stock <= repuesto.stock_minimo %}
+                                                    <i class="bi bi-exclamation-triangle text-warning ms-1" title="Stock bajo"></i>
+                                                {% endif %}
+                                            </div>
+                                        </div>
+                                        <div class="col-6">
+                                            <div class="d-flex align-items-center">
+                                                <i class="bi bi-currency-dollar text-success me-1"></i>
+                                                <small class="text-muted">Precio:</small>
+                                            </div>
+                                            <div class="fw-bold text-success">
+                                                ${{ repuesto.precio_venta|floatformat:2 }}
+                                            </div>
+                                        </div>
+                                    </div>
+                                    
+                                    {% if repuesto.proveedor %}
+                                    <div class="mb-3">
+                                        <small class="text-muted">
+                                            <i class="bi bi-building me-1"></i>
+                                            {{ repuesto.proveedor }}
+                                        </small>
+                                    </div>
+                                    {% endif %}
+                                    
+                                    <!-- Botones de acción -->
+                                    <div class="d-grid gap-2">
+                                        <button class="btn btn-primary btn-sm" 
+                                                hx-get="{% url 'repuesto_update' repuesto.pk %}" 
+                                                hx-target="#modal-content" 
+                                                hx-swap="innerHTML"
+                                                data-bs-toggle="modal" 
+                                                data-bs-target="#modal">
+                                            <i class="bi bi-pencil-square me-1"></i> Editar
+                                        </button>
+                                        <button class="btn btn-outline-danger btn-sm" 
+                                                onclick="confirmarEliminacion('{{ repuesto.nombre }}', '{% url 'repuesto_eliminar' repuesto.pk %}')">
+                                            <i class="bi bi-trash me-1"></i> Eliminar
+                                        </button>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    {% empty %}
+                    <div class="col-12">
+                        <div class="text-center py-5">
+                            <i class="bi bi-gear-fill text-muted" style="font-size: 4rem; opacity: 0.3;"></i>
+                            <h5 class="text-muted mt-3">No hay repuestos registrados</h5>
+                            <p class="text-muted">Comienza agregando tu primer repuesto</p>
+                            <button class="btn btn-primary" 
+                                    hx-get="{% url 'repuesto_create' %}" 
+                                    hx-target="#modal-content" 
+                                    hx-swap="innerHTML"
+                                    data-bs-toggle="modal" 
+                                    data-bs-target="#modal">
+                                <i class="bi bi-plus-lg me-1"></i> Añadir Primer Repuesto
+                            </button>
+                        </div>
+                    </div>
+                    {% endfor %}
                 </div>
             </div>
         </div>
@@ -63,6 +132,65 @@
         </div>
     </div>
 </div>
+{% endblock %}
+
+{% block extra_css %}
+<style>
+    .repuesto-card {
+        transition: transform 0.2s ease-in-out, box-shadow 0.2s ease-in-out;
+        border-radius: 12px;
+        overflow: hidden;
+    }
+    
+    .repuesto-card:hover {
+        transform: translateY(-5px);
+        box-shadow: 0 8px 25px rgba(0,0,0,0.15) !important;
+    }
+    
+    .repuesto-card .card-img-top-container:hover img {
+        transform: scale(1.05);
+    }
+    
+    .repuesto-card .card-body {
+        padding: 1.25rem;
+    }
+    
+    .repuesto-card .card-title {
+        font-size: 1.1rem;
+        margin-bottom: 0.5rem;
+    }
+    
+    .repuesto-card .badge {
+        font-size: 0.75rem;
+        padding: 0.25rem 0.5rem;
+    }
+    
+    .repuesto-card .btn {
+        border-radius: 8px;
+        font-weight: 500;
+        transition: all 0.2s ease;
+    }
+    
+    .repuesto-card .btn:hover {
+        transform: translateY(-1px);
+    }
+    
+    .stock-indicator {
+        font-size: 1.1rem;
+        font-weight: 600;
+    }
+    
+    .price-display {
+        font-size: 1.2rem;
+        font-weight: 700;
+    }
+    
+    @media (max-width: 768px) {
+        .repuesto-card {
+            margin-bottom: 1rem;
+        }
+    }
+</style>
 {% endblock %}
 
 {% block extra_js %}
@@ -96,5 +224,12 @@
             }
         });
     });
+    
+    // Función para confirmar eliminación
+    function confirmarEliminacion(nombre, url) {
+        if (confirm(`¿Estás seguro de que deseas eliminar el repuesto "${nombre}"?\n\nEsta acción no se puede deshacer.`)) {
+            window.location.href = url;
+        }
+    }
 </script>
 {% endblock %}

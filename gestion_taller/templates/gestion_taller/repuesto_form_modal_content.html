@@ -2,7 +2,7 @@
 {% load static %}
 
 <div id="repuestoFormContainer">
-  <form method="post" hx-post="{{ request.path }}" hx-target="this" hx-swap="outerHTML">
+  <form method="post" enctype="multipart/form-data" hx-post="{{ request.path }}" hx-target="this" hx-swap="outerHTML" hx-encoding="multipart/form-data">
     {% csrf_token %}
     <div class="modal-header bg-primary text-white">
       <h5 class="modal-title">{% if form.instance.pk %}Editar Repuesto{% else %}Crear Repuesto{% endif %}</h5>
