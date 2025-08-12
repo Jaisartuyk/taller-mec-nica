@@ -40,9 +40,8 @@
                                         value="{% if form.instance.vehiculo and form.instance.vehiculo.conductor %}{{ form.instance.vehiculo.conductor.nombre }}{% elif form.instance.conductor %}{{ form.instance.conductor.nombre }}{% endif %}">
                                 </div>
 
-                                <!-- Campo oculto para guardar el ID del conductor -->
-                                <input type="hidden" name="conductor" id="id_conductor" 
-                                       value="{% if form.instance.conductor %}{{ form.instance.conductor.id }}{% elif form.instance.vehiculo and form.instance.vehiculo.conductor %}{{ form.instance.vehiculo.conductor.id }}{% endif %}">
+                                <!-- Campo oculto del formulario Django -->
+                                {{ form.conductor }}
 
                                 <div id="conductor-info" class="conductor-info text-muted">
                                     {% if form.instance.vehiculo and form.instance.vehiculo.conductor and form.instance.vehiculo.conductor.telefono %}

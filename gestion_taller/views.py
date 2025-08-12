@@ -662,6 +662,11 @@ class OrdenServicioCreateView(LoginRequiredMixin, CreateView):
     form_class = OrdenServicioForm
     template_name = 'gestion_taller/orden_servicio_form.html'
     success_url = reverse_lazy('orden_servicio_listado')
+    
+    def get_template_names(self):
+        if self.request.headers.get('x-requested-with') == 'XMLHttpRequest':
+            return ['gestion_taller/orden_servicio_form_modal_content.html']
+        return [self.template_name]
 
     def get_form_kwargs(self):
         kwargs = super().get_form_kwargs()
@@ -728,6 +733,13 @@ class OrdenServicioCreateView(LoginRequiredMixin, CreateView):
                 print(f"[Telegram] Error enviando notificación: {e}")
                 
             messages.success(self.request, 'Orden de servicio creada exitosamente.')
+            
+            # Respuesta para HTMX/AJAX
+            if self.request.headers.get('x-requested-with') == 'XMLHttpRequest':
+                response = HttpResponse(status=204)
+                response['HX-Trigger'] = 'ordenCreada'
+                return response
+                
             return redirect(self.get_success_url())
             
         except Exception as e:
