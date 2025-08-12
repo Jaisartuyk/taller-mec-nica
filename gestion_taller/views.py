@@ -664,7 +664,9 @@ class OrdenServicioCreateView(LoginRequiredMixin, CreateView):
     success_url = reverse_lazy('orden_servicio_listado')
     
     def get_template_names(self):
-        if self.request.headers.get('x-requested-with') == 'XMLHttpRequest':
+        # Detectar peticiones HTMX o AJAX
+        if (self.request.headers.get('hx-request') or 
+            self.request.headers.get('x-requested-with') == 'XMLHttpRequest'):
             return ['gestion_taller/orden_servicio_form_modal_content.html']
         return [self.template_name]
 
