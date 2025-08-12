@@ -81,9 +81,12 @@
         });
 
         htmx.on('repuestoActualizado', function() {
+            // Cerrar el modal
             if (myModal) {
                 myModal.hide();
             }
+            // Recargar la página para mostrar los cambios
+            window.location.reload();
         });
 
         modalElement.addEventListener('hidden.bs.modal', function() {
