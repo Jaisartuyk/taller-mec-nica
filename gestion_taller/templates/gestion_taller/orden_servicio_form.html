@@ -26,23 +26,20 @@
                         {{ form.non_field_errors }}
                         
                         <div class="row g-3">
-                            <!-- Campo Vehículo -->
+                            <!-- Vehículo -->
                             <div class="col-md-6">
                                 <label for="id_vehiculo" class="form-label">Vehículo</label>
                                 {{ form.vehiculo }}
                             </div>
 
-                            <!-- Campo Conductor -->
+                            <!-- Conductor (display + hidden) -->
                             <div class="col-md-6">
                                 <label for="conductor-display" class="form-label">Conductor</label>
                                 <div class="input-group">
                                     <input type="text" id="conductor-display" class="form-control" readonly
                                         value="{% if form.instance.vehiculo and form.instance.vehiculo.conductor %}{{ form.instance.vehiculo.conductor.nombre }}{% elif form.instance.conductor %}{{ form.instance.conductor.nombre }}{% endif %}">
                                 </div>
-
-                                <!-- Campo oculto del formulario Django -->
                                 {{ form.conductor }}
-
                                 <div id="conductor-info" class="conductor-info text-muted">
                                     {% if form.instance.vehiculo and form.instance.vehiculo.conductor and form.instance.vehiculo.conductor.telefono %}
                                         <i class="bi bi-telephone"></i> {{ form.instance.vehiculo.conductor.telefono }}
@@ -55,21 +52,25 @@
                                 </div>
                             </div>
 
-                            <!-- Resto de campos -->
+                            <!-- Kilometraje -->
                             <div class="col-md-6">
                                 <label for="id_kilometraje" class="form-label">Kilometraje</label>
                                 {{ form.kilometraje }}
                             </div>
+
+                            <!-- Servicios -->
                             <div class="col-md-6">
                                 <label for="id_servicios" class="form-label">Servicios</label>
                                 {{ form.servicios }}
                             </div>
 
+                            <!-- Método de pago -->
                             <div class="col-md-6">
                                 <label for="id_metodo_pago" class="form-label">Método de pago</label>
                                 {{ form.metodo_pago }}
                             </div>
 
+                            <!-- Productos -->
                             <div class="col-md-6">
                                 <label for="id_productos" class="form-label">Productos</label>
                                 {{ form.productos }}
@@ -77,11 +78,13 @@
                                 <div id="total-a-pagar" class="mt-2 fw-bold text-success"></div>
                             </div>
 
+                            <!-- Estado -->
                             <div class="col-md-6">
                                 <label for="id_estado" class="form-label">Estado</label>
                                 {{ form.estado }}
                             </div>
 
+                            <!-- Botón guardar -->
                             <div class="col-12 mt-4">
                                 <button type="submit" class="btn btn-primary">
                                     <i class="bi bi-save me-2"></i>Guardar
@@ -101,9 +104,6 @@
 <script src="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/js/select2.min.js"></script>
 <script>
 $(document).ready(function() {
-    // ======================
-    // CONDUCTOR SEGÚN VEHÍCULO
-    // ======================
     function actualizarConductorPorVehiculo(vehiculoId) {
         if (!vehiculoId) {
             $('#conductor-display').val('');
@@ -137,12 +137,10 @@ $(document).ready(function() {
         });
     }
 
-    // Evento cambio de vehículo
     $('#id_vehiculo').on('change', function() {
         actualizarConductorPorVehiculo($(this).val());
     });
 
-    // Cargar datos al iniciar si ya hay un vehículo seleccionado
     const vehiculoInicial = $('#id_vehiculo').val();
     if (vehiculoInicial) {
         actualizarConductorPorVehiculo(vehiculoInicial);
@@ -151,6 +149,5 @@ $(document).ready(function() {
     $('select').select2({ theme: 'bootstrap-5' });
 });
 </script>
-    
 
 {% endblock %}
