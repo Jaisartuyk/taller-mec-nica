@@ -34,8 +34,20 @@
         opacity: 0 !important;
     }
     
-    /* Evitar múltiples contenedores Select2 */
-    .form-group .select2-container:not(:first-child) {
+    /* Evitar múltiples contenedores Select2 - Más específico */
+    .col-md-6 .select2-container:nth-child(n+2) {
+        display: none !important;
+    }
+    
+    /* Ocultar contenedores Select2 duplicados por campo */
+    #id_vehiculo + .select2-container ~ .select2-container,
+    #id_servicios + .select2-container ~ .select2-container,
+    #id_productos + .select2-container ~ .select2-container {
+        display: none !important;
+    }
+    
+    /* Asegurar que solo hay un contenedor Select2 por campo */
+    .select2-container:not(:first-of-type) {
         display: none !important;
     }
     
@@ -172,23 +184,33 @@
 <script src="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/js/select2.min.js"></script>
 <script>
 $(document).ready(function() {
-    // Función para limpiar elementos duplicados
+    // Función para limpiar elementos duplicados de forma más efectiva
     function limpiarElementosDuplicados() {
-        // Remover cualquier contenedor Select2 existente
+        // Remover todos los contenedores Select2 existentes
         $('.select2-container').remove();
         
-        // Asegurar que no hay selects ocultos duplicados
-        $('select.select2-hidden-accessible').each(function() {
-            $(this).removeClass('select2-hidden-accessible').show();
-        });
+        // Limpiar clases Select2 de todos los selects
+        $('select').removeClass('select2-hidden-accessible').show();
         
-        // Remover elementos duplicados por ID
-        $('[id]').each(function() {
-            const id = this.id;
-            if (id && $('[id="' + id + '"]').length > 1) {
-                $('[id="' + id + '"]').not(':first').remove();
+        // Remover elementos duplicados por ID específicamente
+        ['id_vehiculo', 'id_servicios', 'id_productos'].forEach(function(fieldId) {
+            const elements = $('[id="' + fieldId + '"]');
+            if (elements.length > 1) {
+                console.log('Encontrados ' + elements.length + ' elementos con ID: ' + fieldId);
+                elements.not(':first').remove();
             }
         });
+        
+        // Limpiar contenedores Select2 duplicados por posición
+        $('.col-md-6').each(function() {
+            const containers = $(this).find('.select2-container');
+            if (containers.length > 1) {
+                containers.not(':first').remove();
+            }
+        });
+        
+        // Asegurar que los selects originales están visibles
+        $('#id_vehiculo, #id_servicios, #id_productos').show().css('visibility', 'visible');
     }
     
     // Inicializar Select2 de forma instantánea
@@ -271,12 +293,24 @@ $(document).ready(function() {
     limpiarElementosDuplicados();
     initializeSelect2();
     
-    // Asegurar que no hay efectos de transición
-    $('.select2-container').css({
-        'opacity': '1',
-        'transition': 'none',
-        'animation': 'none'
-    });
+    // Limpieza adicional después de inicializar
+    setTimeout(function() {
+        // Remover contenedores Select2 duplicados
+        $('.col-md-6').each(function() {
+            const containers = $(this).find('.select2-container');
+            if (containers.length > 1) {
+                console.log('Removiendo ' + (containers.length - 1) + ' contenedores duplicados');
+                containers.not(':first').remove();
+            }
+        });
+        
+        // Asegurar que no hay efectos de transición
+        $('.select2-container').css({
+            'opacity': '1',
+            'transition': 'none',
+            'animation': 'none'
+        });
+    }, 10);
     
     // Evento cambio de vehículo - usar delegación de eventos
     $(document).on('change', '#id_vehiculo', function() {
@@ -346,6 +380,36 @@ $(document).ready(function() {
     
     // Calcular precios inicial si ya hay elementos seleccionados
     calcularPrecios();
+    
+    // Observer específico para detectar y eliminar duplicados
+    const duplicateObserver = new MutationObserver(function(mutations) {
+        mutations.forEach(function(mutation) {
+            if (mutation.type === 'childList' && mutation.addedNodes.length > 0) {
+                // Verificar si se han añadido contenedores Select2
+                mutation.addedNodes.forEach(function(node) {
+                    if (node.nodeType === 1 && (node.classList.contains('select2-container') || 
+                        node.querySelector && node.querySelector('.select2-container'))) {
+                        
+                        // Limpiar duplicados inmediatamente
+                        setTimeout(function() {
+                            $('.col-md-6').each(function() {
+                                const containers = $(this).find('.select2-container');
+                                if (containers.length > 1) {
+                                    containers.not(':first').remove();
+                                }
+                            });
+                        }, 1);
+                    }
+                });
+            }
+        });
+    });
+    
+    // Iniciar el observer en el formulario
+    duplicateObserver.observe(document.getElementById('ordenServicioForm'), {
+        childList: true,
+        subtree: true
+    });
     
     // Verificación final para asegurar que no hay duplicados
     setTimeout(function() {
