@@ -1,9 +1,11 @@
-from django.shortcuts import render
-from django.http import HttpResponse
+from django.shortcuts import render, redirect, get_object_or_404
+from django.contrib.auth.decorators import login_required
+from django.utils.decorators import method_decorator
 from django.urls import reverse_lazy
 from django.views.generic import ListView, CreateView, UpdateView, DeleteView
 from django.contrib import messages
-from .models import Vehiculo, Repuesto, ServicioCatalogo, PerfilUsuario, Conductor, User
+from django.http import HttpResponse, JsonResponse
+from .models import Vehiculo, Repuesto, ServicioCatalogo, PerfilUsuario, Conductor, User, OrdenServicio, Notificacion
 from .forms import VehiculoForm, RepuestoForm, PerfilUsuarioForm, ConductorForm, OrdenServicioForm, ServicioCatalogoForm, ConductorUpdateForm
 from .models import Conductor
 from django.urls import reverse_lazy
@@ -1682,6 +1684,109 @@ class OrdenServicioDetailView(DetailView):
             'total_servicios': total_servicios,
             'total_productos': total_productos,
             'total_general': total_servicios + total_productos,
+            'estados_disponibles': orden.get_siguiente_estados(),
         })
         
         return context
+
+@method_decorator(login_required, name='dispatch')
+class OrdenServicioCambiarEstadoView(UpdateView):
+    """Vista para cambiar el estado de una orden de servicio"""
+    model = OrdenServicio
+    fields = ['estado']
+    template_name = 'gestion_taller/orden_servicio_cambiar_estado.html'
+    
+    def get_queryset(self):
+        if hasattr(self.request.user, 'perfilusuario') and self.request.user.perfilusuario.cliente:
+            return OrdenServicio.objects.filter(
+                cliente=self.request.user.perfilusuario.cliente
+            )
+        return OrdenServicio.objects.none()
+    
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        context['estados_disponibles'] = self.object.get_siguiente_estados()
+        return context
+    
+    def form_valid(self, form):
+        nuevo_estado = form.cleaned_data['estado']
+        
+        # Validar que el cambio de estado sea válido
+        if not self.object.puede_cambiar_estado(nuevo_estado):
+            messages.error(
+                self.request, 
+                f'No se puede cambiar de {self.object.get_estado_display()} a {dict(self.object._meta.get_field("estado").choices)[nuevo_estado]}'
+            )
+            return self.form_invalid(form)
+        
+        # Guardar el objeto (esto activará el manejo de inventario)
+        response = super().form_valid(form)
+        
+        # Mensaje de éxito
+        messages.success(
+            self.request,
+            f'Estado cambiado a {self.object.get_estado_display()} correctamente'
+        )
+        
+        # Si es AJAX, devolver JSON
+        if self.request.headers.get('x-requested-with') == 'XMLHttpRequest':
+            return JsonResponse({
+                'success': True,
+                'message': f'Estado cambiado a {self.object.get_estado_display()}',
+                'nuevo_estado': self.object.estado,
+                'nuevo_estado_display': self.object.get_estado_display(),
+                'redirect': self.get_success_url()
+            })
+        
+        return response
+    
+    def form_invalid(self, form):
+        if self.request.headers.get('x-requested-with') == 'XMLHttpRequest':
+            return JsonResponse({
+                'success': False,
+                'errors': form.errors
+            }, status=400)
+        return super().form_invalid(form)
+    
+    def get_success_url(self):
+        return reverse_lazy('orden_servicio_detail', kwargs={'pk': self.object.pk})
+
+@login_required
+def cambiar_estado_orden_ajax(request, pk):
+    """Vista AJAX rápida para cambiar estado desde botones"""
+    if request.method != 'POST':
+        return JsonResponse({'success': False, 'error': 'Método no permitido'}, status=405)
+    
+    try:
+        # Obtener la orden
+        orden = OrdenServicio.objects.get(
+            pk=pk,
+            cliente=request.user.perfilusuario.cliente
+        )
+        
+        nuevo_estado = request.POST.get('estado')
+        
+        # Validar estado
+        if not nuevo_estado or not orden.puede_cambiar_estado(nuevo_estado):
+            return JsonResponse({
+                'success': False, 
+                'error': f'Cambio de estado no válido: {orden.estado} → {nuevo_estado}'
+            }, status=400)
+        
+        # Cambiar estado
+        estado_anterior = orden.get_estado_display()
+        orden.estado = nuevo_estado
+        orden.save()  # Esto activará el manejo de inventario
+        
+        return JsonResponse({
+            'success': True,
+            'message': f'Estado cambiado de {estado_anterior} a {orden.get_estado_display()}',
+            'nuevo_estado': orden.estado,
+            'nuevo_estado_display': orden.get_estado_display(),
+            'estados_disponibles': orden.get_siguiente_estados()
+        })
+        
+    except OrdenServicio.DoesNotExist:
+        return JsonResponse({'success': False, 'error': 'Orden no encontrada'}, status=404)
+    except Exception as e:
+        return JsonResponse({'success': False, 'error': f'Error interno: {str(e)}'}, status=500)

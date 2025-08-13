@@ -73,12 +73,6 @@ class ServicioCatalogoAdmin(admin.ModelAdmin):
     search_fields = ('nombre',)
     list_filter = ('activo',)
 
-@admin.register(Notificacion)
-class NotificacionAdmin(admin.ModelAdmin):
-    list_display = ('cliente', 'conductor', 'vehiculo', 'tipo', 'leida', 'fecha_envio')
-    search_fields = ('mensaje', 'cliente__nombre')
-    list_filter = ('tipo', 'leida', 'fecha_envio')
-
 @admin.register(OrdenServicio)
 class OrdenServicioAdmin(admin.ModelAdmin):
     list_display = ('id', 'vehiculo', 'conductor', 'estado', 'total', 'pagada', 'fecha_creacion')
@@ -128,3 +122,22 @@ class PreguntaFrecuenteAdmin(admin.ModelAdmin):
     list_display = ('pregunta', 'categoria', 'veces_preguntada', 'activa')
     search_fields = ('pregunta', 'categoria')
     list_filter = ('categoria', 'activa')
+
+@admin.register(Notificacion)
+class NotificacionAdmin(admin.ModelAdmin):
+    list_display = ('cliente', 'tipo', 'mensaje_corto', 'leida', 'fecha_creacion')
+    search_fields = ('cliente__nombre', 'mensaje')
+    list_filter = ('tipo', 'leida', 'fecha_creacion')
+    readonly_fields = ('fecha_creacion', 'fecha_lectura')
+    
+    def mensaje_corto(self, obj):
+        return obj.mensaje[:50] + '...' if len(obj.mensaje) > 50 else obj.mensaje
+    mensaje_corto.short_description = 'Mensaje'
+    
+    def get_queryset(self, request):
+        qs = super().get_queryset(request)
+        if request.user.is_superuser:
+            return qs
+        if hasattr(request.user, 'perfilusuario') and request.user.perfilusuario.cliente:
+            return qs.filter(cliente=request.user.perfilusuario.cliente)
+        return qs.none()

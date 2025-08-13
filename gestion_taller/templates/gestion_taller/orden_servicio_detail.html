@@ -86,6 +86,28 @@
               </div>
               {% endif %}
             </div>
+            <div class="col-md-6">
+              <!-- Botones de cambio de estado -->
+              {% if estados_disponibles %}
+              <div class="mb-3">
+                <strong>Cambiar Estado:</strong>
+                <div class="btn-group" role="group">
+                  {% for estado_codigo, estado_nombre in estados_disponibles %}
+                    <button type="button" 
+                            class="btn btn-sm
+                            {% if estado_codigo == 'en_progreso' %}btn-warning
+                            {% elif estado_codigo == 'completada' %}btn-success
+                            {% elif estado_codigo == 'facturada' %}btn-primary
+                            {% elif estado_codigo == 'anulada' %}btn-danger
+                            {% else %}btn-secondary{% endif %}"
+                            onclick="cambiarEstado('{{ estado_codigo }}')">
+                      <i class="bi bi-arrow-right"></i> {{ estado_nombre }}
+                    </button>
+                  {% endfor %}
+                </div>
+              </div>
+              {% endif %}
+            </div>
             <div class="col-md-6 text-end">
               <a href="#" class="btn btn-outline-secondary"><i class="bi bi-printer"></i> Imprimir</a>
               {% if not orden.pagada %}<a href="#" class="btn btn-success"><i class="bi bi-cash"></i> Registrar Pago</a>{% endif %}
@@ -96,4 +118,145 @@
     </div>
   </div>
 </div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+// Función para cambiar estado de la orden
+function cambiarEstado(nuevoEstado) {
+    if (!confirm(`¿Estás seguro de cambiar el estado a ${nuevoEstado.replace('_', ' ').toUpperCase()}?`)) {
+        return;
+    }
+    
+    // Mostrar loading
+    const btnGroup = document.querySelector('.btn-group');
+    const originalHTML = btnGroup.innerHTML;
+    btnGroup.innerHTML = '<div class="spinner-border spinner-border-sm" role="status"><span class="visually-hidden">Cambiando...</span></div> Cambiando estado...';
+    
+    // Hacer petición AJAX
+    fetch(`{% url 'cambiar_estado_orden_ajax' orden.pk %}`, {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/x-www-form-urlencoded',
+            'X-CSRFToken': document.querySelector('[name=csrfmiddlewaretoken]').value
+        },
+        body: `estado=${nuevoEstado}`
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            // Mostrar mensaje de éxito
+            showAlert('success', data.message);
+            
+            // Actualizar el badge de estado
+            updateEstadoBadge(data.nuevo_estado, data.nuevo_estado_display);
+            
+            // Actualizar botones disponibles
+            updateBotonesEstado(data.estados_disponibles);
+            
+        } else {
+            showAlert('danger', data.error || 'Error al cambiar estado');
+            btnGroup.innerHTML = originalHTML;
+        }
+    })
+    .catch(error => {
+        console.error('Error:', error);
+        showAlert('danger', 'Error de conexión');
+        btnGroup.innerHTML = originalHTML;
+    });
+}
+
+// Función para mostrar alertas
+function showAlert(type, message) {
+    const alertHTML = `
+        <div class="alert alert-${type} alert-dismissible fade show" role="alert">
+            ${message}
+            <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+        </div>
+    `;
+    
+    // Insertar al inicio del contenido
+    const container = document.querySelector('.container');
+    container.insertAdjacentHTML('afterbegin', alertHTML);
+    
+    // Auto-dismiss después de 5 segundos
+    setTimeout(() => {
+        const alert = container.querySelector('.alert');
+        if (alert) {
+            alert.remove();
+        }
+    }, 5000);
+}
+
+// Función para actualizar el badge de estado
+function updateEstadoBadge(estado, estadoDisplay) {
+    const badge = document.querySelector('.badge');
+    
+    // Remover clases de color anteriores
+    badge.classList.remove('bg-secondary', 'bg-warning', 'bg-success', 'bg-primary', 'bg-danger', 'text-dark');
+    
+    // Agregar nueva clase según el estado
+    switch(estado) {
+        case 'pendiente':
+            badge.classList.add('bg-secondary');
+            break;
+        case 'en_progreso':
+            badge.classList.add('bg-warning', 'text-dark');
+            break;
+        case 'completada':
+            badge.classList.add('bg-success');
+            break;
+        case 'facturada':
+            badge.classList.add('bg-primary');
+            break;
+        case 'anulada':
+            badge.classList.add('bg-danger');
+            break;
+    }
+    
+    badge.textContent = estadoDisplay;
+}
+
+// Función para actualizar los botones de estado disponibles
+function updateBotonesEstado(estadosDisponibles) {
+    const btnGroup = document.querySelector('.btn-group');
+    
+    if (estadosDisponibles.length === 0) {
+        // No hay más estados disponibles
+        btnGroup.parentElement.innerHTML = '<p class="text-muted"><i class="bi bi-check-circle"></i> No hay cambios de estado disponibles</p>';
+        return;
+    }
+    
+    // Recrear botones
+    let buttonsHTML = '';
+    estadosDisponibles.forEach(([codigo, nombre]) => {
+        let btnClass = 'btn-secondary';
+        switch(codigo) {
+            case 'en_progreso': btnClass = 'btn-warning'; break;
+            case 'completada': btnClass = 'btn-success'; break;
+            case 'facturada': btnClass = 'btn-primary'; break;
+            case 'anulada': btnClass = 'btn-danger'; break;
+        }
+        
+        buttonsHTML += `
+            <button type="button" 
+                    class="btn btn-sm ${btnClass}"
+                    onclick="cambiarEstado('${codigo}')">
+                <i class="bi bi-arrow-right"></i> ${nombre}
+            </button>
+        `;
+    });
+    
+    btnGroup.innerHTML = buttonsHTML;
+}
+
+// Agregar token CSRF si no existe
+if (!document.querySelector('[name=csrfmiddlewaretoken]')) {
+    const csrfToken = document.createElement('input');
+    csrfToken.type = 'hidden';
+    csrfToken.name = 'csrfmiddlewaretoken';
+    csrfToken.value = '{{ csrf_token }}';
+    document.body.appendChild(csrfToken);
+}
+</script>
 {% endblock %}

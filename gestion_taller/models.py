@@ -1,6 +1,7 @@
 from django.db import models
 from django.contrib.auth.models import User
 from django.utils import timezone
+from django.utils import timezone
 
 class Cliente(models.Model):
     user = models.OneToOneField(User, on_delete=models.CASCADE, null=True, blank=True, related_name='perfil_cliente')
@@ -269,14 +270,148 @@ class OrdenServicio(models.Model):
         return total_servicios + total_productos
     
     def save(self, *args, **kwargs):
-        """Actualiza el total automáticamente al guardar"""
-        super().save(*args, **kwargs)  # Guardar primero para tener ID
-        if self.pk:  # Solo calcular si ya existe (para relaciones ManyToMany)
-            self.total = self.calcular_total()
-            super().save(update_fields=['total'])
+        """Actualiza el total automáticamente y maneja inventario según estado"""
+        # Detectar cambio de estado si ya existe la orden
+        old_estado = None
+        if self.pk:
+            try:
+                old_instance = OrdenServicio.objects.get(pk=self.pk)
+                old_estado = old_instance.estado
+            except OrdenServicio.DoesNotExist:
+                pass
+        
+        # Guardar primero para tener ID
+        super().save(*args, **kwargs)
+        
+        # Manejar cambios de estado y inventario
+        if self.pk and old_estado != self.estado:
+            self._manejar_cambio_estado(old_estado, self.estado)
+        
+        # Calcular total si ya existe (para relaciones ManyToMany)
+        if self.pk:
+            nuevo_total = self.calcular_total()
+            if self.total != nuevo_total:
+                self.total = nuevo_total
+                super().save(update_fields=['total'])
     
+    def _manejar_cambio_estado(self, old_estado, new_estado):
+        """Maneja los cambios de inventario según el cambio de estado"""
+        from django.contrib import messages
+        
+        # Descontar stock al completar la orden
+        if old_estado != 'completada' and new_estado == 'completada':
+            self.descontar_stock()
+            
+        # Devolver stock si se anula una orden completada
+        elif old_estado == 'completada' and new_estado == 'anulada':
+            self.devolver_stock()
+    
+    def descontar_stock(self):
+        """Descuenta stock de productos cuando se completa la orden"""
+        productos_sin_stock = []
+        
+        for producto in self.productos.all():
+            if producto.stock > 0:
+                producto.stock -= 1
+                producto.save()
+                
+                # Verificar si queda stock bajo
+                if producto.stock <= producto.stock_minimo:
+                    # Crear notificación de stock bajo
+                    self._crear_notificacion_stock_bajo(producto)
+            else:
+                productos_sin_stock.append(producto.nombre)
+        
+        # Si hay productos sin stock, crear notificación
+        if productos_sin_stock:
+            self._crear_notificacion_sin_stock(productos_sin_stock)
+    
+    def devolver_stock(self):
+        """Devuelve stock si se anula una orden completada"""
+        for producto in self.productos.all():
+            producto.stock += 1
+            producto.save()
+    
+    def _crear_notificacion_stock_bajo(self, producto):
+        """Crea notificación cuando un producto tiene stock bajo"""
+        try:
+            Notificacion.objects.create(
+                cliente=self.cliente,
+                mensaje=f"⚠️ Stock bajo: {producto.nombre} - Quedan {producto.stock} unidades (Mínimo: {producto.stock_minimo})",
+                tipo='stock_bajo'
+            )
+        except Exception:
+            pass  # No fallar si no se puede crear la notificación
+    
+    def _crear_notificacion_sin_stock(self, productos_sin_stock):
+        """Crea notificación cuando productos no tienen stock"""
+        try:
+            productos_str = ", ".join(productos_sin_stock)
+            Notificacion.objects.create(
+                cliente=self.cliente,
+                mensaje=f"🚫 Sin stock: {productos_str} - Se completó la orden pero estos productos no tenían stock disponible",
+                tipo='sin_stock'
+            )
+        except Exception:
+            pass
+    
+    def puede_cambiar_estado(self, nuevo_estado):
+        """Verifica si se puede cambiar al nuevo estado"""
+        estados_validos = {
+            'pendiente': ['en_progreso', 'anulada'],
+            'en_progreso': ['completada', 'pendiente', 'anulada'],
+            'completada': ['facturada', 'anulada'],
+            'facturada': ['anulada'],  # Solo se puede anular
+            'anulada': []  # No se puede cambiar desde anulada
+        }
+        
+        return nuevo_estado in estados_validos.get(self.estado, [])
+    
+    def get_siguiente_estados(self):
+        """Obtiene los estados válidos para transición"""
+        estados_siguientes = {
+            'pendiente': [('en_progreso', 'Iniciar Trabajo'), ('anulada', 'Anular')],
+            'en_progreso': [('completada', 'Completar'), ('pendiente', 'Pausar'), ('anulada', 'Anular')],
+            'completada': [('facturada', 'Facturar'), ('anulada', 'Anular')],
+            'facturada': [('anulada', 'Anular')],
+            'anulada': []
+        }
+        
+        return estados_siguientes.get(self.estado, [])
+
     def __str__(self):
         return f"Orden #{self.id} - {self.vehiculo} - {self.estado}"
+
+class Notificacion(models.Model):
+    """Modelo para notificaciones del sistema"""
+    TIPOS_NOTIFICACION = [
+        ('stock_bajo', 'Stock Bajo'),
+        ('sin_stock', 'Sin Stock'),
+        ('orden_completada', 'Orden Completada'),
+        ('general', 'General'),
+    ]
+    
+    cliente = models.ForeignKey(Cliente, on_delete=models.CASCADE, related_name='notificaciones')
+    mensaje = models.TextField()
+    tipo = models.CharField(max_length=20, choices=TIPOS_NOTIFICACION, default='general')
+    leida = models.BooleanField(default=False)
+    fecha_creacion = models.DateTimeField(auto_now_add=True)
+    fecha_lectura = models.DateTimeField(null=True, blank=True)
+    
+    class Meta:
+        ordering = ['-fecha_creacion']
+        verbose_name = 'Notificación'
+        verbose_name_plural = 'Notificaciones'
+    
+    def marcar_como_leida(self):
+        """Marca la notificación como leída"""
+        if not self.leida:
+            self.leida = True
+            self.fecha_lectura = timezone.now()
+            self.save()
+    
+    def __str__(self):
+        return f"{self.get_tipo_display()} - {self.cliente} - {self.fecha_creacion.strftime('%d/%m/%Y %H:%M')}"
 
 class Pago(models.Model):
     orden = models.ForeignKey('OrdenServicio', on_delete=models.CASCADE, related_name='pagos')

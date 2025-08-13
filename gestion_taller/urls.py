@@ -9,6 +9,7 @@ from .views import (
     PerfilUsuarioView,
     ConductorListView, ConductorCreateView, ConductorUpdateView, ConductorDeleteView,
     OrdenServicioCreateView, OrdenServicioListView, OrdenServicioDetailView,
+    OrdenServicioCambiarEstadoView, cambiar_estado_orden_ajax,
     conductor_por_vehiculo
 )
 
@@ -54,7 +55,9 @@ urlpatterns = [
     # Órdenes de Servicio
     path('ordenes-servicio/', OrdenServicioListView.as_view(), name='orden_servicio_listado'),
     path('ordenes-servicio/nueva/', OrdenServicioCreateView.as_view(), name='orden_servicio_nueva'),
-    path('ordenes-servicio/<int:pk>/', OrdenServicioDetailView.as_view(), name='orden_servicio_detalle'),
+    path('ordenes-servicio/<int:pk>/', OrdenServicioDetailView.as_view(), name='orden_servicio_detail'),
+    path('ordenes-servicio/<int:pk>/cambiar-estado/', OrdenServicioCambiarEstadoView.as_view(), name='orden_servicio_cambiar_estado'),
+    path('api/ordenes-servicio/<int:pk>/cambiar-estado/', cambiar_estado_orden_ajax, name='cambiar_estado_orden_ajax'),
 
 
 
