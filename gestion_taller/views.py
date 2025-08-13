@@ -1476,11 +1476,68 @@ class OrdenServicioListView(ListView):
     paginate_by = 20
     
     def get_queryset(self):
-        if hasattr(self.request.user, 'perfilusuario') and self.request.user.perfilusuario.cliente:
-            return OrdenServicio.objects.filter(
-                cliente=self.request.user.perfilusuario.cliente
-            ).select_related('vehiculo', 'conductor').order_by('-fecha_creacion')
-        return OrdenServicio.objects.none()
+        if not (hasattr(self.request.user, 'perfilusuario') and self.request.user.perfilusuario.cliente):
+            return OrdenServicio.objects.none()
+            
+        queryset = OrdenServicio.objects.filter(
+            cliente=self.request.user.perfilusuario.cliente
+        ).select_related('vehiculo', 'conductor').prefetch_related('servicios', 'productos')
+        
+        # Filtros
+        vehiculo = self.request.GET.get('vehiculo')
+        if vehiculo:
+            queryset = queryset.filter(vehiculo__placa__icontains=vehiculo)
+            
+        estado = self.request.GET.get('estado')
+        if estado:
+            queryset = queryset.filter(estado=estado)
+            
+        precio_min = self.request.GET.get('precio_min')
+        if precio_min:
+            try:
+                queryset = queryset.filter(total__gte=float(precio_min))
+            except ValueError:
+                pass
+                
+        precio_max = self.request.GET.get('precio_max')
+        if precio_max:
+            try:
+                queryset = queryset.filter(total__lte=float(precio_max))
+            except ValueError:
+                pass
+        
+        return queryset.order_by('-fecha_creacion')
+    
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        
+        # Asegurar que todos los totales estén actualizados
+        ordenes = context['ordenes']
+        total_general = 0
+        ordenes_pendientes = 0
+        ordenes_completadas = 0
+        
+        for orden in ordenes:
+            total_calculado = orden.calcular_total()
+            if orden.total != total_calculado:
+                orden.total = total_calculado
+                orden.save(update_fields=['total'])
+            
+            total_general += orden.total
+            if orden.estado == 'pendiente':
+                ordenes_pendientes += 1
+            elif orden.estado == 'completada':
+                ordenes_completadas += 1
+        
+        # Agregar estadísticas al contexto
+        context.update({
+            'total_general': total_general,
+            'ordenes_pendientes': ordenes_pendientes,
+            'ordenes_completadas': ordenes_completadas,
+            'total_ordenes': len(ordenes),
+        })
+        
+        return context
 
 @method_decorator(login_required, name='dispatch')
 class OrdenServicioCreateView(CreateView):

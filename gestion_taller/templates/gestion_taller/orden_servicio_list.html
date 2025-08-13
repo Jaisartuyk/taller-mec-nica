@@ -9,10 +9,10 @@
     </a>
   </div>
   <form method="get" class="row g-2 mb-3">
-    <div class="col-md-3">
+    <div class="col-md-2">
       <input type="text" name="vehiculo" class="form-control" placeholder="Buscar por placa..." value="{{ request.GET.vehiculo }}">
     </div>
-    <div class="col-md-3">
+    <div class="col-md-2">
       <select name="estado" class="form-select">
         <option value="">Todos los estados</option>
         <option value="pendiente" {% if request.GET.estado == 'pendiente' %}selected{% endif %}>Pendiente</option>
@@ -23,9 +23,55 @@
       </select>
     </div>
     <div class="col-md-2">
+      <input type="number" name="precio_min" class="form-control" placeholder="Precio mín." step="0.01" value="{{ request.GET.precio_min }}">
+    </div>
+    <div class="col-md-2">
+      <input type="number" name="precio_max" class="form-control" placeholder="Precio máx." step="0.01" value="{{ request.GET.precio_max }}">
+    </div>
+    <div class="col-md-2">
       <button class="btn btn-outline-primary w-100" type="submit"><i class="bi bi-funnel"></i> Filtrar</button>
     </div>
+    <div class="col-md-2">
+      <a href="{% url 'orden_servicio_listado' %}" class="btn btn-outline-secondary w-100"><i class="bi bi-x-circle"></i> Limpiar</a>
+    </div>
   </form>
+  
+  <!-- Estadísticas -->
+  <div class="row mb-4">
+    <div class="col-md-3">
+      <div class="card bg-primary text-white">
+        <div class="card-body text-center">
+          <h5 class="card-title">Total Órdenes</h5>
+          <h3 class="mb-0">{{ total_ordenes }}</h3>
+        </div>
+      </div>
+    </div>
+    <div class="col-md-3">
+      <div class="card bg-warning text-dark">
+        <div class="card-body text-center">
+          <h5 class="card-title">Pendientes</h5>
+          <h3 class="mb-0">{{ ordenes_pendientes }}</h3>
+        </div>
+      </div>
+    </div>
+    <div class="col-md-3">
+      <div class="card bg-success text-white">
+        <div class="card-body text-center">
+          <h5 class="card-title">Completadas</h5>
+          <h3 class="mb-0">{{ ordenes_completadas }}</h3>
+        </div>
+      </div>
+    </div>
+    <div class="col-md-3">
+      <div class="card bg-info text-white">
+        <div class="card-body text-center">
+          <h5 class="card-title">Total Facturado</h5>
+          <h3 class="mb-0">${{ total_general|floatformat:2 }}</h3>
+        </div>
+      </div>
+    </div>
+  </div>
+  
   <div class="table-responsive card shadow-sm">
     <table class="table table-hover align-middle mb-0">
       <thead class="table-light">
@@ -34,6 +80,7 @@
           <th>Vehículo</th>
           <th>Conductor</th>
           <th>Servicios</th>
+          <th>Productos</th>
           <th>Estado</th>
           <th>Total a Pagar</th>
           <th>Fecha</th>
@@ -48,8 +95,13 @@
           <td>{{ orden.conductor }}</td>
           <td>
             {% for s in orden.servicios.all %}
-              <span class="badge bg-info text-dark">{{ s.nombre }}</span>
-            {% empty %}-{% endfor %}
+              <span class="badge bg-info text-dark me-1 mb-1">{{ s.nombre }}</span>
+            {% empty %}<span class="text-muted">-</span>{% endfor %}
+          </td>
+          <td>
+            {% for p in orden.productos.all %}
+              <span class="badge bg-secondary text-light me-1 mb-1">{{ p.nombre }}</span>
+            {% empty %}<span class="text-muted">-</span>{% endfor %}
           </td>
           <td>
             <span class="badge
@@ -62,7 +114,16 @@
               {{ orden.get_estado_display }}
             </span>
           </td>
-          <td><span class="fw-bold text-success">${{ orden.total|floatformat:2 }}</span></td>
+          <td>
+            <div class="d-flex flex-column">
+              <span class="fw-bold text-success fs-5">${{ orden.total|floatformat:2 }}</span>
+              <small class="text-muted">
+                {% if orden.servicios.count > 0 %}{{ orden.servicios.count }} servicio{{ orden.servicios.count|pluralize }}{% endif %}
+                {% if orden.servicios.count > 0 and orden.productos.count > 0 %} + {% endif %}
+                {% if orden.productos.count > 0 %}{{ orden.productos.count }} producto{{ orden.productos.count|pluralize }}{% endif %}
+              </small>
+            </div>
+          </td>
           <td>{{ orden.fecha_creacion|date:"d/m/Y H:i" }}</td>
           <td>
             <a href="{% url 'orden_servicio_detalle' orden.id %}" class="btn btn-sm btn-outline-info">
@@ -71,7 +132,7 @@
           </td>
         </tr>
         {% empty %}
-        <tr><td colspan="8" class="text-center">No hay órdenes registradas.</td></tr>
+        <tr><td colspan="9" class="text-center">No hay órdenes registradas.</td></tr>
         {% endfor %}
       </tbody>
     </table>
