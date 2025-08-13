@@ -1799,37 +1799,50 @@ def cambiar_estado_orden_ajax(request, pk):
 @login_required
 def registrar_pago_orden(request, pk):
     """Vista para registrar un pago en una orden de servicio"""
-    orden = get_object_or_404(OrdenServicio, pk=pk)
-    
-    if request.method == 'POST':
-        monto = Decimal(request.POST.get('monto', '0'))
-        metodo = request.POST.get('metodo', 'efectivo')
+    try:
+        orden = get_object_or_404(OrdenServicio, pk=pk)
         
-        # Crear el pago
-        pago = Pago.objects.create(
-            orden=orden,
-            monto=monto,
-            metodo=metodo,
-            estado='completado'
-        )
+        if request.method == 'POST':
+            monto = Decimal(request.POST.get('monto', '0'))
+            metodo = request.POST.get('metodo', 'efectivo')
+            
+            if monto <= 0:
+                return JsonResponse({
+                    'success': False,
+                    'error': 'El monto debe ser mayor a 0'
+                })
+            
+            # Crear el pago
+            pago = Pago.objects.create(
+                orden=orden,
+                monto=monto,
+                metodo=metodo,
+                estado='completado'
+            )
+            
+            # Verificar si la orden está completamente pagada
+            total_pagado = orden.pagos.filter(estado='completado').aggregate(
+                total=models.Sum('monto')
+            )['total'] or Decimal('0')
+            
+            if total_pagado >= orden.total:
+                orden.pagada = True
+                orden.save()
+            
+            return JsonResponse({
+                'success': True,
+                'message': f'Pago de ${monto} registrado exitosamente',
+                'total_pagado': float(total_pagado),
+                'orden_pagada': orden.pagada
+            })
         
-        # Verificar si la orden está completamente pagada
-        total_pagado = orden.pago_set.filter(estado='completado').aggregate(
-            total=models.Sum('monto')
-        )['total'] or Decimal('0')
+        return JsonResponse({'success': False, 'error': 'Método no permitido'}, status=405)
         
-        if total_pagado >= orden.total:
-            orden.pagada = True
-            orden.save()
-        
+    except Exception as e:
         return JsonResponse({
-            'success': True,
-            'message': f'Pago de ${monto} registrado exitosamente',
-            'total_pagado': float(total_pagado),
-            'orden_pagada': orden.pagada
-        })
-    
-    return JsonResponse({'success': False, 'error': 'Método no permitido'}, status=405)
+            'success': False,
+            'error': f'Error interno: {str(e)}'
+        }, status=500)
 
 @login_required
 def imprimir_orden_pdf(request, pk):
@@ -1841,8 +1854,8 @@ def imprimir_orden_pdf(request, pk):
         'orden': orden,
         'servicios': orden.servicios.all(),
         'productos': orden.productos.all(),
-        'pagos': orden.pago_set.all(),
-        'total_pagado': orden.pago_set.filter(estado='completado').aggregate(
+        'pagos': orden.pagos.all(),
+        'total_pagado': orden.pagos.filter(estado='completado').aggregate(
             total=models.Sum('monto')
         )['total'] or Decimal('0')
     }
