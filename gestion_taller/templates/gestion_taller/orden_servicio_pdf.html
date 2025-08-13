@@ -1,0 +1,217 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Orden de Servicio #{{ orden.id }}</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 0;
+            padding: 20px;
+            color: #333;
+        }
+        .header {
+            text-align: center;
+            border-bottom: 2px solid #007bff;
+            padding-bottom: 20px;
+            margin-bottom: 30px;
+        }
+        .header h1 {
+            color: #007bff;
+            margin: 0;
+        }
+        .info-section {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 30px;
+        }
+        .info-box {
+            width: 48%;
+            border: 1px solid #ddd;
+            padding: 15px;
+            border-radius: 5px;
+        }
+        .info-box h3 {
+            margin-top: 0;
+            color: #007bff;
+            border-bottom: 1px solid #eee;
+            padding-bottom: 10px;
+        }
+        .status-badge {
+            display: inline-block;
+            padding: 5px 15px;
+            border-radius: 20px;
+            color: white;
+            font-weight: bold;
+            text-transform: uppercase;
+        }
+        .status-pendiente { background-color: #6c757d; }
+        .status-en_progreso { background-color: #ffc107; color: #000; }
+        .status-completada { background-color: #28a745; }
+        .status-facturada { background-color: #007bff; }
+        .status-anulada { background-color: #dc3545; }
+        
+        .table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-bottom: 20px;
+        }
+        .table th, .table td {
+            border: 1px solid #ddd;
+            padding: 12px;
+            text-align: left;
+        }
+        .table th {
+            background-color: #f8f9fa;
+            font-weight: bold;
+            color: #007bff;
+        }
+        .table tr:nth-child(even) {
+            background-color: #f8f9fa;
+        }
+        .total-section {
+            text-align: right;
+            margin-top: 30px;
+            padding: 20px;
+            border: 2px solid #007bff;
+            border-radius: 5px;
+            background-color: #f8f9fa;
+        }
+        .total-section h3 {
+            color: #007bff;
+            margin: 0;
+        }
+        .footer {
+            margin-top: 50px;
+            text-align: center;
+            color: #666;
+            font-size: 12px;
+            border-top: 1px solid #ddd;
+            padding-top: 20px;
+        }
+    </style>
+</head>
+<body>
+    <!-- Header -->
+    <div class="header">
+        <h1>ORDEN DE SERVICIO</h1>
+        <p><strong>Número:</strong> #{{ orden.id }} | <strong>Fecha:</strong> {{ orden.fecha_creacion|date:"d/m/Y H:i" }}</p>
+        <span class="status-badge status-{{ orden.estado }}">{{ orden.get_estado_display }}</span>
+    </div>
+
+    <!-- Información General -->
+    <div class="info-section">
+        <div class="info-box">
+            <h3>🚗 Información del Vehículo</h3>
+            <p><strong>Placa:</strong> {{ orden.vehiculo.placa }}</p>
+            <p><strong>Marca:</strong> {{ orden.vehiculo.marca }}</p>
+            <p><strong>Modelo:</strong> {{ orden.vehiculo.modelo }}</p>
+            <p><strong>Año:</strong> {{ orden.vehiculo.año }}</p>
+            <p><strong>Kilometraje:</strong> {{ orden.kilometraje|default:"No especificado" }} km</p>
+        </div>
+        
+        <div class="info-box">
+            <h3>👤 Información del Conductor</h3>
+            <p><strong>Nombre:</strong> {{ orden.conductor.nombre }}</p>
+            <p><strong>Teléfono:</strong> {{ orden.conductor.telefono|default:"No especificado" }}</p>
+            <p><strong>Email:</strong> {{ orden.conductor.email|default:"No especificado" }}</p>
+            <p><strong>Método de Pago:</strong> {{ orden.metodo_pago|default:"No especificado" }}</p>
+        </div>
+    </div>
+
+    <!-- Servicios -->
+    {% if servicios %}
+    <h3>🔧 Servicios Realizados</h3>
+    <table class="table">
+        <thead>
+            <tr>
+                <th>Servicio</th>
+                <th>Descripción</th>
+                <th>Precio</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for servicio in servicios %}
+            <tr>
+                <td>{{ servicio.nombre }}</td>
+                <td>{{ servicio.descripcion|default:"Sin descripción" }}</td>
+                <td>${{ servicio.precio_base|floatformat:2 }}</td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+    {% endif %}
+
+    <!-- Productos/Repuestos -->
+    {% if productos %}
+    <h3>🔩 Productos/Repuestos Utilizados</h3>
+    <table class="table">
+        <thead>
+            <tr>
+                <th>Código</th>
+                <th>Producto</th>
+                <th>Descripción</th>
+                <th>Precio</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for producto in productos %}
+            <tr>
+                <td>{{ producto.codigo }}</td>
+                <td>{{ producto.nombre }}</td>
+                <td>{{ producto.descripcion|default:"Sin descripción" }}</td>
+                <td>${{ producto.precio_venta|floatformat:2 }}</td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+    {% endif %}
+
+    <!-- Historial de Pagos -->
+    {% if pagos %}
+    <h3>💰 Historial de Pagos</h3>
+    <table class="table">
+        <thead>
+            <tr>
+                <th>Fecha</th>
+                <th>Método</th>
+                <th>Monto</th>
+                <th>Estado</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for pago in pagos %}
+            <tr>
+                <td>{{ pago.fecha_pago|date:"d/m/Y H:i" }}</td>
+                <td>{{ pago.get_metodo_display }}</td>
+                <td>${{ pago.monto|floatformat:2 }}</td>
+                <td>{{ pago.get_estado_display }}</td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+    {% endif %}
+
+    <!-- Total -->
+    <div class="total-section">
+        <h3>RESUMEN FINANCIERO</h3>
+        <p><strong>Total de la Orden:</strong> ${{ orden.total|floatformat:2 }}</p>
+        <p><strong>Total Pagado:</strong> ${{ total_pagado|floatformat:2 }}</p>
+        <p><strong>Saldo Pendiente:</strong> ${{ orden.total|add:total_pagado|floatformat:2 }}</p>
+        <p><strong>Estado de Pago:</strong> 
+            {% if orden.pagada %}
+                <span style="color: green;">✅ PAGADA</span>
+            {% else %}
+                <span style="color: red;">❌ PENDIENTE</span>
+            {% endif %}
+        </p>
+    </div>
+
+    <!-- Footer -->
+    <div class="footer">
+        <p>Documento generado el {{ "now"|date:"d/m/Y H:i" }}</p>
+        <p>Sistema de Gestión de Taller Mecánico</p>
+    </div>
+</body>
+</html>

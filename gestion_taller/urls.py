@@ -9,7 +9,7 @@ from .views import (
     PerfilUsuarioView,
     ConductorListView, ConductorCreateView, ConductorUpdateView, ConductorDeleteView,
     OrdenServicioCreateView, OrdenServicioListView, OrdenServicioDetailView,
-    OrdenServicioCambiarEstadoView, cambiar_estado_orden_ajax,
+    OrdenServicioCambiarEstadoView, cambiar_estado_orden_ajax, registrar_pago_orden, imprimir_orden_pdf,
     conductor_por_vehiculo
 )
 
@@ -58,6 +58,8 @@ urlpatterns = [
     path('ordenes-servicio/<int:pk>/', OrdenServicioDetailView.as_view(), name='orden_servicio_detail'),
     path('ordenes-servicio/<int:pk>/cambiar-estado/', OrdenServicioCambiarEstadoView.as_view(), name='orden_servicio_cambiar_estado'),
     path('api/ordenes-servicio/<int:pk>/cambiar-estado/', cambiar_estado_orden_ajax, name='cambiar_estado_orden_ajax'),
+    path('api/ordenes-servicio/<int:pk>/registrar-pago/', registrar_pago_orden, name='registrar_pago_orden'),
+    path('ordenes-servicio/<int:pk>/imprimir/', imprimir_orden_pdf, name='imprimir_orden_pdf'),
 
 
 

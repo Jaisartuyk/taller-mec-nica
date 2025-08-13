@@ -5,7 +5,11 @@ from django.urls import reverse_lazy
 from django.views.generic import ListView, CreateView, UpdateView, DeleteView
 from django.contrib import messages
 from django.http import HttpResponse, JsonResponse
-from .models import Vehiculo, Repuesto, ServicioCatalogo, PerfilUsuario, Conductor, User, OrdenServicio, Notificacion
+from django.template.loader import get_template
+from decimal import Decimal
+import io
+from .models import Vehiculo, Repuesto, ServicioCatalogo, PerfilUsuario, Conductor, User, OrdenServicio, Notificacion, Pago
+from django.db import models
 from .forms import VehiculoForm, RepuestoForm, PerfilUsuarioForm, ConductorForm, OrdenServicioForm, ServicioCatalogoForm, ConductorUpdateForm
 from .models import Conductor
 from django.urls import reverse_lazy
@@ -1790,3 +1794,68 @@ def cambiar_estado_orden_ajax(request, pk):
         return JsonResponse({'success': False, 'error': 'Orden no encontrada'}, status=404)
     except Exception as e:
         return JsonResponse({'success': False, 'error': f'Error interno: {str(e)}'}, status=500)
+
+# FUNCIONALIDADES DE PAGOS E IMPRESIÓN
+@login_required
+def registrar_pago_orden(request, pk):
+    """Vista para registrar un pago en una orden de servicio"""
+    orden = get_object_or_404(OrdenServicio, pk=pk)
+    
+    if request.method == 'POST':
+        monto = Decimal(request.POST.get('monto', '0'))
+        metodo = request.POST.get('metodo', 'efectivo')
+        
+        # Crear el pago
+        pago = Pago.objects.create(
+            orden=orden,
+            monto=monto,
+            metodo=metodo,
+            estado='completado'
+        )
+        
+        # Verificar si la orden está completamente pagada
+        total_pagado = orden.pago_set.filter(estado='completado').aggregate(
+            total=models.Sum('monto')
+        )['total'] or Decimal('0')
+        
+        if total_pagado >= orden.total:
+            orden.pagada = True
+            orden.save()
+        
+        return JsonResponse({
+            'success': True,
+            'message': f'Pago de ${monto} registrado exitosamente',
+            'total_pagado': float(total_pagado),
+            'orden_pagada': orden.pagada
+        })
+    
+    return JsonResponse({'success': False, 'error': 'Método no permitido'}, status=405)
+
+@login_required
+def imprimir_orden_pdf(request, pk):
+    """Vista para generar PDF de la orden de servicio"""
+    orden = get_object_or_404(OrdenServicio, pk=pk)
+    
+    # Preparar contexto para el template
+    context = {
+        'orden': orden,
+        'servicios': orden.servicios.all(),
+        'productos': orden.productos.all(),
+        'pagos': orden.pago_set.all(),
+        'total_pagado': orden.pago_set.filter(estado='completado').aggregate(
+            total=models.Sum('monto')
+        )['total'] or Decimal('0')
+    }
+    
+    # Renderizar template HTML
+    template = get_template('gestion_taller/orden_servicio_pdf.html')
+    html = template.render(context)
+    
+    # Crear respuesta PDF
+    response = HttpResponse(content_type='application/pdf')
+    response['Content-Disposition'] = f'attachment; filename="orden_{orden.id}.pdf"'
+    
+    # Para ahora, devolvemos HTML hasta que instalemos xhtml2pdf
+    response = HttpResponse(html, content_type='text/html')
+    
+    return response
