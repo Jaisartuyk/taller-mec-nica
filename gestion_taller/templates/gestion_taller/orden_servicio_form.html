@@ -25,12 +25,35 @@
         min-height: calc(1.5em + 0.75rem + 2px);
     }
     
-    /* Evitar duplicados visuales */
-    .form-select.select2-hidden-accessible {
+    /* Ocultar select original cuando Select2 está activo */
+    .select2-hidden-accessible {
         position: absolute !important;
         left: -9999px !important;
         width: 1px !important;
         height: 1px !important;
+        opacity: 0 !important;
+    }
+    
+    /* Evitar múltiples contenedores Select2 */
+    .form-group .select2-container:not(:first-child) {
+        display: none !important;
+    }
+    
+    /* Evitar efectos de carga y parpadeo */
+    .select2-container {
+        opacity: 1 !important;
+        transition: none !important;
+    }
+    
+    /* Ocultar elementos durante inicialización */
+    .form-select:not(.select2-hidden-accessible) {
+        visibility: visible !important;
+    }
+    
+    /* Asegurar que Select2 aparezca instantáneamente */
+    .select2-container .select2-selection {
+        transition: none !important;
+        animation: none !important;
     }
 </style>
 {% endblock %}
@@ -138,26 +161,64 @@
 <script src="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/js/select2.min.js"></script>
 <script>
 $(document).ready(function() {
-    // Inicializar Select2 de forma simple y directa
-    function initializeSelect2() {
-        // Limpiar cualquier instancia previa
+    // Función para limpiar elementos duplicados
+    function limpiarElementosDuplicados() {
+        // Remover cualquier contenedor Select2 existente
         $('.select2-container').remove();
-        $('select.select2-hidden-accessible').removeClass('select2-hidden-accessible');
         
-        // Inicializar Select2 en campos específicos
-        $('#id_vehiculo, #id_servicios, #id_productos').select2({
+        // Asegurar que no hay selects ocultos duplicados
+        $('select.select2-hidden-accessible').each(function() {
+            $(this).removeClass('select2-hidden-accessible').show();
+        });
+        
+        // Remover elementos duplicados por ID
+        $('[id]').each(function() {
+            const id = this.id;
+            if (id && $('[id="' + id + '"]').length > 1) {
+                $('[id="' + id + '"]').not(':first').remove();
+            }
+        });
+    }
+    
+    // Inicializar Select2 de forma instantánea
+    function initializeSelect2() {
+        // Destruir completamente cualquier instancia previa
+        if ($.fn.select2) {
+            $('#id_vehiculo, #id_servicios, #id_productos').each(function() {
+                if ($(this).hasClass('select2-hidden-accessible')) {
+                    $(this).select2('destroy');
+                }
+            });
+        }
+        
+        // Remover contenedores Select2 huérfanos
+        $('.select2-container').remove();
+        
+        // Asegurar que los selects estén visibles
+        $('#id_vehiculo, #id_servicios, #id_productos').show().removeClass('select2-hidden-accessible');
+        
+        // Configuración común para Select2
+        const select2Config = {
             theme: 'bootstrap-5',
             width: '100%',
-            placeholder: 'Seleccionar...',
             allowClear: true,
-            language: {
-                noResults: function() {
-                    return "No se encontraron resultados";
-                },
-                searching: function() {
-                    return "Buscando...";
-                }
-            }
+            minimumResultsForSearch: 5 // Ocultar búsqueda si hay menos de 5 elementos
+        };
+        
+        // Inicializar Select2 de forma instantánea
+        $('#id_vehiculo').select2({
+            ...select2Config,
+            placeholder: 'Seleccione un vehículo...'
+        });
+        
+        $('#id_servicios').select2({
+            ...select2Config,
+            placeholder: 'Seleccione servicios...'
+        });
+        
+        $('#id_productos').select2({
+            ...select2Config,
+            placeholder: 'Seleccione productos...'
         });
     }
     
@@ -195,11 +256,19 @@ $(document).ready(function() {
         });
     }
 
-    // Inicializar Select2 una sola vez
+    // Inicialización instantánea sin efectos de carga
+    limpiarElementosDuplicados();
     initializeSelect2();
     
-    // Evento cambio de vehículo
-    $('#id_vehiculo').on('change', function() {
+    // Asegurar que no hay efectos de transición
+    $('.select2-container').css({
+        'opacity': '1',
+        'transition': 'none',
+        'animation': 'none'
+    });
+    
+    // Evento cambio de vehículo - usar delegación de eventos
+    $(document).on('change', '#id_vehiculo', function() {
         actualizarConductorPorVehiculo($(this).val());
     });
 
@@ -260,12 +329,20 @@ $(document).ready(function() {
         });
     }
     
-    // Eventos para recalcular cuando cambien servicios o productos
-    $('#id_servicios').on('change', calcularPrecios);
-    $('#id_productos').on('change', calcularPrecios);
+    // Eventos para recalcular cuando cambien servicios o productos - usar delegación
+    $(document).on('change', '#id_servicios', calcularPrecios);
+    $(document).on('change', '#id_productos', calcularPrecios);
     
     // Calcular precios inicial si ya hay elementos seleccionados
-    setTimeout(calcularPrecios, 500);
+    calcularPrecios();
+    
+    // Verificación final para asegurar que no hay duplicados
+    setTimeout(function() {
+        const containers = $('.select2-container');
+        if (containers.length > 3) {
+            containers.slice(3).remove();
+        }
+    }, 100);
 });
 </script>
 
