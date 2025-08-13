@@ -27,12 +27,10 @@
     
     /* Evitar duplicados visuales */
     .form-select.select2-hidden-accessible {
-        display: none !important;
-    }
-    
-    /* Asegurar que no haya elementos duplicados */
-    .select2-container + .select2-container {
-        display: none !important;
+        position: absolute !important;
+        left: -9999px !important;
+        width: 1px !important;
+        height: 1px !important;
     }
 </style>
 {% endblock %}
@@ -140,13 +138,14 @@
 <script src="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/js/select2.min.js"></script>
 <script>
 $(document).ready(function() {
-    // Verificar si Select2 ya está inicializado para evitar duplicados
+    // Inicializar Select2 de forma simple y directa
     function initializeSelect2() {
-        // Destruir Select2 existente si ya está inicializado
-        $('#ordenServicioForm select.select2-hidden-accessible').select2('destroy');
+        // Limpiar cualquier instancia previa
+        $('.select2-container').remove();
+        $('select.select2-hidden-accessible').removeClass('select2-hidden-accessible');
         
-        // Inicializar Select2 en todos los selects del formulario
-        $('#ordenServicioForm select').select2({
+        // Inicializar Select2 en campos específicos
+        $('#id_vehiculo, #id_servicios, #id_productos').select2({
             theme: 'bootstrap-5',
             width: '100%',
             placeholder: 'Seleccionar...',
@@ -196,10 +195,8 @@ $(document).ready(function() {
         });
     }
 
-    // Inicializar Select2 de forma segura con un pequeño retraso
-    setTimeout(function() {
-        initializeSelect2();
-    }, 100);
+    // Inicializar Select2 una sola vez
+    initializeSelect2();
     
     // Evento cambio de vehículo
     $('#id_vehiculo').on('change', function() {

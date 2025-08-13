@@ -6,13 +6,13 @@ class OrdenServicioForm(forms.ModelForm):
         model = OrdenServicio
         fields = ['vehiculo', 'conductor', 'kilometraje', 'servicios', 'productos', 'estado', 'metodo_pago', 'total']
         widgets = {
-            'vehiculo': forms.Select(attrs={'class': 'form-select select2-single'}),
-            'conductor': forms.HiddenInput(),
-            'servicios': forms.SelectMultiple(attrs={'class': 'form-select select2-multiple'}),
-            'productos': forms.SelectMultiple(attrs={'class': 'form-select select2-multiple'}),
-            'estado': forms.Select(attrs={'class': 'form-select'}),
-            'metodo_pago': forms.TextInput(attrs={'class': 'form-control'}),
-            'kilometraje': forms.NumberInput(attrs={'class': 'form-control'}),
+            'vehiculo': forms.Select(attrs={'class': 'form-select', 'id': 'id_vehiculo'}),
+            'conductor': forms.HiddenInput(attrs={'id': 'id_conductor'}),
+            'servicios': forms.SelectMultiple(attrs={'class': 'form-select', 'id': 'id_servicios'}),
+            'productos': forms.SelectMultiple(attrs={'class': 'form-select', 'id': 'id_productos'}),
+            'estado': forms.Select(attrs={'class': 'form-select', 'id': 'id_estado'}),
+            'metodo_pago': forms.TextInput(attrs={'class': 'form-control', 'id': 'id_metodo_pago'}),
+            'kilometraje': forms.NumberInput(attrs={'class': 'form-control', 'id': 'id_kilometraje'}),
             'total': forms.NumberInput(attrs={'class': 'form-control', 'readonly': True, 'id': 'id_total'}),
         }
 
