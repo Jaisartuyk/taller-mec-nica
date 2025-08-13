@@ -55,6 +55,22 @@
         transition: none !important;
         animation: none !important;
     }
+    
+    /* Ocultar cualquier spinner o elemento de carga */
+    .spinner-border,
+    .spinner-grow,
+    [class*="spinner"],
+    [id*="spinner"],
+    .loading,
+    [class*="loading"] {
+        display: none !important;
+    }
+    
+    /* Asegurar que no aparezcan elementos de carga de Select2 */
+    .select2-container .select2-results__option--loading,
+    .select2-container .select2-results__loading {
+        display: none !important;
+    }
 </style>
 {% endblock %}
 
@@ -90,11 +106,6 @@
                                     {% if form.instance.vehiculo and form.instance.vehiculo.conductor and form.instance.vehiculo.conductor.telefono %}
                                         <i class="bi bi-telephone"></i> {{ form.instance.vehiculo.conductor.telefono }}
                                     {% endif %}
-                                </div>
-                                <div id="conductor-spinner" class="mt-1">
-                                    <div class="spinner-border text-primary" role="status">
-                                        <span class="visually-hidden">Cargando...</span>
-                                    </div>
                                 </div>
                             </div>
 
