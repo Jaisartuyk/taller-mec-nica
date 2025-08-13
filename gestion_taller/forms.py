@@ -4,7 +4,7 @@ from .models import Vehiculo, Repuesto, Conductor, Cliente, PreguntaFrecuente, D
 class OrdenServicioForm(forms.ModelForm):
     class Meta:
         model = OrdenServicio
-        fields = ['vehiculo', 'conductor', 'kilometraje', 'servicios', 'productos', 'estado', 'metodo_pago']
+        fields = ['vehiculo', 'conductor', 'kilometraje', 'servicios', 'productos', 'estado', 'metodo_pago', 'total']
         widgets = {
             'vehiculo': forms.Select(attrs={'class': 'form-select select2-single'}),
             'conductor': forms.HiddenInput(),
@@ -13,6 +13,7 @@ class OrdenServicioForm(forms.ModelForm):
             'estado': forms.Select(attrs={'class': 'form-select'}),
             'metodo_pago': forms.TextInput(attrs={'class': 'form-control'}),
             'kilometraje': forms.NumberInput(attrs={'class': 'form-control'}),
+            'total': forms.NumberInput(attrs={'class': 'form-control', 'readonly': True, 'id': 'id_total'}),
         }
 
     def __init__(self, *args, **kwargs):

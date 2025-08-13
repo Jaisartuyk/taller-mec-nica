@@ -49,6 +49,8 @@ urlpatterns = [
     path('api/vehiculo/<int:vehiculo_id>/conductor/', views.conductor_por_vehiculo, name='conductor_por_vehiculo'),
     # API para productos por servicio catálogo
     path('api/productos_por_servicio/', views.productos_por_servicio_catalogo, name='productos_por_servicio_catalogo'),
+    # API para calcular precios de orden
+    path('api/calcular-precios/', views.calcular_precios_orden, name='calcular_precios_orden'),
     # Órdenes de Servicio
     path('ordenes-servicio/', OrdenServicioListView.as_view(), name='orden_servicio_listado'),
     path('ordenes-servicio/nueva/', OrdenServicioCreateView.as_view(), name='orden_servicio_nueva'),

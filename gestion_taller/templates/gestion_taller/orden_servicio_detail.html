@@ -26,24 +26,65 @@
               <strong>Fecha de creación:</strong> {{ orden.fecha_creacion|date:"d/m/Y H:i" }}
             </div>
             <div class="col-md-6">
-              <strong>Servicios:</strong><br>
-              <ul>
-                {% for s in orden.servicios.all %}
-                  <li>{{ s.nombre }} <span class="text-muted">(${{ s.precio_base|floatformat:2 }})</span></li>
-                {% empty %}<li>-</li>{% endfor %}
-              </ul>
-              <strong>Productos:</strong><br>
-              <ul>
-                {% for p in orden.productos.all %}
-                  <li>{{ p.nombre }} <span class="text-muted">(${{ p.precio_venta|floatformat:2 }})</span></li>
-                {% empty %}<li>-</li>{% endfor %}
-              </ul>
+              <div class="card border-0 bg-light">
+                <div class="card-body">
+                  <h6 class="card-title text-primary">Desglose de Precios</h6>
+                  
+                  {% if servicios_detalle %}
+                  <div class="mb-3">
+                    <strong class="text-success">Servicios:</strong>
+                    <ul class="list-unstyled ms-3">
+                      {% for servicio in servicios_detalle %}
+                        <li class="d-flex justify-content-between">
+                          <span>{{ servicio.nombre }}</span>
+                          <span class="text-muted">${{ servicio.precio|floatformat:2 }}</span>
+                        </li>
+                      {% endfor %}
+                    </ul>
+                    <div class="d-flex justify-content-between border-top pt-2">
+                      <strong>Subtotal Servicios:</strong>
+                      <strong class="text-success">${{ total_servicios|floatformat:2 }}</strong>
+                    </div>
+                  </div>
+                  {% endif %}
+                  
+                  {% if productos_detalle %}
+                  <div class="mb-3">
+                    <strong class="text-info">Productos:</strong>
+                    <ul class="list-unstyled ms-3">
+                      {% for producto in productos_detalle %}
+                        <li class="d-flex justify-content-between">
+                          <span>{{ producto.nombre }}</span>
+                          <span class="text-muted">${{ producto.precio|floatformat:2 }}</span>
+                        </li>
+                      {% endfor %}
+                    </ul>
+                    <div class="d-flex justify-content-between border-top pt-2">
+                      <strong>Subtotal Productos:</strong>
+                      <strong class="text-info">${{ total_productos|floatformat:2 }}</strong>
+                    </div>
+                  </div>
+                  {% endif %}
+                  
+                  <div class="border-top pt-3 mt-3">
+                    <div class="d-flex justify-content-between align-items-center">
+                      <h5 class="mb-0">Total General:</h5>
+                      <h4 class="mb-0 text-primary">${{ total_general|floatformat:2 }}</h4>
+                    </div>
+                  </div>
+                </div>
+              </div>
             </div>
           </div>
           <hr>
           <div class="row">
             <div class="col-md-6">
-              <h5>Total: <span class="badge bg-dark">${{ orden.total|floatformat:2 }}</span></h5>
+              {% if orden.observaciones %}
+              <div class="mb-3">
+                <strong>Observaciones:</strong>
+                <p class="text-muted">{{ orden.observaciones }}</p>
+              </div>
+              {% endif %}
             </div>
             <div class="col-md-6 text-end">
               <a href="#" class="btn btn-outline-secondary"><i class="bi bi-printer"></i> Imprimir</a>

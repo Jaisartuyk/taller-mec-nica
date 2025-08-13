@@ -717,6 +717,10 @@ class OrdenServicioCreateView(LoginRequiredMixin, CreateView):
                 
             self.object.save()
             form.save_m2m()
+            
+            # Recalcular y actualizar el total después de guardar las relaciones
+            self.object.total = self.object.calcular_total()
+            self.object.save(update_fields=['total'])
 
 
             # Notificación por Telegram
@@ -1396,3 +1400,231 @@ def home(request):
     }
     
     return render(request, 'gestion_taller/home.html', context)
+
+# --- API para calcular precios en tiempo real ---
+@login_required
+def calcular_precios_orden(request):
+    """API para calcular el total de una orden de servicio en tiempo real"""
+    if request.method != 'POST':
+        return JsonResponse({'error': 'Solo se permite POST'}, status=405)
+    
+    try:
+        import json
+        data = json.loads(request.body)
+        servicios_ids = data.get('servicios', [])
+        productos_ids = data.get('productos', [])
+        
+        # Verificar cliente
+        if not hasattr(request.user, 'perfilusuario') or not request.user.perfilusuario.cliente:
+            return JsonResponse({'error': 'Usuario no tiene cliente asociado'}, status=400)
+        
+        cliente = request.user.perfilusuario.cliente
+        
+        # Calcular total de servicios
+        total_servicios = 0
+        servicios_detalle = []
+        if servicios_ids:
+            servicios = ServicioCatalogo.objects.filter(id__in=servicios_ids)
+            for servicio in servicios:
+                total_servicios += servicio.precio_base
+                servicios_detalle.append({
+                    'id': servicio.id,
+                    'nombre': servicio.nombre,
+                    'precio': float(servicio.precio_base)
+                })
+        
+        # Calcular total de productos
+        total_productos = 0
+        productos_detalle = []
+        if productos_ids:
+            productos = Repuesto.objects.filter(id__in=productos_ids, cliente=cliente)
+            for producto in productos:
+                total_productos += producto.precio_venta
+                productos_detalle.append({
+                    'id': producto.id,
+                    'nombre': producto.nombre,
+                    'precio': float(producto.precio_venta)
+                })
+        
+        total_general = total_servicios + total_productos
+        
+        return JsonResponse({
+            'success': True,
+            'total_servicios': float(total_servicios),
+            'total_productos': float(total_productos),
+            'total_general': float(total_general),
+            'servicios_detalle': servicios_detalle,
+            'productos_detalle': productos_detalle,
+            'moneda': 'COP'  # Puedes cambiar esto según tu configuración
+        })
+        
+    except json.JSONDecodeError:
+        return JsonResponse({'error': 'JSON inválido'}, status=400)
+    except Exception as e:
+        return JsonResponse({'error': f'Error interno: {str(e)}'}, status=500)
+
+# --- Vistas para Órdenes de Servicio ---
+from django.contrib.auth.mixins import LoginRequiredMixin
+from django.views.generic import ListView, CreateView, DetailView
+from .models import OrdenServicio
+
+@method_decorator(login_required, name='dispatch')
+class OrdenServicioListView(ListView):
+    model = OrdenServicio
+    template_name = 'gestion_taller/orden_servicio_list.html'
+    context_object_name = 'ordenes'
+    paginate_by = 20
+    
+    def get_queryset(self):
+        if hasattr(self.request.user, 'perfilusuario') and self.request.user.perfilusuario.cliente:
+            return OrdenServicio.objects.filter(
+                cliente=self.request.user.perfilusuario.cliente
+            ).select_related('vehiculo', 'conductor').order_by('-fecha_creacion')
+        return OrdenServicio.objects.none()
+
+@method_decorator(login_required, name='dispatch')
+class OrdenServicioCreateView(CreateView):
+    model = OrdenServicio
+    form_class = OrdenServicioForm
+    template_name = 'gestion_taller/orden_servicio_form.html'
+    success_url = reverse_lazy('orden_servicio_listado')
+    
+    def get_template_names(self):
+        if (self.request.headers.get('hx-request') or 
+            self.request.headers.get('x-requested-with') == 'XMLHttpRequest'):
+            return ['gestion_taller/orden_servicio_form_modal_content.html']
+        return [self.template_name]
+    
+    def get_form_kwargs(self):
+        kwargs = super().get_form_kwargs()
+        kwargs['user'] = self.request.user
+        return kwargs
+    
+    def form_valid(self, form):
+        # Verificar que el usuario tenga un perfil y cliente asociado
+        if not hasattr(self.request.user, 'perfilusuario') or not self.request.user.perfilusuario.cliente:
+            form.add_error(None, 'Su usuario no tiene un cliente asociado. Contacte al administrador.')
+            return self.form_invalid(form)
+            
+        perfil = self.request.user.perfilusuario
+        vehiculo = form.cleaned_data.get('vehiculo')
+        
+        # Verificar que el vehículo pertenece al cliente
+        if not vehiculo or vehiculo.cliente != perfil.cliente:
+            form.add_error('vehiculo', 'El vehículo seleccionado no pertenece a su cliente')
+            return self.form_invalid(form)
+            
+        if not vehiculo:
+            form.add_error('vehiculo', 'Debe seleccionar un vehículo')
+            return self.form_invalid(form)
+            
+        try:
+            self.object = form.save(commit=False)
+            self.object.cliente = perfil.cliente
+            
+            # Asignar conductor automáticamente del vehículo si no viene en el formulario
+            if not self.object.conductor and vehiculo.conductor:
+                self.object.conductor = vehiculo.conductor
+                messages.info(self.request, f'Conductor asignado automáticamente: {vehiculo.conductor.nombre}')
+                
+            # Validar que tenga conductor
+            if not self.object.conductor:
+                form.add_error(None, 'El vehículo seleccionado no tiene conductor asignado')
+                return self.form_invalid(form)
+                
+            self.object.save()
+            form.save_m2m()
+            
+            # Recalcular y actualizar el total después de guardar las relaciones
+            self.object.total = self.object.calcular_total()
+            self.object.save(update_fields=['total'])
+
+            # Notificación por Telegram
+            try:
+                chat_id = getattr(perfil, 'telegram_chat_id', None)
+                if chat_id and hasattr(self.object, 'vehiculo') and self.object.vehiculo:
+                    from .utils import enviar_telegram
+                    mensaje = (
+                        f"¡Nueva orden de servicio creada!\n"
+                        f"Vehículo: {self.object.vehiculo.placa}\n"
+                        f"Conductor: {self.object.conductor.nombre if self.object.conductor else 'No asignado'}\n"
+                        f"Total: ${self.object.total}\n"
+                        f"Estado: {self.object.get_estado_display()}"
+                    )
+                    enviar_telegram(chat_id, mensaje)
+            except Exception as e:
+                print(f"[Telegram] Error enviando notificación: {e}")
+                
+            messages.success(self.request, 'Orden de servicio creada exitosamente.')
+            
+            # Respuesta para HTMX/AJAX
+            if self.request.headers.get('x-requested-with') == 'XMLHttpRequest':
+                response = HttpResponse(status=204)
+                response['HX-Trigger'] = 'ordenCreada'
+                return response
+                
+            return redirect(self.get_success_url())
+            
+        except Exception as e:
+            form.add_error(None, f'Error al guardar la orden: {str(e)}')
+            return self.form_invalid(form)
+        
+    def form_invalid(self, form):
+        if self.request.headers.get('x-requested-with') == 'XMLHttpRequest':
+            return JsonResponse({
+                'success': False,
+                'errors': form.errors,
+                'message': 'Por favor corrija los errores en el formulario',
+                'form': render_to_string(
+                    self.template_name,
+                    {'form': form},
+                    request=self.request
+                )
+            }, status=400)
+        return super().form_invalid(form)
+
+@method_decorator(login_required, name='dispatch')
+class OrdenServicioDetailView(DetailView):
+    model = OrdenServicio
+    template_name = 'gestion_taller/orden_servicio_detail.html'
+    context_object_name = 'orden'
+    
+    def get_queryset(self):
+        if hasattr(self.request.user, 'perfilusuario') and self.request.user.perfilusuario.cliente:
+            return OrdenServicio.objects.filter(
+                cliente=self.request.user.perfilusuario.cliente
+            ).select_related('vehiculo', 'conductor', 'cliente').prefetch_related('servicios', 'productos')
+        return OrdenServicio.objects.none()
+    
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        orden = self.object
+        
+        # Calcular desglose de precios
+        servicios_detalle = []
+        total_servicios = 0
+        for servicio in orden.servicios.all():
+            servicios_detalle.append({
+                'nombre': servicio.nombre,
+                'precio': servicio.precio_base
+            })
+            total_servicios += servicio.precio_base
+        
+        productos_detalle = []
+        total_productos = 0
+        for producto in orden.productos.all():
+            productos_detalle.append({
+                'nombre': producto.nombre,
+                'precio': producto.precio_venta
+            })
+            total_productos += producto.precio_venta
+        
+        context.update({
+            'servicios_detalle': servicios_detalle,
+            'productos_detalle': productos_detalle,
+            'total_servicios': total_servicios,
+            'total_productos': total_productos,
+            'total_general': total_servicios + total_productos,
+        })
+        
+        return context

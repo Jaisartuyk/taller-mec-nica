@@ -109,6 +109,16 @@
                                 {{ form.estado }}
                             </div>
 
+                            <!-- Total -->
+                            <div class="col-md-6">
+                                <label for="id_total" class="form-label">Total a Pagar</label>
+                                <div class="input-group">
+                                    <span class="input-group-text">$</span>
+                                    {{ form.total }}
+                                </div>
+                                <div id="desglose-precios" class="mt-2 small text-muted"></div>
+                            </div>
+
                             <!-- Botón guardar -->
                             <div class="col-12 mt-4">
                                 <button type="submit" class="btn btn-primary">
@@ -201,6 +211,64 @@ $(document).ready(function() {
     if (vehiculoInicial) {
         actualizarConductorPorVehiculo(vehiculoInicial);
     }
+    
+    // Función para calcular precios en tiempo real
+    function calcularPrecios() {
+        const serviciosIds = $('#id_servicios').val() || [];
+        const productosIds = $('#id_productos').val() || [];
+        
+        // Si no hay servicios ni productos seleccionados, limpiar total
+        if (serviciosIds.length === 0 && productosIds.length === 0) {
+            $('#id_total').val('0.00');
+            $('#desglose-precios').html('');
+            return;
+        }
+        
+        // Realizar petición AJAX para calcular precios
+        $.ajax({
+            url: '{% url "calcular_precios_orden" %}',
+            method: 'POST',
+            headers: {
+                'X-CSRFToken': $('[name=csrfmiddlewaretoken]').val(),
+                'Content-Type': 'application/json'
+            },
+            data: JSON.stringify({
+                servicios: serviciosIds,
+                productos: productosIds
+            }),
+            success: function(response) {
+                if (response.success) {
+                    // Actualizar campo total
+                    $('#id_total').val(response.total_general.toFixed(2));
+                    
+                    // Mostrar desglose
+                    let desglose = '';
+                    if (response.total_servicios > 0) {
+                        desglose += `Servicios: $${response.total_servicios.toFixed(2)}<br>`;
+                    }
+                    if (response.total_productos > 0) {
+                        desglose += `Productos: $${response.total_productos.toFixed(2)}<br>`;
+                    }
+                    if (desglose) {
+                        desglose += `<strong>Total: $${response.total_general.toFixed(2)}</strong>`;
+                    }
+                    $('#desglose-precios').html(desglose);
+                } else {
+                    console.error('Error calculando precios:', response.error);
+                }
+            },
+            error: function(xhr, status, error) {
+                console.error('Error en petición AJAX:', error);
+            }
+        });
+    }
+    
+    // Eventos para recalcular cuando cambien servicios o productos
+    $('#id_servicios').on('change', calcularPrecios);
+    $('#id_productos').on('change', calcularPrecios);
+    
+    // Calcular precios inicial si ya hay elementos seleccionados
+    setTimeout(calcularPrecios, 500);
 });
 </script>
 

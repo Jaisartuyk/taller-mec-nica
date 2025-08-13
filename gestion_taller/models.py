@@ -262,6 +262,19 @@ class OrdenServicio(models.Model):
     metodo_pago = models.CharField(max_length=30, blank=True)
     pagada = models.BooleanField(default=False)
 
+    def calcular_total(self):
+        """Calcula el total de la orden sumando servicios y productos"""
+        total_servicios = sum(servicio.precio_base for servicio in self.servicios.all())
+        total_productos = sum(producto.precio_venta for producto in self.productos.all())
+        return total_servicios + total_productos
+    
+    def save(self, *args, **kwargs):
+        """Actualiza el total automáticamente al guardar"""
+        super().save(*args, **kwargs)  # Guardar primero para tener ID
+        if self.pk:  # Solo calcular si ya existe (para relaciones ManyToMany)
+            self.total = self.calcular_total()
+            super().save(update_fields=['total'])
+    
     def __str__(self):
         return f"Orden #{self.id} - {self.vehiculo} - {self.estado}"
 
