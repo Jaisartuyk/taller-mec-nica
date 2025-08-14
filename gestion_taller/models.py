@@ -220,7 +220,7 @@ class InteraccionChat(models.Model):
 # --- MODELOS ESCALABLES AGREGADOS ---
 
 class ServicioCatalogo(models.Model):
-    cliente = models.ForeignKey(Cliente, on_delete=models.CASCADE, related_name='servicios_catalogo', default=1)
+    cliente = models.ForeignKey(Cliente, on_delete=models.CASCADE, related_name='servicios_catalogo')
     nombre = models.CharField(max_length=100)
     descripcion = models.TextField(blank=True)
     precio_base = models.DecimalField(max_digits=10, decimal_places=2)
@@ -237,19 +237,6 @@ class ServicioCatalogo(models.Model):
     
     def __str__(self):
         return f"{self.nombre} - {self.cliente.nombre}"
-
-class Notificacion(models.Model):
-    cliente = models.ForeignKey('Cliente', on_delete=models.CASCADE, related_name='notificaciones')
-    conductor = models.ForeignKey('Conductor', on_delete=models.CASCADE, null=True, blank=True, related_name='notificaciones')
-    vehiculo = models.ForeignKey('Vehiculo', on_delete=models.CASCADE, null=True, blank=True, related_name='notificaciones')
-    mensaje = models.TextField()
-    tipo = models.CharField(max_length=50, default='general')
-    leida = models.BooleanField(default=False)
-    fecha_creacion = models.DateTimeField(auto_now_add=True)
-    fecha_envio = models.DateTimeField(null=True, blank=True)
-    
-    def __str__(self):
-        return f"Notificación para {self.cliente} - {self.tipo}"
 
 class OrdenServicio(models.Model):
     cliente = models.ForeignKey('Cliente', on_delete=models.CASCADE, related_name='ordenes_servicio')
