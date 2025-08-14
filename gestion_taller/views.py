@@ -1371,7 +1371,8 @@ def home(request):
         stats = {
             'total_vehiculos': Vehiculo.objects.filter(cliente=cliente).count(),
             'total_conductores': Conductor.objects.filter(cliente=cliente).count(),
-            'total_servicios': ServicioCatalogo.objects.all().count(),
+            'total_servicios': ServicioCatalogo.objects.filter(cliente=cliente).count(),
+            'servicios_activos': ServicioCatalogo.objects.filter(cliente=cliente, activo=True).count(),
             'total_repuestos': Repuesto.objects.filter(cliente=cliente).count(),
             'total_ordenes': OrdenServicio.objects.filter(cliente=cliente).count(),
             'ultimos_servicios': OrdenServicio.objects.filter(
@@ -1872,3 +1873,101 @@ def imprimir_orden_pdf(request, pk):
     response = HttpResponse(html, content_type='text/html')
     
     return response
+
+# ===== VISTAS PARA SERVICIOS DEL CATÁLOGO =====
+
+@login_required
+def servicios_catalogo_list(request):
+    """Vista para listar servicios del catálogo del cliente"""
+    cliente = request.user.perfilusuario.cliente
+    servicios = ServicioCatalogo.objects.filter(cliente=cliente).order_by('-fecha_creacion')
+    
+    context = {
+        'servicios': servicios,
+        'total_servicios': servicios.count(),
+        'servicios_activos': servicios.filter(activo=True).count()
+    }
+    return render(request, 'gestion_taller/servicios_catalogo_list.html', context)
+
+@login_required
+def servicio_catalogo_create(request):
+    """Vista para crear un nuevo servicio del catálogo"""
+    cliente = request.user.perfilusuario.cliente
+    
+    if request.method == 'POST':
+        form = ServicioCatalogoForm(request.POST, cliente=cliente)
+        if form.is_valid():
+            servicio = form.save(commit=False)
+            servicio.cliente = cliente
+            servicio.save()
+            form.save_m2m()  # Guardar relaciones many-to-many
+            
+            messages.success(request, f'Servicio "{servicio.nombre}" creado exitosamente.')
+            return redirect('servicios_catalogo_list')
+    else:
+        form = ServicioCatalogoForm(cliente=cliente)
+    
+    context = {
+        'form': form,
+        'title': 'Crear Nuevo Servicio',
+        'action': 'Crear'
+    }
+    return render(request, 'gestion_taller/servicio_catalogo_form.html', context)
+
+@login_required
+def servicio_catalogo_edit(request, pk):
+    """Vista para editar un servicio del catálogo"""
+    cliente = request.user.perfilusuario.cliente
+    servicio = get_object_or_404(ServicioCatalogo, pk=pk, cliente=cliente)
+    
+    if request.method == 'POST':
+        form = ServicioCatalogoForm(request.POST, instance=servicio, cliente=cliente)
+        if form.is_valid():
+            servicio = form.save()
+            messages.success(request, f'Servicio "{servicio.nombre}" actualizado exitosamente.')
+            return redirect('servicios_catalogo_list')
+    else:
+        form = ServicioCatalogoForm(instance=servicio, cliente=cliente)
+    
+    context = {
+        'form': form,
+        'servicio': servicio,
+        'title': f'Editar Servicio: {servicio.nombre}',
+        'action': 'Actualizar'
+    }
+    return render(request, 'gestion_taller/servicio_catalogo_form.html', context)
+
+@login_required
+def servicio_catalogo_delete(request, pk):
+    """Vista para eliminar un servicio del catálogo"""
+    cliente = request.user.perfilusuario.cliente
+    servicio = get_object_or_404(ServicioCatalogo, pk=pk, cliente=cliente)
+    
+    if request.method == 'POST':
+        nombre_servicio = servicio.nombre
+        servicio.delete()
+        messages.success(request, f'Servicio "{nombre_servicio}" eliminado exitosamente.')
+        return redirect('servicios_catalogo_list')
+    
+    context = {
+        'servicio': servicio
+    }
+    return render(request, 'gestion_taller/servicio_catalogo_confirm_delete.html', context)
+
+@login_required
+def servicio_catalogo_toggle_status(request, pk):
+    """Vista AJAX para activar/desactivar un servicio"""
+    if request.method == 'POST':
+        cliente = request.user.perfilusuario.cliente
+        servicio = get_object_or_404(ServicioCatalogo, pk=pk, cliente=cliente)
+        
+        servicio.activo = not servicio.activo
+        servicio.save()
+        
+        return JsonResponse({
+            'success': True,
+            'activo': servicio.activo,
+            'message': f'Servicio {"activado" if servicio.activo else "desactivado"} exitosamente'
+        })
+    
+    return JsonResponse({'success': False, 'error': 'Método no permitido'}, status=405)

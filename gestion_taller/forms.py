@@ -1,4 +1,5 @@
 from django import forms
+from django.core.exceptions import ValidationError
 from .models import Vehiculo, Repuesto, Conductor, Cliente, PreguntaFrecuente, DetalleServicio, OrdenServicio, ServicioCatalogo
 
 class OrdenServicioForm(forms.ModelForm):
@@ -262,3 +263,94 @@ class PerfilUsuarioForm(forms.ModelForm):
             'rol': forms.Select(attrs={'class': 'form-select'}),
             'conductor': forms.Select(attrs={'class': 'form-select'}),
         }
+
+class ServicioCatalogoForm(forms.ModelForm):
+    class Meta:
+        model = ServicioCatalogo
+        exclude = ['cliente', 'fecha_creacion']
+        widgets = {
+            'nombre': forms.TextInput(attrs={
+                'class': 'form-control',
+                'placeholder': 'Ej: Cambio de aceite, Revisión de frenos...'
+            }),
+            'descripcion': forms.Textarea(attrs={
+                'class': 'form-control',
+                'rows': 4,
+                'placeholder': 'Describe detalladamente el servicio...'
+            }),
+            'precio_base': forms.NumberInput(attrs={
+                'class': 'form-control',
+                'step': '0.01',
+                'min': '0',
+                'placeholder': '0.00'
+            }),
+            'frecuencia_km': forms.NumberInput(attrs={
+                'class': 'form-control',
+                'min': '1',
+                'placeholder': 'Ej: 5000, 10000...'
+            }),
+            'frecuencia_meses': forms.NumberInput(attrs={
+                'class': 'form-control',
+                'min': '1',
+                'max': '60',
+                'placeholder': 'Ej: 3, 6, 12...'
+            }),
+            'productos_requeridos': forms.CheckboxSelectMultiple(attrs={
+                'class': 'form-check-input'
+            }),
+            'activo': forms.CheckboxInput(attrs={
+                'class': 'form-check-input'
+            })
+        }
+        labels = {
+            'nombre': 'Nombre del Servicio',
+            'descripcion': 'Descripción Detallada',
+            'precio_base': 'Precio Base ($)',
+            'frecuencia_km': 'Frecuencia en Kilómetros',
+            'frecuencia_meses': 'Frecuencia en Meses',
+            'productos_requeridos': 'Repuestos/Productos Requeridos',
+            'activo': 'Servicio Activo'
+        }
+        help_texts = {
+            'frecuencia_km': 'Cada cuántos kilómetros se recomienda este servicio',
+            'frecuencia_meses': 'Cada cuántos meses se recomienda este servicio',
+            'productos_requeridos': 'Selecciona los repuestos que se usan en este servicio'
+        }
+    
+    def __init__(self, *args, **kwargs):
+        cliente = kwargs.pop('cliente', None)
+        super().__init__(*args, **kwargs)
+        
+        if cliente:
+            # Filtrar productos solo del cliente
+            self.fields['productos_requeridos'].queryset = Repuesto.objects.filter(
+                cliente=cliente, 
+                stock__gt=0
+            ).order_by('nombre')
+        else:
+            self.fields['productos_requeridos'].queryset = Repuesto.objects.none()
+    
+    def clean_precio_base(self):
+        precio = self.cleaned_data.get('precio_base')
+        if precio and precio <= 0:
+            raise ValidationError('El precio debe ser mayor a 0')
+        return precio
+    
+    def clean(self):
+        cleaned_data = super().clean()
+        frecuencia_km = cleaned_data.get('frecuencia_km')
+        frecuencia_meses = cleaned_data.get('frecuencia_meses')
+        
+        if not frecuencia_km and not frecuencia_meses:
+            raise ValidationError(
+                'Debe especificar al menos una frecuencia (kilómetros o meses)'
+            )
+        
+        return cleaned_data
+    
+    def save(self, commit=True):
+        servicio = super().save(commit=False)
+        if commit:
+            servicio.save()
+            self.save_m2m()  # Guardar relaciones many-to-many
+        return servicio

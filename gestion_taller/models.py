@@ -220,6 +220,7 @@ class InteraccionChat(models.Model):
 # --- MODELOS ESCALABLES AGREGADOS ---
 
 class ServicioCatalogo(models.Model):
+    cliente = models.ForeignKey(Cliente, on_delete=models.CASCADE, related_name='servicios_catalogo', default=1)
     nombre = models.CharField(max_length=100)
     descripcion = models.TextField(blank=True)
     precio_base = models.DecimalField(max_digits=10, decimal_places=2)
@@ -227,9 +228,15 @@ class ServicioCatalogo(models.Model):
     frecuencia_meses = models.PositiveIntegerField(blank=True, null=True, help_text="Frecuencia recomendada en meses")
     productos_requeridos = models.ManyToManyField('Repuesto', blank=True, related_name='servicios_catalogo')
     activo = models.BooleanField(default=True)
+    fecha_creacion = models.DateTimeField(default=timezone.now)
+    
+    class Meta:
+        verbose_name = 'Servicio del Catálogo'
+        verbose_name_plural = 'Servicios del Catálogo'
+        ordering = ['nombre']
     
     def __str__(self):
-        return self.nombre
+        return f"{self.nombre} - {self.cliente.nombre}"
 
 class Notificacion(models.Model):
     cliente = models.ForeignKey('Cliente', on_delete=models.CASCADE, related_name='notificaciones')

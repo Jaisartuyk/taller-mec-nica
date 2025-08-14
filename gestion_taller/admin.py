@@ -69,9 +69,50 @@ class VehiculoAdmin(admin.ModelAdmin):
 
 @admin.register(ServicioCatalogo)
 class ServicioCatalogoAdmin(admin.ModelAdmin):
-    list_display = ('nombre', 'precio_base', 'frecuencia_km', 'frecuencia_meses', 'activo')
-    search_fields = ('nombre',)
-    list_filter = ('activo',)
+    list_display = ('nombre', 'cliente', 'precio_base', 'frecuencia_km', 'frecuencia_meses', 'activo', 'fecha_creacion')
+    search_fields = ('nombre', 'cliente__nombre')
+    list_filter = ('cliente', 'activo', 'fecha_creacion')
+    readonly_fields = ('fecha_creacion',)
+    fieldsets = (
+        (None, {
+            'fields': ('cliente', 'nombre', 'descripcion', 'precio_base', 'activo')
+        }),
+        ('Frecuencias de Mantenimiento', {
+            'fields': ('frecuencia_km', 'frecuencia_meses'),
+            'classes': ('collapse',)
+        }),
+        ('Productos Requeridos', {
+            'fields': ('productos_requeridos',),
+            'classes': ('collapse',)
+        }),
+        ('Información del Sistema', {
+            'fields': ('fecha_creacion',),
+            'classes': ('collapse',)
+        })
+    )
+    filter_horizontal = ('productos_requeridos',)
+    
+    def get_queryset(self, request):
+        qs = super().get_queryset(request)
+        if request.user.is_superuser:
+            return qs
+        if hasattr(request.user, 'perfilusuario') and request.user.perfilusuario.cliente:
+            return qs.filter(cliente=request.user.perfilusuario.cliente)
+        return qs.none()
+    
+    def formfield_for_foreignkey(self, db_field, request, **kwargs):
+        if db_field.name == "cliente":
+            if not request.user.is_superuser:
+                if hasattr(request.user, 'perfilusuario') and request.user.perfilusuario.cliente:
+                    kwargs["queryset"] = Cliente.objects.filter(id=request.user.perfilusuario.cliente.id)
+        return super().formfield_for_foreignkey(db_field, request, **kwargs)
+    
+    def formfield_for_manytomany(self, db_field, request, **kwargs):
+        if db_field.name == "productos_requeridos":
+            if not request.user.is_superuser:
+                if hasattr(request.user, 'perfilusuario') and request.user.perfilusuario.cliente:
+                    kwargs["queryset"] = Repuesto.objects.filter(cliente=request.user.perfilusuario.cliente)
+        return super().formfield_for_manytomany(db_field, request, **kwargs)
 
 @admin.register(OrdenServicio)
 class OrdenServicioAdmin(admin.ModelAdmin):

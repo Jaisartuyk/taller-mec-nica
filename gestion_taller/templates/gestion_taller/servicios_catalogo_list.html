@@ -1,0 +1,302 @@
+{% extends 'gestion_taller/base.html' %}
+{% load static %}
+
+{% block title %}Servicios del Catálogo{% endblock %}
+
+{% block extra_css %}
+<style>
+    .service-card {
+        transition: all 0.3s ease;
+        border: none;
+        box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+    }
+    .service-card:hover {
+        transform: translateY(-5px);
+        box-shadow: 0 5px 20px rgba(0,0,0,0.15);
+    }
+    .service-header {
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        color: white;
+        border-radius: 10px 10px 0 0;
+    }
+    .price-badge {
+        background: linear-gradient(45deg, #28a745, #20c997);
+        color: white;
+        font-weight: bold;
+        font-size: 1.1rem;
+    }
+    .frequency-info {
+        background-color: #f8f9fa;
+        border-left: 4px solid #007bff;
+    }
+    .stats-card {
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        color: white;
+        border-radius: 15px;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container-fluid py-4">
+    <!-- Header con estadísticas -->
+    <div class="row mb-4">
+        <div class="col-12">
+            <div class="d-flex justify-content-between align-items-center mb-4">
+                <div>
+                    <h1 class="h3 mb-0">
+                        <i class="bi bi-gear-fill text-primary"></i> 
+                        Servicios del Catálogo
+                    </h1>
+                    <p class="text-muted mb-0">Gestiona los servicios que ofreces a tus clientes</p>
+                </div>
+                <a href="{% url 'servicio_catalogo_create' %}" class="btn btn-primary btn-lg">
+                    <i class="bi bi-plus-circle"></i> Nuevo Servicio
+                </a>
+            </div>
+        </div>
+    </div>
+
+    <!-- Estadísticas -->
+    <div class="row mb-4">
+        <div class="col-md-4">
+            <div class="card stats-card text-center p-4">
+                <div class="card-body">
+                    <i class="bi bi-gear-wide-connected display-4 mb-3"></i>
+                    <h3 class="mb-1">{{ total_servicios }}</h3>
+                    <p class="mb-0">Total de Servicios</p>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-4">
+            <div class="card stats-card text-center p-4">
+                <div class="card-body">
+                    <i class="bi bi-check-circle-fill display-4 mb-3"></i>
+                    <h3 class="mb-1">{{ servicios_activos }}</h3>
+                    <p class="mb-0">Servicios Activos</p>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-4">
+            <div class="card stats-card text-center p-4">
+                <div class="card-body">
+                    <i class="bi bi-pause-circle-fill display-4 mb-3"></i>
+                    <h3 class="mb-1">{{ total_servicios|add:"-"|add:servicios_activos }}</h3>
+                    <p class="mb-0">Servicios Inactivos</p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Lista de servicios -->
+    <div class="row">
+        {% for servicio in servicios %}
+        <div class="col-lg-6 col-xl-4 mb-4">
+            <div class="card service-card h-100">
+                <div class="service-header p-3">
+                    <div class="d-flex justify-content-between align-items-start">
+                        <div>
+                            <h5 class="card-title mb-1">{{ servicio.nombre }}</h5>
+                            <small class="opacity-75">
+                                <i class="bi bi-calendar-plus"></i> 
+                                {{ servicio.fecha_creacion|date:"d/m/Y" }}
+                            </small>
+                        </div>
+                        <div class="form-check form-switch">
+                            <input class="form-check-input" type="checkbox" 
+                                   id="switch{{ servicio.id }}" 
+                                   {% if servicio.activo %}checked{% endif %}
+                                   onchange="toggleStatus({{ servicio.id }})">
+                            <label class="form-check-label text-white" for="switch{{ servicio.id }}">
+                                {% if servicio.activo %}Activo{% else %}Inactivo{% endif %}
+                            </label>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="card-body d-flex flex-column">
+                    <!-- Precio -->
+                    <div class="text-center mb-3">
+                        <span class="badge price-badge px-3 py-2 rounded-pill">
+                            ${{ servicio.precio_base|floatformat:2 }}
+                        </span>
+                    </div>
+
+                    <!-- Descripción -->
+                    {% if servicio.descripcion %}
+                    <p class="card-text text-muted small mb-3">
+                        {{ servicio.descripcion|truncatewords:15 }}
+                    </p>
+                    {% endif %}
+
+                    <!-- Frecuencias -->
+                    {% if servicio.frecuencia_km or servicio.frecuencia_meses %}
+                    <div class="frequency-info p-2 rounded mb-3">
+                        <small class="text-muted d-block mb-1">
+                            <i class="bi bi-clock"></i> Frecuencia recomendada:
+                        </small>
+                        {% if servicio.frecuencia_km %}
+                        <small class="d-block">
+                            <i class="bi bi-speedometer2"></i> Cada {{ servicio.frecuencia_km|floatformat:0 }} km
+                        </small>
+                        {% endif %}
+                        {% if servicio.frecuencia_meses %}
+                        <small class="d-block">
+                            <i class="bi bi-calendar-month"></i> Cada {{ servicio.frecuencia_meses }} mes{{ servicio.frecuencia_meses|pluralize:"es" }}
+                        </small>
+                        {% endif %}
+                    </div>
+                    {% endif %}
+
+                    <!-- Productos requeridos -->
+                    {% if servicio.productos_requeridos.exists %}
+                    <div class="mb-3">
+                        <small class="text-muted d-block mb-1">
+                            <i class="bi bi-box-seam"></i> Productos requeridos:
+                        </small>
+                        <div class="d-flex flex-wrap gap-1">
+                            {% for producto in servicio.productos_requeridos.all|slice:":3" %}
+                            <span class="badge bg-secondary small">{{ producto.nombre }}</span>
+                            {% endfor %}
+                            {% if servicio.productos_requeridos.count > 3 %}
+                            <span class="badge bg-light text-dark small">+{{ servicio.productos_requeridos.count|add:"-3" }} más</span>
+                            {% endif %}
+                        </div>
+                    </div>
+                    {% endif %}
+
+                    <!-- Botones de acción -->
+                    <div class="mt-auto">
+                        <div class="btn-group w-100" role="group">
+                            <a href="{% url 'servicio_catalogo_edit' servicio.pk %}" 
+                               class="btn btn-outline-primary btn-sm">
+                                <i class="bi bi-pencil"></i> Editar
+                            </a>
+                            <button type="button" class="btn btn-outline-danger btn-sm" 
+                                    onclick="confirmDelete({{ servicio.id }}, '{{ servicio.nombre }}')">
+                                <i class="bi bi-trash"></i> Eliminar
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        {% empty %}
+        <div class="col-12">
+            <div class="text-center py-5">
+                <i class="bi bi-gear display-1 text-muted mb-3"></i>
+                <h4 class="text-muted">No hay servicios registrados</h4>
+                <p class="text-muted mb-4">Comienza creando tu primer servicio del catálogo</p>
+                <a href="{% url 'servicio_catalogo_create' %}" class="btn btn-primary btn-lg">
+                    <i class="bi bi-plus-circle"></i> Crear Primer Servicio
+                </a>
+            </div>
+        </div>
+        {% endfor %}
+    </div>
+</div>
+
+<!-- Modal de confirmación de eliminación -->
+<div class="modal fade" id="deleteModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">
+                    <i class="bi bi-exclamation-triangle text-warning"></i> 
+                    Confirmar Eliminación
+                </h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <p>¿Estás seguro de que deseas eliminar el servicio <strong id="servicioNombre"></strong>?</p>
+                <div class="alert alert-warning">
+                    <i class="bi bi-info-circle"></i>
+                    Esta acción no se puede deshacer.
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+                <form id="deleteForm" method="post" style="display: inline;">
+                    {% csrf_token %}
+                    <button type="submit" class="btn btn-danger">
+                        <i class="bi bi-trash"></i> Eliminar
+                    </button>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+function toggleStatus(servicioId) {
+    fetch(`/api/servicios-catalogo/${servicioId}/toggle-status/`, {
+        method: 'POST',
+        headers: {
+            'X-CSRFToken': getCookie('csrftoken'),
+            'Content-Type': 'application/json'
+        }
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            showAlert('success', data.message);
+            // Actualizar el label del switch
+            const label = document.querySelector(`label[for="switch${servicioId}"]`);
+            label.textContent = data.activo ? 'Activo' : 'Inactivo';
+        } else {
+            showAlert('danger', data.error || 'Error al cambiar el estado');
+            // Revertir el switch
+            const checkbox = document.getElementById(`switch${servicioId}`);
+            checkbox.checked = !checkbox.checked;
+        }
+    })
+    .catch(error => {
+        console.error('Error:', error);
+        showAlert('danger', 'Error de conexión');
+        // Revertir el switch
+        const checkbox = document.getElementById(`switch${servicioId}`);
+        checkbox.checked = !checkbox.checked;
+    });
+}
+
+function confirmDelete(servicioId, servicioNombre) {
+    document.getElementById('servicioNombre').textContent = servicioNombre;
+    document.getElementById('deleteForm').action = `/servicios-catalogo/${servicioId}/eliminar/`;
+    new bootstrap.Modal(document.getElementById('deleteModal')).show();
+}
+
+// Función para obtener cookie CSRF
+function getCookie(name) {
+    let cookieValue = null;
+    if (document.cookie && document.cookie !== '') {
+        const cookies = document.cookie.split(';');
+        for (let i = 0; i < cookies.length; i++) {
+            const cookie = cookies[i].trim();
+            if (cookie.substring(0, name.length + 1) === (name + '=')) {
+                cookieValue = decodeURIComponent(cookie.substring(name.length + 1));
+                break;
+            }
+        }
+    }
+    return cookieValue;
+}
+
+// Función para mostrar alertas
+function showAlert(type, message) {
+    const alertDiv = document.createElement('div');
+    alertDiv.className = `alert alert-${type} alert-dismissible fade show`;
+    alertDiv.innerHTML = `
+        ${message}
+        <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+    `;
+    
+    const container = document.querySelector('.container-fluid');
+    container.insertBefore(alertDiv, container.firstChild);
+    
+    // Auto-dismiss después de 3 segundos
+    setTimeout(() => {
+        alertDiv.remove();
+    }, 3000);
+}
+</script>
+{% endblock %}
