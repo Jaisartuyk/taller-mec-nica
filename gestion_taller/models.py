@@ -220,7 +220,7 @@ class InteraccionChat(models.Model):
 # --- MODELOS ESCALABLES AGREGADOS ---
 
 class ServicioCatalogo(models.Model):
-    cliente = models.ForeignKey(Cliente, on_delete=models.CASCADE, related_name='servicios_catalogo')
+    # cliente = models.ForeignKey(Cliente, on_delete=models.CASCADE, related_name='servicios_catalogo')  # Temporalmente comentado para migraciones
     nombre = models.CharField(max_length=100)
     descripcion = models.TextField(blank=True)
     precio_base = models.DecimalField(max_digits=10, decimal_places=2)
