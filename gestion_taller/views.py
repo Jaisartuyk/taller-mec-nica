@@ -1371,8 +1371,8 @@ def home(request):
         stats = {
             'total_vehiculos': Vehiculo.objects.filter(cliente=cliente).count(),
             'total_conductores': Conductor.objects.filter(cliente=cliente).count(),
-            'total_servicios': 0,  # ServicioCatalogo.objects.filter(cliente=cliente).count(),
-            'servicios_activos': 0,  # ServicioCatalogo.objects.filter(cliente=cliente, activo=True).count(),
+            'total_servicios': ServicioCatalogo.objects.filter(cliente=cliente).count(),
+            'servicios_activos': ServicioCatalogo.objects.filter(cliente=cliente, activo=True).count(),
             'total_repuestos': Repuesto.objects.filter(cliente=cliente).count(),
             'total_ordenes': OrdenServicio.objects.filter(cliente=cliente).count(),
             'ultimos_servicios': OrdenServicio.objects.filter(
@@ -1878,14 +1878,14 @@ def imprimir_orden_pdf(request, pk):
 
 @login_required
 def servicios_catalogo_list(request):
-    """Vista para listar servicios del catálogo del cliente - TEMPORALMENTE DESHABILITADA"""
-    # cliente = request.user.perfilusuario.cliente
-    # servicios = ServicioCatalogo.objects.filter(cliente=cliente).order_by('-fecha_creacion')
+    """Vista para listar servicios del catálogo del cliente"""
+    cliente = request.user.perfilusuario.cliente
+    servicios = ServicioCatalogo.objects.filter(cliente=cliente).order_by('-fecha_creacion')
     
     context = {
-        'servicios': [],  # servicios,
-        'total_servicios': 0,  # servicios.count(),
-        'servicios_activos': 0  # servicios.filter(activo=True).count()
+        'servicios': servicios,
+        'total_servicios': servicios.count(),
+        'servicios_activos': servicios.filter(activo=True).count()
     }
     return render(request, 'gestion_taller/servicios_catalogo_list.html', context)
 
