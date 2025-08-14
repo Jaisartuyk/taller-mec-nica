@@ -97,20 +97,10 @@ WSGI_APPLICATION = 'taller_mecanica.wsgi.application'
 # Database
 # https://docs.djangoproject.com/en/5.2/ref/settings/#databases
 
-# Configuración de base de datos
-if os.environ.get('DATABASE_URL'):
-    # Usar PostgreSQL en producción (Railway)
-    DATABASES = {
-        'default': dj_database_url.config(default=os.environ.get('DATABASE_URL'))
-    }
-else:
-    # Usar SQLite para desarrollo local
-    DATABASES = {
-        'default': {
-            'ENGINE': 'django.db.backends.sqlite3',
-            'NAME': BASE_DIR / 'db.sqlite3',
-        }
-    }
+# Configuración de base de datos - Solo PostgreSQL (Railway)
+DATABASES = {
+    'default': dj_database_url.config(default=os.environ.get('DATABASE_URL'))
+}
 
 
 # Configuración de correo para desarrollo
