@@ -179,6 +179,8 @@
 {% endblock %}
 
 {% block extra_js %}
+<!-- Script para lógica de kilometraje - cargado primero -->
+<script src="{% static 'gestion_taller/orden_servicio.js' %}"></script>
 <!-- jQuery y Select2 CDN -->
 <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/js/select2.min.js"></script>
@@ -420,8 +422,5 @@ $(document).ready(function() {
     }, 100);
 });
 </script>
-
-<!-- Script para lógica de kilometraje -->
-<script src="{% static 'gestion_taller/orden_servicio.js' %}"></script>
 
 {% endblock %}
