@@ -51,10 +51,11 @@ document.addEventListener('DOMContentLoaded', function() {
         mensajeSugerencia.style.display = 'block';
       });
   }
-  if (vehiculoSelect && kilometrajeInput && serviciosSelect) {
-    vehiculoSelect.addEventListener('change', sugerirServicios);
-    kilometrajeInput.addEventListener('input', sugerirServicios);
-  }
+  // Comentado temporalmente para evitar errores 404
+  // if (vehiculoSelect && kilometrajeInput && serviciosSelect) {
+  //   vehiculoSelect.addEventListener('change', sugerirServicios);
+  //   kilometrajeInput.addEventListener('input', sugerirServicios);
+  // }
   
   // Lógica para mostrar kilometraje actual del vehículo y validación
   if (vehiculoSelect && kilometrajeInput) {
