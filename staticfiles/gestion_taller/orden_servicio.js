@@ -90,8 +90,10 @@ document.addEventListener('DOMContentLoaded', function() {
         fetch(`/api/vehiculo/kilometraje/?vehiculo_id=${vehiculoId}`)
           .then(response => response.json())
           .then(data => {
+            console.log('Respuesta del servidor:', data);
             if (data.success) {
               vehiculoKilometraje = data.kilometraje;
+              console.log('Kilometraje del vehículo:', vehiculoKilometraje);
               kilometrajeInfo.innerHTML = `<i class="fas fa-tachometer-alt"></i> Kilometraje actual del vehículo: <strong>${data.kilometraje.toLocaleString()} km</strong>`;
               
               // Si el campo está vacío, sugerir el kilometraje actual
