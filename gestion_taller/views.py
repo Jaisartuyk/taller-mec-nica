@@ -1971,3 +1971,32 @@ def servicio_catalogo_toggle_status(request, pk):
         })
     
     return JsonResponse({'success': False, 'error': 'Método no permitido'}, status=405)
+
+@login_required
+def get_vehiculo_kilometraje(request):
+    """Vista AJAX para obtener el kilometraje actual de un vehículo"""
+    if request.method == 'GET':
+        vehiculo_id = request.GET.get('vehiculo_id')
+        
+        if vehiculo_id:
+            try:
+                cliente = request.user.perfilusuario.cliente
+                vehiculo = Vehiculo.objects.get(pk=vehiculo_id, cliente=cliente)
+                
+                return JsonResponse({
+                    'success': True,
+                    'kilometraje': vehiculo.kilometraje,
+                    'vehiculo_info': f'{vehiculo.marca} {vehiculo.modelo} - {vehiculo.placa}'
+                })
+            except Vehiculo.DoesNotExist:
+                return JsonResponse({
+                    'success': False,
+                    'error': 'Vehículo no encontrado'
+                })
+        else:
+            return JsonResponse({
+                'success': False,
+                'error': 'ID de vehículo no proporcionado'
+            })
+    
+    return JsonResponse({'success': False, 'error': 'Método no permitido'}, status=405)

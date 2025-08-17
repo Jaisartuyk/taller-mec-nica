@@ -264,7 +264,7 @@ class OrdenServicio(models.Model):
         return total_servicios + total_productos
     
     def save(self, *args, **kwargs):
-        """Actualiza el total automáticamente y maneja inventario según estado"""
+        """Actualiza el total automáticamente, maneja inventario según estado y actualiza kilometraje del vehículo"""
         # Detectar cambio de estado si ya existe la orden
         old_estado = None
         if self.pk:
@@ -273,6 +273,11 @@ class OrdenServicio(models.Model):
                 old_estado = old_instance.estado
             except OrdenServicio.DoesNotExist:
                 pass
+        
+        # Actualizar kilometraje del vehículo si es mayor
+        if self.vehiculo and self.kilometraje > self.vehiculo.kilometraje:
+            self.vehiculo.kilometraje = self.kilometraje
+            self.vehiculo.save(update_fields=['kilometraje'])
         
         # Guardar primero para tener ID
         super().save(*args, **kwargs)

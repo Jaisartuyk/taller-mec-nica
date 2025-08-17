@@ -55,4 +55,90 @@ document.addEventListener('DOMContentLoaded', function() {
     vehiculoSelect.addEventListener('change', sugerirServicios);
     kilometrajeInput.addEventListener('input', sugerirServicios);
   }
+  
+  // Lógica para mostrar kilometraje actual del vehículo y validación
+  if (vehiculoSelect && kilometrajeInput) {
+    // Crear elemento para mostrar kilometraje actual
+    let kilometrajeInfo = document.getElementById('kilometraje-info');
+    if (!kilometrajeInfo) {
+      kilometrajeInfo = document.createElement('div');
+      kilometrajeInfo.id = 'kilometraje-info';
+      kilometrajeInfo.className = 'form-text text-muted mt-1';
+      kilometrajeInput.parentNode.appendChild(kilometrajeInfo);
+    }
+    
+    // Crear elemento para advertencias
+    let kilometrajeWarning = document.getElementById('kilometraje-warning');
+    if (!kilometrajeWarning) {
+      kilometrajeWarning = document.createElement('div');
+      kilometrajeWarning.id = 'kilometraje-warning';
+      kilometrajeWarning.className = 'alert alert-warning mt-2';
+      kilometrajeWarning.style.display = 'none';
+      kilometrajeInput.parentNode.appendChild(kilometrajeWarning);
+    }
+    
+    let vehiculoKilometraje = 0;
+    
+    // Función para obtener y mostrar kilometraje del vehículo
+    function actualizarKilometrajeInfo() {
+      const vehiculoId = vehiculoSelect.value;
+      
+      if (vehiculoId) {
+        fetch(`/api/vehiculo/kilometraje/?vehiculo_id=${vehiculoId}`)
+          .then(response => response.json())
+          .then(data => {
+            if (data.success) {
+              vehiculoKilometraje = data.kilometraje;
+              kilometrajeInfo.innerHTML = `<i class="fas fa-tachometer-alt"></i> Kilometraje actual del vehículo: <strong>${data.kilometraje.toLocaleString()} km</strong>`;
+              
+              // Si el campo está vacío, sugerir el kilometraje actual
+              if (!kilometrajeInput.value) {
+                kilometrajeInput.value = data.kilometraje;
+              }
+              
+              // Validar kilometraje actual
+              validarKilometraje();
+            } else {
+              kilometrajeInfo.innerHTML = '<i class="fas fa-exclamation-triangle text-warning"></i> No se pudo obtener el kilometraje del vehículo';
+            }
+          })
+          .catch(error => {
+            console.error('Error al obtener kilometraje:', error);
+            kilometrajeInfo.innerHTML = '<i class="fas fa-exclamation-triangle text-danger"></i> Error al obtener kilometraje del vehículo';
+          });
+      } else {
+        kilometrajeInfo.innerHTML = '';
+        kilometrajeWarning.style.display = 'none';
+      }
+    }
+    
+    // Función para validar kilometraje ingresado
+    function validarKilometraje() {
+      const kilometrajeIngresado = parseInt(kilometrajeInput.value) || 0;
+      
+      if (vehiculoKilometraje > 0 && kilometrajeIngresado < vehiculoKilometraje) {
+        kilometrajeWarning.innerHTML = `
+          <i class="fas fa-exclamation-triangle"></i> 
+          <strong>Advertencia:</strong> El kilometraje ingresado (${kilometrajeIngresado.toLocaleString()} km) 
+          es menor al último registrado (${vehiculoKilometraje.toLocaleString()} km). 
+          ¿Estás seguro de que es correcto?
+        `;
+        kilometrajeWarning.style.display = 'block';
+        kilometrajeInput.classList.add('is-invalid');
+      } else {
+        kilometrajeWarning.style.display = 'none';
+        kilometrajeInput.classList.remove('is-invalid');
+      }
+    }
+    
+    // Event listeners
+    vehiculoSelect.addEventListener('change', actualizarKilometrajeInfo);
+    kilometrajeInput.addEventListener('input', validarKilometraje);
+    kilometrajeInput.addEventListener('blur', validarKilometraje);
+    
+    // Inicializar si ya hay un vehículo seleccionado
+    if (vehiculoSelect.value) {
+      actualizarKilometrajeInfo();
+    }
+  }
 });

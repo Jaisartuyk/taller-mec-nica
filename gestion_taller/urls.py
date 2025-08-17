@@ -59,6 +59,9 @@ urlpatterns = [
     path('servicios-catalogo/<int:pk>/editar/', servicio_catalogo_edit, name='servicio_catalogo_edit'),
     path('servicios-catalogo/<int:pk>/eliminar/', servicio_catalogo_delete, name='servicio_catalogo_delete'),
     path('api/servicios-catalogo/<int:pk>/toggle-status/', servicio_catalogo_toggle_status, name='servicio_catalogo_toggle_status'),
+    
+    # API para obtener kilometraje de vehículo
+    path('api/vehiculo/kilometraje/', views.get_vehiculo_kilometraje, name='get_vehiculo_kilometraje'),
 
     path('repuestos/editar/<int:pk>/', RepuestoUpdateView.as_view(), name='repuesto_update')
 ]
