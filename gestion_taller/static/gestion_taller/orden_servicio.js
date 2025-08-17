@@ -82,8 +82,10 @@ document.addEventListener('DOMContentLoaded', function() {
     // Función para obtener y mostrar kilometraje del vehículo
     function actualizarKilometrajeInfo() {
       const vehiculoId = vehiculoSelect.value;
+      console.log('Actualizando kilometraje para vehículo:', vehiculoId);
       
       if (vehiculoId) {
+        console.log('Haciendo petición a:', `/api/vehiculo/kilometraje/?vehiculo_id=${vehiculoId}`);
         fetch(`/api/vehiculo/kilometraje/?vehiculo_id=${vehiculoId}`)
           .then(response => response.json())
           .then(data => {
