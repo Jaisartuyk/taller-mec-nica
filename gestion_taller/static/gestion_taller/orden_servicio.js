@@ -96,9 +96,9 @@ document.addEventListener('DOMContentLoaded', function() {
               console.log('Kilometraje del vehículo:', vehiculoKilometraje);
               kilometrajeInfo.innerHTML = `<i class="fas fa-tachometer-alt"></i> Kilometraje actual del vehículo: <strong>${data.kilometraje.toLocaleString()} km</strong>`;
               
-              // Si el campo está vacío, sugerir el kilometraje actual
+              // Si el campo está vacío, sugerir el kilometraje actual con formato
               if (!kilometrajeInput.value) {
-                kilometrajeInput.value = data.kilometraje;
+                kilometrajeInput.value = data.kilometraje.toLocaleString();
               }
               
               // Validar kilometraje actual
@@ -119,7 +119,9 @@ document.addEventListener('DOMContentLoaded', function() {
     
     // Función para validar kilometraje ingresado
     function validarKilometraje() {
-      const kilometrajeIngresado = parseInt(kilometrajeInput.value) || 0;
+      // Remover comas del valor ingresado para comparación
+      const valorLimpio = kilometrajeInput.value.replace(/,/g, '');
+      const kilometrajeIngresado = parseInt(valorLimpio) || 0;
       
       if (vehiculoKilometraje > 0 && kilometrajeIngresado < vehiculoKilometraje) {
         kilometrajeWarning.innerHTML = `

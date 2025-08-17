@@ -2,6 +2,27 @@ from django import forms
 from django.core.exceptions import ValidationError
 from .models import Vehiculo, Repuesto, Conductor, Cliente, PreguntaFrecuente, DetalleServicio, OrdenServicio, ServicioCatalogo
 
+class KilometrajeWidget(forms.NumberInput):
+    """Widget personalizado para manejar kilometraje con formato de miles"""
+    
+    def format_value(self, value):
+        """Formatear el valor para mostrar con comas como separador de miles"""
+        if value is None or value == '':
+            return ''
+        try:
+            # Convertir a entero y formatear con comas
+            return f"{int(value):,}"
+        except (ValueError, TypeError):
+            return value
+    
+    def value_from_datadict(self, data, files, name):
+        """Procesar el valor del formulario removiendo comas antes de guardar"""
+        value = data.get(name)
+        if value:
+            # Remover comas y espacios para convertir a número
+            value = str(value).replace(',', '').replace(' ', '')
+        return value
+
 class OrdenServicioForm(forms.ModelForm):
     class Meta:
         model = OrdenServicio
@@ -13,7 +34,7 @@ class OrdenServicioForm(forms.ModelForm):
             'productos': forms.SelectMultiple(attrs={'class': 'form-select', 'id': 'id_productos'}),
             'estado': forms.Select(attrs={'class': 'form-select', 'id': 'id_estado'}),
             'metodo_pago': forms.TextInput(attrs={'class': 'form-control', 'id': 'id_metodo_pago'}),
-            'kilometraje': forms.NumberInput(attrs={'class': 'form-control', 'id': 'id_kilometraje'}),
+            'kilometraje': KilometrajeWidget(attrs={'class': 'form-control', 'id': 'id_kilometraje', 'placeholder': 'Ej: 35,000'}),
             'total': forms.NumberInput(attrs={'class': 'form-control', 'readonly': True, 'id': 'id_total'}),
         }
 
@@ -58,7 +79,7 @@ class VehiculoForm(forms.ModelForm):
         exclude = ['cliente', 'fecha_ultimo_servicio', 'fecha_creacion', 'activo']
         widgets = {
             'anio': forms.NumberInput(attrs={'min': 1980, 'max': 2025}),
-            'kilometraje': forms.NumberInput(attrs={'placeholder': 'Ej: 150000'}),
+            'kilometraje': KilometrajeWidget(attrs={'placeholder': 'Ej: 150,000'}),
         }
 
     def __init__(self, *args, **kwargs):
