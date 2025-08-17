@@ -34,6 +34,11 @@
         opacity: 0 !important;
     }
     
+    /* Ocultar duplicados de Select2 */
+    .select2-container:nth-of-type(n+4) {
+        display: none !important;
+    }
+    
     /* Asegurar que no aparezcan elementos de carga de Select2 */
     .select2-container .select2-results__option--loading,
     .select2-container .select2-results__loading {
@@ -171,12 +176,15 @@
 $(document).ready(function() {
     // Inicializar Select2 de forma simple y directa
     function initializeSelect2() {
-        // Solo destruir si ya existe Select2
+        // Destruir cualquier instancia existente y limpiar contenedores
         $('#id_vehiculo, #id_servicios, #id_productos').each(function() {
             if ($(this).hasClass('select2-hidden-accessible')) {
                 $(this).select2('destroy');
             }
         });
+        
+        // Remover todos los contenedores Select2 existentes
+        $('.select2-container').remove();
         
         // Configuración común para Select2
         const select2Config = {
@@ -201,6 +209,15 @@ $(document).ready(function() {
             ...select2Config,
             placeholder: 'Seleccione productos...'
         });
+        
+        // Verificación inmediata para eliminar duplicados
+        setTimeout(function() {
+            $('.select2-container').each(function(index) {
+                if (index >= 3) { // Solo debe haber 3 contenedores (vehiculo, servicios, productos)
+                    $(this).remove();
+                }
+            });
+        }, 100);
     }
     
     function actualizarConductorPorVehiculo(vehiculoId) {
