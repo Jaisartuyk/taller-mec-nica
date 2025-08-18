@@ -74,7 +74,7 @@ class Conductor(models.Model):
 class Vehiculo(models.Model):
     cliente = models.ForeignKey(Cliente, on_delete=models.CASCADE, related_name='vehiculos')
     conductor = models.ForeignKey('Conductor', on_delete=models.SET_NULL, null=True, blank=True, related_name='vehiculos')
-    placa = models.CharField(max_length=10, unique=True)
+    placa = models.CharField(max_length=10)
     marca = models.CharField(max_length=50)
     modelo = models.CharField(max_length=50)
     anio = models.PositiveIntegerField()
@@ -88,6 +88,7 @@ class Vehiculo(models.Model):
     class Meta:
         ordering = ['-fecha_ultimo_servicio']
         verbose_name_plural = "Vehículos"
+        unique_together = ['cliente', 'placa']
     
     def __str__(self):
         return f"{self.placa} - {self.marca} {self.modelo}"
