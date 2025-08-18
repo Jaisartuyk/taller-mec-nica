@@ -92,8 +92,9 @@
                                                 data-bs-target="#modal">
                                             <i class="bi bi-pencil-square me-1"></i> Editar
                                         </button>
-                                        <button class="btn btn-outline-danger btn-sm" 
-                                                onclick="confirmarEliminacion('{{ repuesto.nombre|escapejs }}', '{% url 'repuesto_eliminar' repuesto.pk %}')">
+                                        <button class="btn btn-outline-danger btn-sm btn-eliminar" 
+                                                data-nombre="{{ repuesto.nombre }}" 
+                                                data-url="{% url 'repuesto_eliminar' repuesto.pk %}">
                                             <i class="bi bi-trash me-1"></i> Eliminar
                                         </button>
                                     </div>
@@ -108,7 +109,7 @@
                             <h5 class="text-muted mt-3">No hay repuestos registrados</h5>
                             <p class="text-muted">Comienza agregando tu primer repuesto</p>
                             <button class="btn btn-primary" 
-                                    hx-get="{% url 'repuesto_create' %}" 
+                                    hx-get="{% url 'repuesto_crear' %}" 
                                     hx-target="#modal-content" 
                                     hx-swap="innerHTML"
                                     data-bs-toggle="modal" 
@@ -221,6 +222,16 @@
             const modalContent = document.getElementById('modal-content');
             if (modalContent) {
                 modalContent.innerHTML = '';
+            }
+        });
+        
+        // Event listener para botones de eliminar
+        document.addEventListener('click', function(e) {
+            if (e.target.closest('.btn-eliminar')) {
+                const button = e.target.closest('.btn-eliminar');
+                const nombre = button.getAttribute('data-nombre');
+                const url = button.getAttribute('data-url');
+                confirmarEliminacion(nombre, url);
             }
         });
     });
