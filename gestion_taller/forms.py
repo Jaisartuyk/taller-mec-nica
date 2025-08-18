@@ -48,6 +48,7 @@ class OrdenServicioForm(forms.ModelForm):
             cliente = user.perfilusuario.cliente
             self.fields['vehiculo'].queryset = Vehiculo.objects.filter(cliente=cliente).distinct().order_by('placa')
             self.fields['productos'].queryset = Repuesto.objects.filter(cliente=cliente).distinct().order_by('nombre')
+            self.fields['servicios'].queryset = ServicioCatalogo.objects.filter(cliente=cliente).distinct().order_by('nombre')
 
         # Precargar conductor si ya existe
         if self.instance.pk and self.instance.vehiculo:
