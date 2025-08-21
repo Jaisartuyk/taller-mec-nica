@@ -879,13 +879,13 @@ def telegram_webhook(request):
 
                         # Comando para ver stock bajo
                         elif text.lower() in ['⚠️ ver stock bajo', '/stock_bajo']:
-                            repuestos = perfil.cliente.repuestos.filter(cantidad__lte=F('stock_minimo')).order_by('cantidad')
+                            repuestos = perfil.cliente.repuestos.filter(stock__lte=F('stock_minimo')).order_by('stock')
                             if repuestos.exists():
                                 reply = "⚠️ *Productos con stock bajo:*\n\n"
                                 for r in repuestos:
                                     reply += f"🔹 *{r.nombre}*\n"
-                                    reply += f"   Stock actual: {r.cantidad} (Mínimo: {r.stock_minimo})\n"
-                                    reply += f"   Precio: ${r.precio:,.2f}\n"
+                                    reply += f"   Stock actual: {r.stock} (Mínimo: {r.stock_minimo})\n"
+                                    reply += f"   Precio: ${r.precio_venta:,.2f}\n"
                                     if r.proveedor:
                                         reply += f"   Proveedor: {r.proveedor}\n"
                                     reply += "────────────────────\n"
@@ -907,12 +907,11 @@ def telegram_webhook(request):
                                 if repuestos.exists():
                                     reply = f"🔍 *Resultados para '{termino}':*\n\n"
                                     for r in repuestos:
-                                        estado = "⚠️" if r.cantidad <= r.stock_minimo else "✅"
+                                        estado = "⚠️" if r.stock <= r.stock_minimo else "✅"
                                         reply += f"{estado} *{r.nombre}*\n"
-                                        reply += f"   Stock: {r.cantidad} | Mín: {r.stock_minimo}\n"
-                                        reply += f"   Precio: ${r.precio:,.2f}\n"
-                                        if r.ubicacion:
-                                            reply += f"   Ubicación: {r.ubicacion}\n"
+                                        reply += f"   Stock: {r.stock} | Mín: {r.stock_minimo}\n"
+                                        reply += f"   Precio: ${r.precio_venta:,.2f}\n"
+                                        # Eliminamos la línea de ubicación que no existe
                                         reply += "────────────────────\n"
                                 else:
                                     reply = f"❌ No se encontraron repuestos que coincidan con '{termino}'"
@@ -926,55 +925,46 @@ def telegram_webhook(request):
                                     if servicio.productos_requeridos.exists():
                                         reply += f"🔧 *{servicio.nombre}*\n"
                                         for producto in servicio.productos_requeridos.all():
-                                            estado = "⚠️" if producto.cantidad <= producto.stock_minimo else "✅"
-                                            reply += f"   {estado} {producto.nombre} ({producto.cantidad} en stock)\n"
+                                            estado = "⚠️" if producto.stock <= producto.stock_minimo else "✅"
+                                            reply += f"   {estado} {producto.nombre} ({producto.stock} en stock)\n"
                                         reply += "────────────────────\n"
                             else:
                                 reply = "No hay servicios con repuestos asignados."
 
                         # Manejo de respuestas del teclado
                         elif text.lower() in ['ver inventario completo', '1', 'ver todo el inventario']:
-                            repuestos = perfil.cliente.repuestos.all().order_by('categoria', 'nombre')
+                            repuestos = perfil.cliente.repuestos.all().order_by('nombre')  # Eliminamos la agrupación por categoría que no existe
                             if repuestos.exists():
-                                # Agrupar por categoría
-                                categorias = {}
-                                for r in repuestos:
-                                    categoria = r.categoria or "Sin categoría"
-                                    if categoria not in categorias:
-                                        categorias[categoria] = []
-                                    categorias[categoria].append(r)
-                                
                                 reply = "📦 *Inventario Completo*\n\n"
-                                for categoria, items in categorias.items():
-                                    reply += f"📂 *{categoria.upper()}*\n"
-                                    for r in items:
-                                        estado = "⚠️" if r.cantidad <= r.stock_minimo else "✅"
-                                        reply += f"{estado} {r.nombre}: {r.cantidad} (Mín: {r.stock_minimo})\n"
+                                for r in repuestos:
+                                    estado = "⚠️" if r.stock <= r.stock_minimo else "✅"
+                                    reply += f"{estado} *{r.nombre}*\n"
+                                    reply += f"   Stock: {r.stock} | Mín: {r.stock_minimo}\n"
+                                    reply += f"   Precio: ${r.precio_venta:,.2f}\n"
                                     reply += "────────────────────\n"
                                 
                                 # Añadir estadísticas rápidas
                                 total_repuestos = repuestos.count()
-                                bajo_stock = repuestos.filter(cantidad__lte=F('stock_minimo')).count()
+                                bajo_stock = repuestos.filter(stock__lte=F('stock_minimo')).count()
                                 reply += f"\n📊 *Estadísticas:*\n"
                                 reply += f"• Total repuestos: {total_repuestos}\n"
                                 reply += f"• Con stock bajo: {bajo_stock}\n"
-                                reply += f"• Valor total: ${sum(r.precio * r.cantidad for r in repuestos if r.precio):,.2f}"
+                                # Usamos una suma segura para evitar errores con valores None
+                                valor_total = sum((r.precio_venta * r.stock) for r in repuestos if r.precio_venta is not None)
+                                reply += f"• Valor total: ${valor_total:,.2f}"
                             else:
                                 reply = "El inventario está vacío."
 
                         # Estadísticas de inventario
                         elif text.lower() in ['📊 estadísticas', 'estadísticas', '5']:
-                            from django.db.models import Sum, Count, F
-                            from django.db.models.functions import Coalesce
-                            
                             stats = perfil.cliente.repuestos.aggregate(
                                 total_repuestos=Count('id'),
-                                bajo_stock=Count('id', filter=Q(cantidad__lte=F('stock_minimo'))),
-                                valor_total=Coalesce(Sum(F('precio') * F('cantidad')), 0.0),
-                                categorias=Count('categoria', distinct=True)
+                                bajo_stock=Count('id', filter=Q(stock__lte=F('stock_minimo'))),
+                                valor_total=Coalesce(Sum(F('precio_venta') * F('stock')), 0.0),
+                                # Eliminamos el conteo de categorías que no existe
                             )
                             
-                            # Productos más utilizados (necesitarías un campo de uso o contar en órdenes)
+                            # Productos más utilizados (contando en qué órdenes aparecen)
                             mas_usados = perfil.cliente.repuestos.annotate(
                                 veces_usado=Count('ordenes_servicio')
                             ).order_by('-veces_usado')[:5]
@@ -983,10 +973,9 @@ def telegram_webhook(request):
                             reply += f"• 📦 Total repuestos: {stats['total_repuestos']}\n"
                             reply += f"• ⚠️  Con stock bajo: {stats['bajo_stock']}\n"
                             reply += f"• 💰 Valor total: ${stats['valor_total']:,.2f}\n"
-                            reply += f"• 🏷  Categorías: {stats['categorias']}\n\n"
                             
                             if mas_usados:
-                                reply += "🔝 *Productos más utilizados:*\n"
+                                reply += "\n🔝 *Productos más utilizados:*\n"
                                 for i, r in enumerate(mas_usados, 1):
                                     reply += f"{i}. {r.nombre} ({r.veces_usado} usos)\n"
                             
@@ -1003,30 +992,6 @@ def telegram_webhook(request):
                                 "text": reply,
                                 "parse_mode": "Markdown",
                                 "reply_markup": json.dumps(keyboard)
-                            })
-                            return HttpResponse("ok")
-
-                        # Manejo de callbacks (para botones inline)
-                        elif 'callback_query' in data:
-                            query = data['callback_query']
-                            chat_id = str(query['message']['chat']['id'])
-                            callback_data = query['data']
-                            
-                            if callback_data == "hist_stock":
-                                # Aquí iría la lógica para mostrar histórico
-                                reply = "📈 *Histórico de movimientos de inventario*\n\n"
-                                # ... código para obtener movimientos ...
-                                
-                            elif callback_data == "export_inv":
-                                # Generar y enviar archivo Excel
-                                reply = "📤 Generando archivo de inventario..."
-                                # ... código para generar Excel ...
-                                
-                            # Editar el mensaje original
-                            requests.post(send_message_url, json={
-                                "chat_id": chat_id,
-                                "text": reply,
-                                "parse_mode": "Markdown"
                             })
                             return HttpResponse("ok")
                         elif text == '/taller_info':
