@@ -776,6 +776,8 @@ class OrdenServicioCreateView(LoginRequiredMixin, CreateView):
 
 from django.views.decorators.csrf import csrf_exempt
 from django.http import JsonResponse, HttpResponse
+from django.db.models import Q, F
+
 import os
 import json
 import requests
@@ -846,6 +848,189 @@ def telegram_webhook(request):
                         # Comandos solo para admin
                         if text == '/start':
                             reply = "¡Hola, administrador! Puedes consultar el estado del taller, recibir notificaciones y gestionar todo desde aquí. Usa /faq, /ayuda, /taller_info, /conductores, /vehiculos, /ordenes o /notificar."
+                        # Agregar en la sección de comandos de admin (cerca de la línea 845)
+                        elif text == '/inventario':
+                            reply = (
+                                "📦 *Menú de Gestión de Inventario*\n\n"
+                                "Elige una opción:\n"
+                                "1. 🔍 Ver todo el inventario\n"
+                                "2. ⚠️ Ver stock bajo\n"
+                                "3. 🛠 Repuestos por servicio\n"
+                                "4. 🔍 Buscar repuesto\n"
+                                "5. 📊 Estadísticas de inventario\n\n"
+                                "O usa:\n"
+                                "/buscar_repuesto [nombre] - Para buscar un repuesto específico"
+                            )
+                            # Crear teclado en pantalla
+                            keyboard = {
+                                "keyboard": [
+                                    ["Ver inventario completo", "Ver stock bajo"],
+                                    ["Repuestos por servicio", "Estadísticas"],
+                                    ["Buscar repuesto"]
+                                ],
+                                "resize_keyboard": True,
+                                "one_time_keyboard": True
+                            }
+                            requests.post(send_message_url, json={
+                                "chat_id": chat_id,
+                                "text": reply,
+                                "parse_mode": "Markdown",
+                                "reply_markup": json.dumps(keyboard)
+                            })
+                            return HttpResponse("ok")
+
+                        # Comando para ver stock bajo
+                        elif text.lower() in ['⚠️ ver stock bajo', '/stock_bajo']:
+                            repuestos = perfil.cliente.repuestos.filter(cantidad__lte=F('stock_minimo')).order_by('cantidad')
+                            if repuestos.exists():
+                                reply = "⚠️ *Productos con stock bajo:*\n\n"
+                                for r in repuestos:
+                                    reply += f"🔹 *{r.nombre}*\n"
+                                    reply += f"   Stock actual: {r.cantidad} (Mínimo: {r.stock_minimo})\n"
+                                    reply += f"   Precio: ${r.precio:,.2f}\n"
+                                    if r.proveedor:
+                                        reply += f"   Proveedor: {r.proveedor}\n"
+                                    reply += "────────────────────\n"
+                            else:
+                                reply = "✅ ¡Todo en orden! No hay productos con stock bajo."
+
+                        # Comando para buscar repuestos
+                        elif text.lower().startswith(('/buscar_repuesto', 'buscar repuesto')):
+                            termino = text.split(' ', 1)[1] if ' ' in text else None
+                            if not termino:
+                                reply = "🔍 Por favor, indica el nombre o parte del repuesto que buscas.\nEjemplo: /buscar_repuesto filtro"
+                            else:
+                                repuestos = perfil.cliente.repuestos.filter(
+                                    Q(nombre__icontains=termino) | 
+                                    Q(descripcion__icontains=termino) |
+                                    Q(codigo=termino)
+                                )[:20]  # Limitar a 20 resultados
+                                
+                                if repuestos.exists():
+                                    reply = f"🔍 *Resultados para '{termino}':*\n\n"
+                                    for r in repuestos:
+                                        estado = "⚠️" if r.cantidad <= r.stock_minimo else "✅"
+                                        reply += f"{estado} *{r.nombre}*\n"
+                                        reply += f"   Stock: {r.cantidad} | Mín: {r.stock_minimo}\n"
+                                        reply += f"   Precio: ${r.precio:,.2f}\n"
+                                        if r.ubicacion:
+                                            reply += f"   Ubicación: {r.ubicacion}\n"
+                                        reply += "────────────────────\n"
+                                else:
+                                    reply = f"❌ No se encontraron repuestos que coincidan con '{termino}'"
+
+                        # Comando para ver repuestos por servicio
+                        elif text.lower() in ['🛠 repuestos por servicio', '/repuestos_por_servicio']:
+                            servicios = perfil.cliente.servicios_catalogo.prefetch_related('productos_requeridos').all()
+                            if servicios.exists():
+                                reply = "🛠 *Repuestos por servicio:*\n\n"
+                                for servicio in servicios:
+                                    if servicio.productos_requeridos.exists():
+                                        reply += f"🔧 *{servicio.nombre}*\n"
+                                        for producto in servicio.productos_requeridos.all():
+                                            estado = "⚠️" if producto.cantidad <= producto.stock_minimo else "✅"
+                                            reply += f"   {estado} {producto.nombre} ({producto.cantidad} en stock)\n"
+                                        reply += "────────────────────\n"
+                            else:
+                                reply = "No hay servicios con repuestos asignados."
+
+                        # Manejo de respuestas del teclado
+                        elif text.lower() in ['ver inventario completo', '1', 'ver todo el inventario']:
+                            repuestos = perfil.cliente.repuestos.all().order_by('categoria', 'nombre')
+                            if repuestos.exists():
+                                # Agrupar por categoría
+                                categorias = {}
+                                for r in repuestos:
+                                    categoria = r.categoria or "Sin categoría"
+                                    if categoria not in categorias:
+                                        categorias[categoria] = []
+                                    categorias[categoria].append(r)
+                                
+                                reply = "📦 *Inventario Completo*\n\n"
+                                for categoria, items in categorias.items():
+                                    reply += f"📂 *{categoria.upper()}*\n"
+                                    for r in items:
+                                        estado = "⚠️" if r.cantidad <= r.stock_minimo else "✅"
+                                        reply += f"{estado} {r.nombre}: {r.cantidad} (Mín: {r.stock_minimo})\n"
+                                    reply += "────────────────────\n"
+                                
+                                # Añadir estadísticas rápidas
+                                total_repuestos = repuestos.count()
+                                bajo_stock = repuestos.filter(cantidad__lte=F('stock_minimo')).count()
+                                reply += f"\n📊 *Estadísticas:*\n"
+                                reply += f"• Total repuestos: {total_repuestos}\n"
+                                reply += f"• Con stock bajo: {bajo_stock}\n"
+                                reply += f"• Valor total: ${sum(r.precio * r.cantidad for r in repuestos if r.precio):,.2f}"
+                            else:
+                                reply = "El inventario está vacío."
+
+                        # Estadísticas de inventario
+                        elif text.lower() in ['📊 estadísticas', 'estadísticas', '5']:
+                            from django.db.models import Sum, Count, F
+                            from django.db.models.functions import Coalesce
+                            
+                            stats = perfil.cliente.repuestos.aggregate(
+                                total_repuestos=Count('id'),
+                                bajo_stock=Count('id', filter=Q(cantidad__lte=F('stock_minimo'))),
+                                valor_total=Coalesce(Sum(F('precio') * F('cantidad')), 0.0),
+                                categorias=Count('categoria', distinct=True)
+                            )
+                            
+                            # Productos más utilizados (necesitarías un campo de uso o contar en órdenes)
+                            mas_usados = perfil.cliente.repuestos.annotate(
+                                veces_usado=Count('ordenes_servicio')
+                            ).order_by('-veces_usado')[:5]
+                            
+                            reply = "📊 *Estadísticas de Inventario*\n\n"
+                            reply += f"• 📦 Total repuestos: {stats['total_repuestos']}\n"
+                            reply += f"• ⚠️  Con stock bajo: {stats['bajo_stock']}\n"
+                            reply += f"• 💰 Valor total: ${stats['valor_total']:,.2f}\n"
+                            reply += f"• 🏷  Categorías: {stats['categorias']}\n\n"
+                            
+                            if mas_usados:
+                                reply += "🔝 *Productos más utilizados:*\n"
+                                for i, r in enumerate(mas_usados, 1):
+                                    reply += f"{i}. {r.nombre} ({r.veces_usado} usos)\n"
+                            
+                            # Añadir teclado rápido
+                            keyboard = {
+                                "inline_keyboard": [
+                                    [{"text": "⏳ Ver histórico", "callback_data": "hist_stock"}],
+                                    [{"text": "📤 Exportar a Excel", "callback_data": "export_inv"}]
+                                ]
+                            }
+                            
+                            requests.post(send_message_url, json={
+                                "chat_id": chat_id,
+                                "text": reply,
+                                "parse_mode": "Markdown",
+                                "reply_markup": json.dumps(keyboard)
+                            })
+                            return HttpResponse("ok")
+
+                        # Manejo de callbacks (para botones inline)
+                        elif 'callback_query' in data:
+                            query = data['callback_query']
+                            chat_id = str(query['message']['chat']['id'])
+                            callback_data = query['data']
+                            
+                            if callback_data == "hist_stock":
+                                # Aquí iría la lógica para mostrar histórico
+                                reply = "📈 *Histórico de movimientos de inventario*\n\n"
+                                # ... código para obtener movimientos ...
+                                
+                            elif callback_data == "export_inv":
+                                # Generar y enviar archivo Excel
+                                reply = "📤 Generando archivo de inventario..."
+                                # ... código para generar Excel ...
+                                
+                            # Editar el mensaje original
+                            requests.post(send_message_url, json={
+                                "chat_id": chat_id,
+                                "text": reply,
+                                "parse_mode": "Markdown"
+                            })
+                            return HttpResponse("ok")
                         elif text == '/taller_info':
                             reply = (
                                 f"Taller: {perfil.cliente.nombre}\n"
@@ -902,14 +1087,27 @@ def telegram_webhook(request):
                                 reply = f'Notificación enviada a {enviados} destinatarios.'
                         elif text in ['/ayuda', '/help']:
                             reply = (
-                                "Comandos admin disponibles:\n"
-                                "/taller_info — Estado general del taller\n"
-                                "/conductores — Lista todos los conductores\n"
-                                "/vehiculos — Lista todos los vehículos\n"
-                                "/ordenes — Lista las órdenes recientes\n"
-                                "/notificar <mensaje> — Envía notificación a empleados y conductores\n"
+                                "📋 *Comandos de Administración*\n\n"
+                                "🏭 *Información del Taller*\n"
+                                "/taller_info — Estado general\n"
+                                "/inventario — Gestión de inventario\n"
+                                "/stock_bajo — Alertas de stock bajo\n"
+                                "/repuestos_por_servicio — Ver repuestos por servicio\n"
+                                "/buscar_repuesto [nombre] — Buscar en inventario\n\n"
+                                "👥 *Gestión de Personas*\n"
+                                "/conductores — Lista de conductores\n"
+                                "/vehiculos — Lista de vehículos\n"
+                                "/clientes — Lista de clientes\n\n"
+                                "📝 *Órdenes y Servicios*\n"
+                                "/ordenes — Órdenes recientes\n"
+                                "/servicios — Catálogo de servicios\n\n"
+                                "🔔 *Comunicación*\n"
+                                "/notificar <mensaje> — Enviar notificación\n"
+                                "/broadcast <mensaje> — Mensaje masivo\n\n"
+                                "❓ *Ayuda y Soporte*\n"
                                 "/faq — Preguntas frecuentes\n"
-                                "/ia <pregunta> — Pregunta a la IA\n"
+                                "/soporte — Contactar soporte\n"
+                                "/ia <pregunta> — Asistente virtual"
                             )
                         else:
                             reply = "Comando no reconocido para admin. Usa /ayuda para ver opciones."

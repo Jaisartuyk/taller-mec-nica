@@ -106,7 +106,7 @@
                             <input class="form-check-input" type="checkbox" 
                                    id="switch{{ servicio.id }}" 
                                    {% if servicio.activo %}checked{% endif %}
-                                   onchange="toggleStatus({{ servicio.id }})">
+                                   onchange="toggleStatus('{{ servicio.id }}')">
                             <label class="form-check-label text-white" for="switch{{ servicio.id }}">
                                 {% if servicio.activo %}Activo{% else %}Inactivo{% endif %}
                             </label>
@@ -173,7 +173,7 @@
                                 <i class="bi bi-pencil"></i> Editar
                             </a>
                             <button type="button" class="btn btn-outline-danger btn-sm" 
-                                    onclick="confirmDelete({{ servicio.id }}, '{{ servicio.nombre }}')">
+                            onclick="confirmDelete('{{ servicio.id }}', '{{ servicio.nombre|escapejs }}')">
                                 <i class="bi bi-trash"></i> Eliminar
                             </button>
                         </div>
