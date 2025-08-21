@@ -776,8 +776,6 @@ class OrdenServicioCreateView(LoginRequiredMixin, CreateView):
 
 from django.views.decorators.csrf import csrf_exempt
 from django.http import JsonResponse, HttpResponse
-from django.db.models import Q, F
-
 import os
 import json
 import requests
