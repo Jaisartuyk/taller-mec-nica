@@ -19,8 +19,6 @@ from django.utils.decorators import method_decorator
 from django.contrib.auth.models import User
 from django.shortcuts import redirect
 from django.db.models import F
-
-# Vistas para Vehículos (con AJAX para modales)
 from django.http import JsonResponse, HttpResponse, HttpResponseRedirect
 from django.template.loader import render_to_string
 from django.views.decorators.http import require_GET
@@ -776,6 +774,8 @@ class OrdenServicioCreateView(LoginRequiredMixin, CreateView):
 
 from django.views.decorators.csrf import csrf_exempt
 from django.http import JsonResponse, HttpResponse
+from django.db.models import F, Q, Count, Sum
+from django.db.models.functions import Coalesce
 import os
 import json
 import requests
