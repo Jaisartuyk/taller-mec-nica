@@ -794,7 +794,20 @@ from django.views.decorators.csrf import csrf_exempt
 from django.http import JsonResponse, HttpResponse
 from django.db.models import Q, F, Count, Sum
 from django.db.models.functions import Coalesce
-from .ai_predictor import crear_recordatorio_cambio_aceite, entrenar_modelo_cliente, verificar_recordatorios_pendientes
+# Importación segura del módulo AI
+try:
+    from .ai_predictor import crear_recordatorio_cambio_aceite, entrenar_modelo_cliente, verificar_recordatorios_pendientes
+    AI_AVAILABLE = True
+except ImportError as e:
+    print(f"Warning: AI predictor no disponible: {e}")
+    AI_AVAILABLE = False
+    # Funciones dummy para evitar errores
+    def crear_recordatorio_cambio_aceite(vehiculo):
+        return None
+    def entrenar_modelo_cliente(cliente):
+        return "AI no disponible"
+    def verificar_recordatorios_pendientes():
+        return []
 import os
 import json
 import requests
@@ -816,42 +829,45 @@ def buscar_faq(pregunta):
             return FAQ[key]
     return None
 
-# --- IA: usando Hugging Face (debes instalar transformers y torch en Railway) ---
-try:
-    from transformers import AutoModelForCausalLM, AutoTokenizer
-    import torch
-    MODEL_NAME = "datificate/gpt2-small-spanish"
-    tokenizer = AutoTokenizer.from_pretrained(MODEL_NAME)
-    model = AutoModelForCausalLM.from_pretrained(MODEL_NAME)
-    IA_READY = True
-except Exception:
-    IA_READY = False
-    tokenizer = None
-    model = None
-
+# --- IA: Respuesta simple sin dependencias externas ---
 def obtener_respuesta_ia(mensaje_usuario):
-    if not IA_READY:
-        return "Lo siento, la IA no está disponible en este momento."
-    prompt = f"Usuario: {mensaje_usuario}\nIA: "
-    inputs = tokenizer.encode(prompt, return_tensors="pt")
-    outputs = model.generate(inputs, max_new_tokens=60, pad_token_id=tokenizer.eos_token_id)
-    respuesta = tokenizer.decode(outputs[0], skip_special_tokens=True)
-    partes = respuesta.split("IA:")
-    if len(partes) > 1:
-        respuesta_ia = partes[-1].strip()
+    """Respuesta simple de IA sin dependencias externas"""
+    mensaje = mensaje_usuario.lower()
+    
+    # Respuestas básicas sobre el taller
+    if any(word in mensaje for word in ['horario', 'hora', 'abierto']):
+        return "Nuestro horario es de Lunes a Viernes de 8:00 AM a 6:00 PM, Sábados de 8:00 AM a 2:00 PM."
+    elif any(word in mensaje for word in ['precio', 'costo', 'cuanto']):
+        return "Los precios varían según el servicio. Contáctanos para un presupuesto personalizado."
+    elif any(word in mensaje for word in ['ubicacion', 'direccion', 'donde']):
+        return "Estamos ubicados en [Dirección del Taller]. ¡Te esperamos!"
+    elif any(word in mensaje for word in ['aceite', 'cambio']):
+        return "Realizamos cambios de aceite con aceites de alta calidad. ¡Agenda tu cita!"
+    elif any(word in mensaje for word in ['mantenimiento', 'servicio']):
+        return "Ofrecemos mantenimiento preventivo y correctivo. ¿En qué podemos ayudarte?"
     else:
-        respuesta_ia = respuesta.strip()
-    if not respuesta_ia or respuesta_ia.lower() in ["", "ia", "jo:"] or respuesta_ia.startswith("JO:"):
-        respuesta_ia = "Lo siento, no entendí la pregunta. ¿Puedes reformularla?"
-    return respuesta_ia
+        return "Gracias por tu consulta. Para información específica, contacta a nuestro equipo o usa /faq para preguntas frecuentes."
 
 @csrf_exempt
 def telegram_webhook(request):
-    from django.contrib.auth import authenticate
-    from gestion_taller.models import PerfilUsuario, Conductor
+    """Webhook para manejar mensajes de Telegram con manejo robusto de errores"""
     if request.method == "POST":
         try:
-            data = json.loads(request.body.decode("utf-8"))
+            # Importaciones locales para evitar errores de inicialización
+            from django.contrib.auth import authenticate
+            from gestion_taller.models import PerfilUsuario, Conductor
+            from django.utils import timezone
+            
+            # Verificar que el token esté configurado
+            if not TELEGRAM_BOT_TOKEN:
+                return HttpResponse("Token no configurado", status=500)
+            
+            # Parsear datos JSON
+            try:
+                data = json.loads(request.body.decode("utf-8"))
+            except (json.JSONDecodeError, UnicodeDecodeError) as e:
+                print(f"Error parseando JSON: {e}")
+                return HttpResponse("Error en formato JSON", status=400)
             if "message" in data:
                 chat_id = str(data["message"]["chat"]["id"])
                 text = data["message"].get("text", "").strip()
@@ -1267,13 +1283,27 @@ def telegram_webhook(request):
                             del pending[chat_id]
                             reply = 'Ocurrió un error en el proceso de vinculación. Intenta de nuevo.'
                 # Envía la respuesta al usuario
-                requests.post(send_message_url, json={
-                    "chat_id": chat_id,
-                    "text": reply
-                })
+                try:
+                    response = requests.post(send_message_url, json={
+                        "chat_id": chat_id,
+                        "text": reply
+                    }, timeout=10)
+                    if not response.ok:
+                        print(f"Error enviando mensaje a Telegram: {response.text}")
+                except requests.RequestException as e:
+                    print(f"Error de conexión con Telegram: {e}")
+                    
             return JsonResponse({"ok": True})
+            
+        except ImportError as e:
+            print(f"Error de importación en webhook: {e}")
+            return JsonResponse({"ok": False, "error": "Error de configuración"}, status=500)
         except Exception as e:
-            return JsonResponse({"ok": False, "error": str(e)}, status=500)
+            print(f"Error general en webhook: {e}")
+            import traceback
+            traceback.print_exc()
+            return JsonResponse({"ok": False, "error": "Error interno del servidor"}, status=500)
+            
     return HttpResponse("Método no permitido", status=405)
 
 from django.views.decorators.csrf import csrf_exempt
