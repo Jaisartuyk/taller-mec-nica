@@ -726,6 +726,24 @@ class OrdenServicioCreateView(LoginRequiredMixin, CreateView):
             self.object.total = self.object.calcular_total()
             self.object.save(update_fields=['total'])
 
+            # Add notification to conductor
+            if self.object.conductor and self.object.conductor.telegram_chat_id:
+                try:
+                    send_message_url = f'https://api.telegram.org/bot{TELEGRAM_BOT_TOKEN}/sendMessage'
+                    requests.post(send_message_url, json={
+                        'chat_id': self.object.conductor.telegram_chat_id,
+                        'text': f'¡Nueva orden de servicio asignada a ti!\nVehículo: {self.object.vehiculo.placa}\nDetalles: {self.object.descripcion}'
+                    })
+                except Exception as e:
+                    print(f'Error enviando notificación al conductor: {str(e)}')
+            
+            # Crear recordatorio de cambio de aceite si es un servicio de aceite
+            servicios_aceite = self.object.servicios.filter(nombre__icontains='aceite')
+            if servicios_aceite.exists():
+                try:
+                    crear_recordatorio_cambio_aceite(self.object.vehiculo)
+                except Exception as e:
+                    print(f'Error creando recordatorio de aceite: {str(e)}')
 
             # Notificación por Telegram
             try:
@@ -774,8 +792,9 @@ class OrdenServicioCreateView(LoginRequiredMixin, CreateView):
 
 from django.views.decorators.csrf import csrf_exempt
 from django.http import JsonResponse, HttpResponse
-from django.db.models import F, Q, Count, Sum
+from django.db.models import Q, F, Count, Sum
 from django.db.models.functions import Coalesce
+from .ai_predictor import crear_recordatorio_cambio_aceite, entrenar_modelo_cliente, verificar_recordatorios_pendientes
 import os
 import json
 import requests
@@ -1050,20 +1069,22 @@ def telegram_webhook(request):
                                 reply = f'Notificación enviada a {enviados} destinatarios.'
                         elif text in ['/ayuda', '/help']:
                             reply = (
-                                "📋 *Comandos de Administración*\n\n"
-                                "🏭 *Información del Taller*\n"
-                                "/taller_info — Estado general\n"
-                                "/inventario — Gestión de inventario\n"
-                                "/stock_bajo — Alertas de stock bajo\n"
-                                "/repuestos_por_servicio — Ver repuestos por servicio\n"
-                                "/buscar_repuesto [nombre] — Buscar en inventario\n\n"
-                                "👥 *Gestión de Personas*\n"
+                                "📊 *Inventario*\n"
+                                "📦 /inventario — Menú de inventario\n"
+                                "⚠️ /stock_bajo — Ver stock bajo\n"
+                                "🔍 /buscar_repuesto <término> — Buscar repuesto\n"
+                                "🛠 /repuestos_por_servicio — Repuestos por servicio\n\n"
+                                "👥 *Gestión*\n"
                                 "/conductores — Lista de conductores\n"
                                 "/vehiculos — Lista de vehículos\n"
                                 "/clientes — Lista de clientes\n\n"
                                 "📝 *Órdenes y Servicios*\n"
                                 "/ordenes — Órdenes recientes\n"
                                 "/servicios — Catálogo de servicios\n\n"
+                                "🤖 *IA y Recordatorios*\n"
+                                "/entrenar_ia — Entrenar modelo de IA\n"
+                                "/verificar_recordatorios — Verificar recordatorios\n"
+                                "/recordatorios_pendientes — Ver todos los recordatorios\n\n"
                                 "🔔 *Comunicación*\n"
                                 "/notificar <mensaje> — Enviar notificación\n"
                                 "/broadcast <mensaje> — Mensaje masivo\n\n"
@@ -1072,6 +1093,45 @@ def telegram_webhook(request):
                                 "/soporte — Contactar soporte\n"
                                 "/ia <pregunta> — Asistente virtual"
                             )
+                        elif text == '/entrenar_ia':
+                            try:
+                                exito = entrenar_modelo_cliente(perfil.cliente)
+                                if exito:
+                                    reply = "🤖 *Modelo de IA entrenado exitosamente*\n\nEl sistema ahora puede hacer predicciones más precisas para cambios de aceite basadas en el historial de tu taller."
+                                else:
+                                    reply = "⚠️ *No se pudo entrenar el modelo*\n\nNecesitas al menos 5 cambios de aceite registrados para entrenar el modelo de IA. Mientras tanto, se usará predicción básica."
+                            except Exception as e:
+                                reply = f"❌ *Error entrenando modelo*\n\n{str(e)}"
+                        elif text == '/verificar_recordatorios':
+                            try:
+                                notificaciones = verificar_recordatorios_pendientes()
+                                if notificaciones:
+                                    reply = f"✅ *Recordatorios verificados*\n\nSe enviaron {len(notificaciones)} notificaciones a conductores con mantenimientos pendientes."
+                                else:
+                                    reply = "ℹ️ *No hay recordatorios pendientes*\n\nTodos los conductores están al día con sus mantenimientos."
+                            except Exception as e:
+                                reply = f"❌ *Error verificando recordatorios*\n\n{str(e)}"
+                        elif text == '/recordatorios_pendientes':
+                            from .models import RecordatorioMantenimiento
+                            recordatorios = RecordatorioMantenimiento.objects.filter(
+                                vehiculo__cliente=perfil.cliente,
+                                notificado=False
+                            ).select_related('vehiculo', 'vehiculo__conductor').order_by('fecha_proximo')
+                            
+                            if recordatorios.exists():
+                                reply = "🔔 *Recordatorios Pendientes del Taller:*\n\n"
+                                for r in recordatorios:
+                                    conductor_info = r.vehiculo.conductor.nombre if r.vehiculo.conductor else "Sin conductor"
+                                    dias_restantes = (r.fecha_proximo - timezone.now().date()).days
+                                    km_restantes = r.kilometraje_proximo - r.vehiculo.kilometraje
+                                    
+                                    reply += f"🚗 *{r.vehiculo.placa}* - {conductor_info}\n"
+                                    reply += f"   Servicio: {r.tipo}\n"
+                                    reply += f"   Fecha: {r.fecha_proximo} ({dias_restantes} días)\n"
+                                    reply += f"   Kilometraje: {r.kilometraje_proximo:,} km ({km_restantes:,} km)\n"
+                                    reply += "────────────────────\n"
+                            else:
+                                reply = "✅ No hay recordatorios pendientes en el taller."
                         else:
                             reply = "Comando no reconocido para admin. Usa /ayuda para ver opciones."
                     else:
@@ -1102,8 +1162,58 @@ def telegram_webhook(request):
                             reply = 'Tus productos/repuestos:\n' + '\n'.join(productos)
                         else:
                             reply = "No tienes productos asignados."
+                    elif text == '/recordatorios':
+                        from .models import RecordatorioMantenimiento
+                        vehiculos = conductor.vehiculos.all()
+                        recordatorios = RecordatorioMantenimiento.objects.filter(
+                            vehiculo__in=vehiculos,
+                            notificado=False
+                        ).order_by('fecha_proximo')
+                        
+                        if recordatorios.exists():
+                            reply = "🔔 *Tus Recordatorios de Mantenimiento:*\n\n"
+                            for r in recordatorios:
+                                dias_restantes = (r.fecha_proximo - timezone.now().date()).days
+                                km_restantes = r.kilometraje_proximo - r.vehiculo.kilometraje
+                                reply += f"🚗 *{r.vehiculo.placa}*\n"
+                                reply += f"   Servicio: {r.tipo}\n"
+                                reply += f"   Fecha: {r.fecha_proximo} ({dias_restantes} días)\n"
+                                reply += f"   Kilometraje: {r.kilometraje_proximo:,} km ({km_restantes:,} km restantes)\n"
+                                reply += "────────────────────\n"
+                        else:
+                            reply = "✅ No tienes recordatorios pendientes."
+                    elif text == '/proximo_aceite':
+                        vehiculos = conductor.vehiculos.all()
+                        if vehiculos.exists():
+                            reply = "🛢️ *Próximos Cambios de Aceite:*\n\n"
+                            for vehiculo in vehiculos:
+                                try:
+                                    recordatorio, prediccion = crear_recordatorio_cambio_aceite(vehiculo)
+                                    dias_restantes = (recordatorio.fecha_proximo - timezone.now().date()).days
+                                    km_restantes = recordatorio.kilometraje_proximo - vehiculo.kilometraje
+                                    
+                                    reply += f"🚗 *{vehiculo.placa}* ({vehiculo.marca} {vehiculo.modelo})\n"
+                                    reply += f"   Próximo cambio: {recordatorio.fecha_proximo}\n"
+                                    reply += f"   En {dias_restantes} días o {km_restantes:,} km\n"
+                                    reply += f"   Método: {prediccion['metodo']} (Confianza: {prediccion['confianza']:.0%})\n"
+                                    reply += "────────────────────\n"
+                                except Exception as e:
+                                    reply += f"🚗 *{vehiculo.placa}*: Error calculando predicción\n"
+                        else:
+                            reply = "No tienes vehículos asignados."
+                    elif text == '/ayuda':
+                        reply = (
+                            "🚗 *Comandos para Conductores:*\n\n"
+                            "📋 /mis_ordenes — Ver mis órdenes\n"
+                            "🔧 /servicios — Ver mis servicios\n"
+                            "📦 /mis_productos — Ver productos usados\n"
+                            "🔔 /recordatorios — Ver recordatorios pendientes\n"
+                            "🛢️ /proximo_aceite — Próximos cambios de aceite\n"
+                            "❓ /faq — Preguntas frecuentes\n"
+                            "🆘 /soporte — Contactar soporte"
+                        )
                     else:
-                        reply = "Comando no reconocido para conductor. Usa /faq o /ayuda."
+                        reply = "Comando no reconocido para conductor. Usa /ayuda para ver opciones."
                 # --- 3. Si NO está vinculado, iniciar flujo de vinculación ---
                 else:
                     # Guardar estado conversacional en memoria (simple, por chat_id)
@@ -1451,11 +1561,10 @@ class ServicioUpdateView(LoginRequiredMixin, UpdateView):
         return response
 
     def form_invalid(self, form):
-        response = super().form_invalid(form)
         if self.request.headers.get('x-requested-with') == 'XMLHttpRequest':
             return render(self.request, self.template_name, 
                         {'form': form, 'object': self.object}, status=400)
-        return response
+        return super().form_invalid(form)
 
 class ServicioDeleteView(LoginRequiredMixin, DeleteView):
     model = ServicioCatalogo
@@ -1675,141 +1784,8 @@ class OrdenServicioListView(ListView):
                 pass
         
         return queryset.order_by('-fecha_creacion')
-    
-    def get_context_data(self, **kwargs):
-        context = super().get_context_data(**kwargs)
-        
-        # Asegurar que todos los totales estén actualizados
-        ordenes = context['ordenes']
-        total_general = 0
-        ordenes_pendientes = 0
-        ordenes_completadas = 0
-        
-        for orden in ordenes:
-            total_calculado = orden.calcular_total()
-            if orden.total != total_calculado:
-                orden.total = total_calculado
-                orden.save(update_fields=['total'])
-            
-            total_general += orden.total
-            if orden.estado == 'pendiente':
-                ordenes_pendientes += 1
-            elif orden.estado == 'completada':
-                ordenes_completadas += 1
-        
-        # Agregar estadísticas al contexto
-        context.update({
-            'total_general': total_general,
-            'ordenes_pendientes': ordenes_pendientes,
-            'ordenes_completadas': ordenes_completadas,
-            'total_ordenes': len(ordenes),
-        })
-        
-        return context
 
-@method_decorator(login_required, name='dispatch')
-class OrdenServicioCreateView(CreateView):
-    model = OrdenServicio
-    form_class = OrdenServicioForm
-    template_name = 'gestion_taller/orden_servicio_form.html'
-    success_url = reverse_lazy('orden_servicio_listado')
-    
-    def get_template_names(self):
-        if (self.request.headers.get('hx-request') or 
-            self.request.headers.get('x-requested-with') == 'XMLHttpRequest'):
-            return ['gestion_taller/orden_servicio_form_modal_content.html']
-        return [self.template_name]
-    
-    def get_form_kwargs(self):
-        kwargs = super().get_form_kwargs()
-        kwargs['user'] = self.request.user
-        return kwargs
-    
-    def form_valid(self, form):
-        # Verificar que el usuario tenga un perfil y cliente asociado
-        if not hasattr(self.request.user, 'perfilusuario') or not self.request.user.perfilusuario.cliente:
-            form.add_error(None, 'Su usuario no tiene un cliente asociado. Contacte al administrador.')
-            return self.form_invalid(form)
-            
-        perfil = self.request.user.perfilusuario
-        vehiculo = form.cleaned_data.get('vehiculo')
-        
-        # Verificar que el vehículo pertenece al cliente
-        if not vehiculo or vehiculo.cliente != perfil.cliente:
-            form.add_error('vehiculo', 'El vehículo seleccionado no pertenece a su cliente')
-            return self.form_invalid(form)
-            
-        if not vehiculo:
-            form.add_error('vehiculo', 'Debe seleccionar un vehículo')
-            return self.form_invalid(form)
-            
-        try:
-            self.object = form.save(commit=False)
-            self.object.cliente = perfil.cliente
-            
-            # Asignar conductor automáticamente del vehículo si no viene en el formulario
-            if not self.object.conductor and vehiculo.conductor:
-                self.object.conductor = vehiculo.conductor
-                messages.info(self.request, f'Conductor asignado automáticamente: {vehiculo.conductor.nombre}')
-                
-            # Validar que tenga conductor
-            if not self.object.conductor:
-                form.add_error(None, 'El vehículo seleccionado no tiene conductor asignado')
-                return self.form_invalid(form)
-                
-            self.object.save()
-            form.save_m2m()
-            
-            # Recalcular y actualizar el total después de guardar las relaciones
-            self.object.total = self.object.calcular_total()
-            self.object.save(update_fields=['total'])
-
-            # Notificación por Telegram
-            try:
-                chat_id = getattr(perfil, 'telegram_chat_id', None)
-                if chat_id and hasattr(self.object, 'vehiculo') and self.object.vehiculo:
-                    from .utils import enviar_telegram
-                    mensaje = (
-                        f"¡Nueva orden de servicio creada!\n"
-                        f"Vehículo: {self.object.vehiculo.placa}\n"
-                        f"Conductor: {self.object.conductor.nombre if self.object.conductor else 'No asignado'}\n"
-                        f"Total: ${self.object.total}\n"
-                        f"Estado: {self.object.get_estado_display()}"
-                    )
-                    enviar_telegram(chat_id, mensaje)
-            except Exception as e:
-                print(f"[Telegram] Error enviando notificación: {e}")
-                
-            messages.success(self.request, 'Orden de servicio creada exitosamente.')
-            
-            # Respuesta para HTMX/AJAX
-            if self.request.headers.get('x-requested-with') == 'XMLHttpRequest':
-                response = HttpResponse(status=204)
-                response['HX-Trigger'] = 'ordenCreada'
-                return response
-                
-            return redirect(self.get_success_url())
-            
-        except Exception as e:
-            form.add_error(None, f'Error al guardar la orden: {str(e)}')
-            return self.form_invalid(form)
-        
-    def form_invalid(self, form):
-        if self.request.headers.get('x-requested-with') == 'XMLHttpRequest':
-            return JsonResponse({
-                'success': False,
-                'errors': form.errors,
-                'message': 'Por favor corrija los errores en el formulario',
-                'form': render_to_string(
-                    self.template_name,
-                    {'form': form},
-                    request=self.request
-                )
-            }, status=400)
-        return super().form_invalid(form)
-
-@method_decorator(login_required, name='dispatch')
-class OrdenServicioDetailView(DetailView):
+class OrdenServicioDetailView(LoginRequiredMixin, DetailView):
     model = OrdenServicio
     template_name = 'gestion_taller/orden_servicio_detail.html'
     context_object_name = 'orden'
@@ -1818,7 +1794,7 @@ class OrdenServicioDetailView(DetailView):
         if hasattr(self.request.user, 'perfilusuario') and self.request.user.perfilusuario.cliente:
             return OrdenServicio.objects.filter(
                 cliente=self.request.user.perfilusuario.cliente
-            ).select_related('vehiculo', 'conductor', 'cliente').prefetch_related('servicios', 'productos')
+            )
         return OrdenServicio.objects.none()
     
     def get_context_data(self, **kwargs):

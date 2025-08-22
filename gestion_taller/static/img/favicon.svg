@@ -1,0 +1,14 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 32 32">
+  <rect width="32" height="32" fill="#212529" rx="4"/>
+  <g fill="#ffffff">
+    <!-- Llave inglesa -->
+    <path d="M8 12h3v2h-3z"/>
+    <path d="M13 10h2v6h-2z"/>
+    <path d="M17 12h3v2h-3z"/>
+    <!-- Tuerca -->
+    <circle cx="16" cy="20" r="4" fill="none" stroke="#ffffff" stroke-width="1.5"/>
+    <circle cx="16" cy="20" r="2" fill="#ffffff"/>
+  </g>
+  <!-- Texto T -->
+  <text x="16" y="10" text-anchor="middle" fill="#ffffff" font-family="Arial, sans-serif" font-size="8" font-weight="bold">T</text>
+</svg>

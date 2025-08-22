@@ -3,7 +3,16 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="description" content="Sistema de gestión para talleres mecánicos">
+    <meta name="author" content="Taller Mecánica">
+    <meta name="generator" content="Django">
     <title>{% block title %}Taller Mecánica{% endblock %}</title>
+    
+    <!-- Favicon -->
+    {% load static %}
+    <link rel="icon" type="image/svg+xml" href="{% static 'img/favicon.svg' %}">
+    <link rel="shortcut icon" href="{% static 'img/favicon.svg' %}">
+    <link rel="apple-touch-icon" href="{% static 'img/favicon.svg' %}">
     <!-- Cargar HTMX en el head para que esté disponible globalmente -->
     <script src="https://unpkg.com/htmx.org@1.9.6"></script>
     <style>
@@ -44,7 +53,14 @@
 <nav class="navbar navbar-expand-lg navbar-dark bg-dark mb-4">
     <div class="container-fluid">
         <a class="navbar-brand" href="/">Taller Mecánica</a>
-        <div class="collapse navbar-collapse">
+        
+        <!-- Botón hamburguesa para móviles -->
+        <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav" 
+                aria-controls="navbarNav" aria-expanded="false" aria-label="Toggle navigation">
+            <span class="navbar-toggler-icon"></span>
+        </button>
+        
+        <div class="collapse navbar-collapse" id="navbarNav">
             <ul class="navbar-nav me-auto mb-2 mb-lg-0">
 
                 <li class="nav-item"><a class="nav-link" href="{% url 'vehiculos' %}">Vehículos</a></li>
