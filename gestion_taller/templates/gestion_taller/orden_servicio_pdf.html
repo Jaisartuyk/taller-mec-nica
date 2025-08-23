@@ -128,15 +128,33 @@
             <tr>
                 <th>Servicio</th>
                 <th>Descripción</th>
-                <th>Precio</th>
+                {% if mostrar_desglose_iva %}
+                    <th>Precio sin IVA</th>
+                    <th>IVA</th>
+                    <th>Precio con IVA</th>
+                {% else %}
+                    <th>Precio</th>
+                {% endif %}
             </tr>
         </thead>
         <tbody>
-            {% for servicio in servicios %}
+            {% for servicio_iva in servicios_con_iva %}
             <tr>
-                <td>{{ servicio.nombre }}</td>
-                <td>{{ servicio.descripcion|default:"Sin descripción" }}</td>
-                <td>${{ servicio.precio_base|floatformat:2 }}</td>
+                <td>{{ servicio_iva.servicio.nombre }}</td>
+                <td>{{ servicio_iva.servicio.descripcion|default:"Sin descripción" }}</td>
+                {% if mostrar_desglose_iva %}
+                    <td>${{ servicio_iva.precio_sin_iva|floatformat:2 }}</td>
+                    <td>
+                        {% if servicio_iva.aplica_iva %}
+                            ${{ servicio_iva.valor_iva|floatformat:2 }} ({{ servicio_iva.porcentaje_iva }}%)
+                        {% else %}
+                            No aplica
+                        {% endif %}
+                    </td>
+                    <td>${{ servicio_iva.precio_con_iva|floatformat:2 }}</td>
+                {% else %}
+                    <td>${{ servicio_iva.precio_con_iva|floatformat:2 }}</td>
+                {% endif %}
             </tr>
             {% endfor %}
         </tbody>
@@ -152,16 +170,34 @@
                 <th>Código</th>
                 <th>Producto</th>
                 <th>Descripción</th>
-                <th>Precio</th>
+                {% if mostrar_desglose_iva %}
+                    <th>Precio sin IVA</th>
+                    <th>IVA</th>
+                    <th>Precio con IVA</th>
+                {% else %}
+                    <th>Precio</th>
+                {% endif %}
             </tr>
         </thead>
         <tbody>
-            {% for producto in productos %}
+            {% for producto_iva in productos_con_iva %}
             <tr>
-                <td>{{ producto.codigo }}</td>
-                <td>{{ producto.nombre }}</td>
-                <td>{{ producto.descripcion|default:"Sin descripción" }}</td>
-                <td>${{ producto.precio_venta|floatformat:2 }}</td>
+                <td>{{ producto_iva.producto.codigo }}</td>
+                <td>{{ producto_iva.producto.nombre }}</td>
+                <td>{{ producto_iva.producto.descripcion|default:"Sin descripción" }}</td>
+                {% if mostrar_desglose_iva %}
+                    <td>${{ producto_iva.precio_sin_iva|floatformat:2 }}</td>
+                    <td>
+                        {% if producto_iva.aplica_iva %}
+                            ${{ producto_iva.valor_iva|floatformat:2 }} ({{ producto_iva.porcentaje_iva }}%)
+                        {% else %}
+                            No aplica
+                        {% endif %}
+                    </td>
+                    <td>${{ producto_iva.precio_con_iva|floatformat:2 }}</td>
+                {% else %}
+                    <td>${{ producto_iva.precio_con_iva|floatformat:2 }}</td>
+                {% endif %}
             </tr>
             {% endfor %}
         </tbody>
@@ -196,16 +232,65 @@
     <!-- Total -->
     <div class="total-section">
         <h3>RESUMEN FINANCIERO</h3>
-        <p><strong>Total de la Orden:</strong> ${{ orden.total|floatformat:2 }}</p>
-        <p><strong>Total Pagado:</strong> ${{ total_pagado|floatformat:2 }}</p>
-
-        <p><strong>Estado de Pago:</strong> 
-            {% if orden.pagada %}
-                <span style="color: green;">✅ PAGADA</span>
+        
+        {% if mostrar_desglose_iva and aplicar_iva %}
+            <!-- Desglose detallado con IVA -->
+            <div style="margin-bottom: 15px;">
+                <h4>Desglose por Categoría:</h4>
+                
+                {% if servicios %}
+                <p><strong>Servicios:</strong></p>
+                <ul style="margin-left: 20px;">
+                    <li>Subtotal sin IVA: ${{ total_servicios_sin_iva|floatformat:2 }}</li>
+                    <li>IVA Servicios: ${{ total_iva_servicios|floatformat:2 }}</li>
+                    <li>Total con IVA: ${{ total_servicios_con_iva|floatformat:2 }}</li>
+                </ul>
+                {% endif %}
+                
+                {% if productos %}
+                <p><strong>Productos/Repuestos:</strong></p>
+                <ul style="margin-left: 20px;">
+                    <li>Subtotal sin IVA: ${{ total_productos_sin_iva|floatformat:2 }}</li>
+                    <li>IVA Productos: ${{ total_iva_productos|floatformat:2 }}</li>
+                    <li>Total con IVA: ${{ total_productos_con_iva|floatformat:2 }}</li>
+                </ul>
+                {% endif %}
+            </div>
+            
+            <!-- Totales generales -->
+            <div style="border-top: 2px solid #333; padding-top: 10px; margin-top: 15px;">
+                <p><strong>SUBTOTAL (Sin IVA):</strong> ${{ total_sin_iva_general|floatformat:2 }}</p>
+                <p><strong>TOTAL IVA:</strong> ${{ total_iva_general|floatformat:2 }}</p>
+                <p style="font-size: 1.2em;"><strong>TOTAL GENERAL:</strong> ${{ total_con_iva_general|floatformat:2 }}</p>
+            </div>
+        {% else %}
+            <!-- Resumen simple sin desglose de IVA -->
+            <p style="font-size: 1.2em;"><strong>Total de la Orden:</strong> ${{ total_con_iva_general|floatformat:2 }}</p>
+        {% endif %}
+        
+        <div style="margin-top: 15px;">
+            <p><strong>Total Pagado:</strong> ${{ total_pagado|floatformat:2 }}</p>
+            <p><strong>Saldo Pendiente:</strong> ${{ total_con_iva_general|add:"-"|add:total_pagado|floatformat:2 }}</p>
+            
+            <p><strong>Estado de Pago:</strong> 
+                {% if orden.pagada %}
+                    <span style="color: green;">✅ PAGADA</span>
+                {% else %}
+                    <span style="color: red;">❌ PENDIENTE</span>
+                {% endif %}
+            </p>
+        </div>
+        
+        {% if config_taller and aplicar_iva %}
+        <div style="margin-top: 20px; font-size: 0.9em; color: #666;">
+            <p><em>* IVA aplicado según configuración del taller</em></p>
+            {% if config_taller.precios_incluyen_iva %}
+                <p><em>* Los precios base incluyen IVA</em></p>
             {% else %}
-                <span style="color: red;">❌ PENDIENTE</span>
+                <p><em>* IVA calculado sobre precios base</em></p>
             {% endif %}
-        </p>
+        </div>
+        {% endif %}
     </div>
 
     <!-- Footer -->

@@ -205,6 +205,40 @@
                             {% endif %}
                         </div>
 
+                        <!-- Configuración de IVA -->
+                        <div class="section-header">
+                            <h4 class="mb-0">
+                                <i class="bi bi-percent"></i> Configuración de IVA
+                            </h4>
+                        </div>
+
+                        <div class="row mb-3">
+                            <div class="col-md-6 mb-3">
+                                <div class="form-floating">
+                                    {{ form.aplicar_iva_servicio }}
+                                    <label for="{{ form.aplicar_iva_servicio.id_for_label }}">{{ form.aplicar_iva_servicio.label }}</label>
+                                </div>
+                                <small class="text-muted">{{ form.aplicar_iva_servicio.help_text }}</small>
+                                {% if form.aplicar_iva_servicio.errors %}
+                                    <div class="text-danger small mt-1">
+                                        {{ form.aplicar_iva_servicio.errors.0 }}
+                                    </div>
+                                {% endif %}
+                            </div>
+                            <div class="col-md-6 mb-3">
+                                <div class="form-floating">
+                                    {{ form.porcentaje_iva_servicio }}
+                                    <label for="{{ form.porcentaje_iva_servicio.id_for_label }}">{{ form.porcentaje_iva_servicio.label }}</label>
+                                </div>
+                                <small class="text-muted">{{ form.porcentaje_iva_servicio.help_text }}</small>
+                                {% if form.porcentaje_iva_servicio.errors %}
+                                    <div class="text-danger small mt-1">
+                                        {{ form.porcentaje_iva_servicio.errors.0 }}
+                                    </div>
+                                {% endif %}
+                            </div>
+                        </div>
+
                         <!-- Estado del Servicio -->
                         <div class="section-header">
                             <h4 class="mb-0">

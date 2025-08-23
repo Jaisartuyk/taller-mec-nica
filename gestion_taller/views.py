@@ -1727,33 +1727,66 @@ def calcular_precios_orden(request):
         
         cliente = request.user.perfilusuario.cliente
         
-        # Calcular total de servicios
-        total_servicios = 0
+        # Obtener configuración de IVA del taller
+        config_taller = cliente.configuracion if hasattr(cliente, 'configuracion') else None
+        mostrar_desglose = config_taller.mostrar_desglose_iva if config_taller else False
+        
+        # Calcular total de servicios con IVA
+        total_servicios_sin_iva = 0
+        total_iva_servicios = 0
         servicios_detalle = []
         if servicios_ids:
             servicios = ServicioCatalogo.objects.filter(id__in=servicios_ids)
             for servicio in servicios:
-                total_servicios += servicio.precio_base
+                precio_sin_iva = servicio.get_precio_sin_iva()
+                valor_iva = servicio.get_valor_iva()
+                precio_con_iva = servicio.get_precio_con_iva()
+                
+                total_servicios_sin_iva += precio_sin_iva
+                total_iva_servicios += valor_iva
+                
                 servicios_detalle.append({
                     'id': servicio.id,
                     'nombre': servicio.nombre,
-                    'precio': float(servicio.precio_base)
+                    'precio_sin_iva': float(precio_sin_iva),
+                    'valor_iva': float(valor_iva),
+                    'precio_con_iva': float(precio_con_iva),
+                    'precio': float(precio_con_iva),  # Para compatibilidad
+                    'aplica_iva': servicio.get_aplicar_iva(),
+                    'porcentaje_iva': float(servicio.get_porcentaje_iva())
                 })
         
-        # Calcular total de productos
-        total_productos = 0
+        # Calcular total de productos con IVA
+        total_productos_sin_iva = 0
+        total_iva_productos = 0
         productos_detalle = []
         if productos_ids:
             productos = Repuesto.objects.filter(id__in=productos_ids, cliente=cliente)
             for producto in productos:
-                total_productos += producto.precio_venta
+                precio_sin_iva = producto.get_precio_sin_iva()
+                valor_iva = producto.get_valor_iva()
+                precio_con_iva = producto.get_precio_con_iva()
+                
+                total_productos_sin_iva += precio_sin_iva
+                total_iva_productos += valor_iva
+                
                 productos_detalle.append({
                     'id': producto.id,
                     'nombre': producto.nombre,
-                    'precio': float(producto.precio_venta)
+                    'precio_sin_iva': float(precio_sin_iva),
+                    'valor_iva': float(valor_iva),
+                    'precio_con_iva': float(precio_con_iva),
+                    'precio': float(precio_con_iva),  # Para compatibilidad
+                    'aplica_iva': producto.get_aplicar_iva(),
+                    'porcentaje_iva': float(producto.get_porcentaje_iva())
                 })
         
+        # Totales finales
+        total_servicios = total_servicios_sin_iva + total_iva_servicios
+        total_productos = total_productos_sin_iva + total_iva_productos
         total_general = total_servicios + total_productos
+        total_iva_general = total_iva_servicios + total_iva_productos
+        total_sin_iva_general = total_servicios_sin_iva + total_productos_sin_iva
         
         return JsonResponse({
             'success': True,
@@ -1762,7 +1795,20 @@ def calcular_precios_orden(request):
             'total_general': float(total_general),
             'servicios_detalle': servicios_detalle,
             'productos_detalle': productos_detalle,
-            'moneda': 'COP'  # Puedes cambiar esto según tu configuración
+            # Información de IVA
+            'iva_info': {
+                'mostrar_desglose': mostrar_desglose,
+                'total_sin_iva': float(total_sin_iva_general),
+                'total_iva': float(total_iva_general),
+                'total_con_iva': float(total_general),
+                'servicios_sin_iva': float(total_servicios_sin_iva),
+                'servicios_iva': float(total_iva_servicios),
+                'productos_sin_iva': float(total_productos_sin_iva),
+                'productos_iva': float(total_iva_productos),
+                'aplicar_iva': config_taller.aplicar_iva if config_taller else False,
+                'porcentaje_iva': float(config_taller.porcentaje_iva) if config_taller else 0
+            },
+            'moneda': 'USD'  # Ecuador usa USD
         })
         
     except json.JSONDecodeError:
@@ -1814,6 +1860,45 @@ class OrdenServicioListView(ListView):
                 pass
         
         return queryset.order_by('-fecha_creacion')
+    
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        
+        # Verificar que el usuario tenga un cliente asociado
+        if not (hasattr(self.request.user, 'perfilusuario') and self.request.user.perfilusuario.cliente):
+            context.update({
+                'total_ordenes': 0,
+                'ordenes_pendientes': 0,
+                'ordenes_completadas': 0,
+                'total_general': 0
+            })
+            return context
+        
+        # Obtener todas las órdenes del cliente (sin filtros de búsqueda)
+        todas_ordenes = OrdenServicio.objects.filter(
+            cliente=self.request.user.perfilusuario.cliente
+        )
+        
+        # Calcular estadísticas
+        total_ordenes = todas_ordenes.count()
+        ordenes_pendientes = todas_ordenes.filter(estado='pendiente').count()
+        ordenes_completadas = todas_ordenes.filter(estado='completado').count()
+        
+        # Calcular total facturado (solo órdenes completadas)
+        from django.db.models import Sum
+        total_facturado = todas_ordenes.filter(
+            estado='completado'
+        ).aggregate(total=Sum('total'))['total'] or 0
+        
+        # Agregar estadísticas al contexto
+        context.update({
+            'total_ordenes': total_ordenes,
+            'ordenes_pendientes': ordenes_pendientes,
+            'ordenes_completadas': ordenes_completadas,
+            'total_general': total_facturado
+        })
+        
+        return context
 
 class OrdenServicioDetailView(LoginRequiredMixin, DetailView):
     model = OrdenServicio
@@ -2017,15 +2102,92 @@ def imprimir_orden_pdf(request, pk):
     """Vista para generar PDF de la orden de servicio"""
     orden = get_object_or_404(OrdenServicio, pk=pk)
     
+    # Obtener configuración de IVA del taller
+    cliente = orden.cliente
+    config_taller = cliente.configuracion if hasattr(cliente, 'configuracion') else None
+    
+    # Calcular totales con IVA para servicios
+    servicios = orden.servicios.all()
+    total_servicios_sin_iva = Decimal('0')
+    total_iva_servicios = Decimal('0')
+    servicios_con_iva = []
+    
+    for servicio in servicios:
+        precio_sin_iva = Decimal(str(servicio.get_precio_sin_iva()))
+        valor_iva = Decimal(str(servicio.get_valor_iva()))
+        precio_con_iva = Decimal(str(servicio.get_precio_con_iva()))
+        
+        total_servicios_sin_iva += precio_sin_iva
+        total_iva_servicios += valor_iva
+        
+        servicios_con_iva.append({
+            'servicio': servicio,
+            'precio_sin_iva': precio_sin_iva,
+            'valor_iva': valor_iva,
+            'precio_con_iva': precio_con_iva,
+            'aplica_iva': servicio.get_aplicar_iva(),
+            'porcentaje_iva': servicio.get_porcentaje_iva()
+        })
+    
+    # Calcular totales con IVA para productos
+    productos = orden.productos.all()
+    total_productos_sin_iva = Decimal('0')
+    total_iva_productos = Decimal('0')
+    productos_con_iva = []
+    
+    for producto in productos:
+        precio_sin_iva = Decimal(str(producto.get_precio_sin_iva()))
+        valor_iva = Decimal(str(producto.get_valor_iva()))
+        precio_con_iva = Decimal(str(producto.get_precio_con_iva()))
+        
+        total_productos_sin_iva += precio_sin_iva
+        total_iva_productos += valor_iva
+        
+        productos_con_iva.append({
+            'producto': producto,
+            'precio_sin_iva': precio_sin_iva,
+            'valor_iva': valor_iva,
+            'precio_con_iva': precio_con_iva,
+            'aplica_iva': producto.get_aplicar_iva(),
+            'porcentaje_iva': producto.get_porcentaje_iva()
+        })
+    
+    # Totales finales
+    total_sin_iva_general = total_servicios_sin_iva + total_productos_sin_iva
+    total_iva_general = total_iva_servicios + total_iva_productos
+    total_con_iva_general = total_sin_iva_general + total_iva_general
+    
     # Preparar contexto para el template
     context = {
         'orden': orden,
-        'servicios': orden.servicios.all(),
-        'productos': orden.productos.all(),
+        'servicios': servicios,
+        'productos': productos,
         'pagos': orden.pagos.all(),
         'total_pagado': orden.pagos.filter(estado='completado').aggregate(
             total=models.Sum('monto')
-        )['total'] or Decimal('0')
+        )['total'] or Decimal('0'),
+        
+        # Información de IVA
+        'config_taller': config_taller,
+        'servicios_con_iva': servicios_con_iva,
+        'productos_con_iva': productos_con_iva,
+        
+        # Totales con IVA
+        'total_servicios_sin_iva': total_servicios_sin_iva,
+        'total_iva_servicios': total_iva_servicios,
+        'total_servicios_con_iva': total_servicios_sin_iva + total_iva_servicios,
+        
+        'total_productos_sin_iva': total_productos_sin_iva,
+        'total_iva_productos': total_iva_productos,
+        'total_productos_con_iva': total_productos_sin_iva + total_iva_productos,
+        
+        'total_sin_iva_general': total_sin_iva_general,
+        'total_iva_general': total_iva_general,
+        'total_con_iva_general': total_con_iva_general,
+        
+        # Configuración de visualización
+        'mostrar_desglose_iva': config_taller.mostrar_desglose_iva if config_taller else False,
+        'aplicar_iva': config_taller.aplicar_iva if config_taller else False
     }
     
     # Renderizar template HTML

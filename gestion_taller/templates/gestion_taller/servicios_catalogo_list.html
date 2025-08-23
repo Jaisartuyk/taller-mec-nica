@@ -120,6 +120,28 @@
                         <span class="badge price-badge px-3 py-2 rounded-pill">
                             ${{ servicio.precio_base|floatformat:2 }}
                         </span>
+                        
+                        <!-- Información de IVA -->
+                        {% if servicio.aplicar_iva_servicio is not None %}
+                            <div class="mt-2">
+                                {% if servicio.aplicar_iva_servicio %}
+                                    <span class="badge bg-success small">
+                                        <i class="bi bi-percent"></i> 
+                                        IVA {{ servicio.porcentaje_iva_servicio|default:"15" }}%
+                                    </span>
+                                {% else %}
+                                    <span class="badge bg-secondary small">
+                                        <i class="bi bi-x-circle"></i> Sin IVA
+                                    </span>
+                                {% endif %}
+                            </div>
+                        {% else %}
+                            <div class="mt-2">
+                                <span class="badge bg-info small">
+                                    <i class="bi bi-gear"></i> IVA según taller
+                                </span>
+                            </div>
+                        {% endif %}
                     </div>
 
                     <!-- Descripción -->

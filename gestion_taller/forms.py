@@ -102,6 +102,20 @@ class RepuestoForm(forms.ModelForm):
     class Meta:
         model = Repuesto
         fields = '__all__'
+        widgets = {
+            'aplicar_iva_producto': forms.Select(choices=[
+                ('', '--- Usar configuración del taller ---'),
+                (True, 'Sí, aplicar IVA'),
+                (False, 'No aplicar IVA')
+            ], attrs={'class': 'form-select'}),
+            'porcentaje_iva_producto': forms.NumberInput(attrs={
+                'class': 'form-control',
+                'step': '0.01',
+                'min': '0',
+                'max': '100',
+                'placeholder': 'Ej: 15.00'
+            })
+        }
 
     def __init__(self, *args, **kwargs):
         self.user = kwargs.pop('user', None)
@@ -113,8 +127,21 @@ class RepuestoForm(forms.ModelForm):
         if 'cliente' in self.fields:
             del self.fields['cliente']
 
+        # Configurar campos de IVA como opcionales
+        if 'aplicar_iva_producto' in self.fields:
+            self.fields['aplicar_iva_producto'].required = False
+            self.fields['aplicar_iva_producto'].help_text = 'Dejar vacío para usar la configuración del taller'
+            
+        if 'porcentaje_iva_producto' in self.fields:
+            self.fields['porcentaje_iva_producto'].required = False
+            self.fields['porcentaje_iva_producto'].help_text = 'Solo si se aplica IVA específico para este producto'
+
         # Aplicar clases de Bootstrap a todos los campos
         for field_name, field in self.fields.items():
+            # Saltar campos que ya tienen widgets configurados
+            if field_name in ['aplicar_iva_producto', 'porcentaje_iva_producto']:
+                continue
+                
             # Para campos de selección, usar 'form-select'
             if isinstance(field.widget, forms.Select):
                 field.widget.attrs.update({'class': 'form-select'})
@@ -322,6 +349,18 @@ class ServicioCatalogoForm(forms.ModelForm):
             }),
             'activo': forms.CheckboxInput(attrs={
                 'class': 'form-check-input'
+            }),
+            'aplicar_iva_servicio': forms.Select(choices=[
+                ('', '--- Usar configuración del taller ---'),
+                (True, 'Sí, aplicar IVA'),
+                (False, 'No aplicar IVA')
+            ], attrs={'class': 'form-select'}),
+            'porcentaje_iva_servicio': forms.NumberInput(attrs={
+                'class': 'form-control',
+                'step': '0.01',
+                'min': '0',
+                'max': '100',
+                'placeholder': 'Ej: 15.00'
             })
         }
         labels = {
@@ -331,12 +370,16 @@ class ServicioCatalogoForm(forms.ModelForm):
             'frecuencia_km': 'Frecuencia en Kilómetros',
             'frecuencia_meses': 'Frecuencia en Meses',
             'productos_requeridos': 'Repuestos/Productos Requeridos',
-            'activo': 'Servicio Activo'
+            'activo': 'Servicio Activo',
+            'aplicar_iva_servicio': 'Aplicar IVA a este Servicio',
+            'porcentaje_iva_servicio': 'Porcentaje de IVA (%)'
         }
         help_texts = {
             'frecuencia_km': 'Cada cuántos kilómetros se recomienda este servicio',
             'frecuencia_meses': 'Cada cuántos meses se recomienda este servicio',
-            'productos_requeridos': 'Selecciona los repuestos que se usan en este servicio'
+            'productos_requeridos': 'Selecciona los repuestos que se usan en este servicio',
+            'aplicar_iva_servicio': 'Dejar vacío para usar la configuración del taller',
+            'porcentaje_iva_servicio': 'Solo si se aplica IVA específico para este servicio'
         }
     
     def __init__(self, *args, **kwargs):
@@ -351,6 +394,10 @@ class ServicioCatalogoForm(forms.ModelForm):
             ).order_by('nombre')
         else:
             self.fields['productos_requeridos'].queryset = Repuesto.objects.none()
+            
+        # Configurar campos de IVA como opcionales
+        self.fields['aplicar_iva_servicio'].required = False
+        self.fields['porcentaje_iva_servicio'].required = False
     
     def clean_precio_base(self):
         precio = self.cleaned_data.get('precio_base')
