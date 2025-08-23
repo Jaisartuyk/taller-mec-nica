@@ -1,0 +1,1 @@
+# Este archivo está vacío intencionalmente para evitar conflictos de importación
