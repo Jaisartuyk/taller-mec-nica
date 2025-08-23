@@ -53,6 +53,12 @@ class WhatsAppService:
             logger.warning("WhatsApp no está configurado. Mensaje no enviado.")
             return {"success": False, "error": "WhatsApp no configurado"}
         
+        # Validar número de teléfono
+        is_valid, validation_message = self.validate_whatsapp_number(phone_number)
+        if not is_valid:
+            logger.warning(f"Número inválido: {phone_number} - {validation_message}")
+            return {"success": False, "error": f"Número inválido: {validation_message}"}
+        
         # Limpiar número de teléfono
         phone_number = self._clean_phone_number(phone_number)
         
@@ -90,6 +96,19 @@ class WhatsAppService:
             if response.status_code == 200:
                 logger.info(f"Mensaje WhatsApp enviado exitosamente a {phone_number}")
                 return {"success": True, "data": response.json()}
+            elif response.status_code == 422:
+                # Error específico de número no válido en WhatsApp
+                try:
+                    error_data = response.json()
+                    if "JID does not exist" in response.text:
+                        error_msg = f"El número {phone_number} no existe en WhatsApp o no está registrado"
+                    else:
+                        error_msg = error_data.get('message', 'Error de validación')
+                except:
+                    error_msg = "Número no válido para WhatsApp"
+                
+                logger.error(f"Número WhatsApp inválido: {phone_number} - {error_msg}")
+                return {"success": False, "error": error_msg}
             else:
                 logger.error(f"Error enviando mensaje WhatsApp: {response.status_code} - {response.text}")
                 return {"success": False, "error": f"HTTP {response.status_code}: {response.text}"}
@@ -126,23 +145,56 @@ class WhatsAppService:
         return self._make_request(payload)
     
     def _clean_phone_number(self, phone_number):
-        """Limpia y formatea el número de teléfono"""
-        # Remover espacios, guiones y paréntesis
+        """Limpia y formatea el número de teléfono para WhatsApp"""
+        if not phone_number:
+            return None
+            
+        # Remover espacios, guiones, paréntesis y el símbolo +
         clean_number = ''.join(filter(str.isdigit, phone_number))
         
-        # Si no tiene código de país, agregar +57 (Colombia)
-        if not phone_number.startswith('+'):
-            if len(clean_number) == 10:  # Número colombiano sin código
-                clean_number = f"57{clean_number}"
-            elif len(clean_number) == 12 and clean_number.startswith('57'):
-                pass  # Ya tiene código de país
+        # Manejar diferentes formatos de números ecuatorianos
+        if phone_number.startswith('+593'):
+            # Ya tiene código de país completo
+            clean_number = phone_number[1:]  # Remover el +
+        elif phone_number.startswith('593'):
+            # Ya tiene código de país sin +
+            pass
+        elif phone_number.startswith('0') and len(clean_number) == 10:
+            # Formato ecuatoriano con 0 inicial (ej: 0968192046)
+            clean_number = f"593{clean_number[1:]}"
+        elif len(clean_number) == 9:
+            # Número ecuatoriano sin código de país ni 0 (ej: 968192046)
+            clean_number = f"593{clean_number}"
+        elif len(clean_number) == 10 and clean_number.startswith('9'):
+            # Número ecuatoriano celular (ej: 9681920460)
+            clean_number = f"593{clean_number[1:]}"
         
+        logger.info(f"Número limpio para WhatsApp: {clean_number}")
         return clean_number
+    
+    def validate_whatsapp_number(self, phone_number):
+        """Valida si un número existe en WhatsApp"""
+        clean_number = self._clean_phone_number(phone_number)
+        if not clean_number:
+            return False, "Número de teléfono inválido"
+            
+        # Validaciones básicas para números ecuatorianos
+        if not clean_number.startswith('593'):
+            return False, "Número debe ser ecuatoriano (+593)"
+            
+        if len(clean_number) != 12:  # 593 + 9 dígitos
+            return False, "Formato de número ecuatoriano inválido"
+            
+        # Verificar que sea un número celular (inicia con 593 + 9)
+        if not clean_number[3] == '9':
+            return False, "Solo se permiten números celulares (deben empezar con 09)"
+            
+        return True, "Número válido"
     
     def _make_request(self, payload):
         """Método auxiliar para hacer requests a la API"""
         headers = {
-            'Authorization': f'Bearer {self.token}',
+            'Authorization': f'Bearer {self.api_token}',
             'Content-Type': 'application/json'
         }
         
