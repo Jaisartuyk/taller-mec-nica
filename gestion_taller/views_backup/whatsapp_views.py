@@ -22,7 +22,7 @@ def whatsapp_dashboard(request):
     """Dashboard principal de WhatsApp con información del sistema"""
     # Obtener información del cliente actual (basado en el usuario logueado)
     try:
-        cliente = Cliente.objects.filter(usuario=request.user).first()
+        cliente = Cliente.objects.filter(user=request.user).first()
         if not cliente:
             # Si no hay cliente asociado, usar el primer cliente disponible
             cliente = Cliente.objects.first()
@@ -82,7 +82,7 @@ def enviar_mensaje_individual(request):
             conductor_id = request.POST.get('conductor_id')
             
             # Obtener cliente
-            cliente = Cliente.objects.filter(usuario=request.user).first()
+            cliente = Cliente.objects.filter(user=request.user).first()
             if not cliente:
                 cliente = Cliente.objects.first()
             
@@ -191,7 +191,7 @@ def enviar_mensaje_masivo(request):
             conductores_ids = request.POST.getlist('conductores')
             
             # Obtener cliente
-            cliente = Cliente.objects.filter(usuario=request.user).first()
+            cliente = Cliente.objects.filter(user=request.user).first()
             if not cliente:
                 cliente = Cliente.objects.first()
             
@@ -317,7 +317,7 @@ def enviar_mensaje_masivo(request):
 @login_required
 def configuracion_whatsapp(request):
     """Vista para configurar WhatsApp del taller"""
-    cliente = Cliente.objects.filter(usuario=request.user).first()
+    cliente = Cliente.objects.filter(user=request.user).first()
     if not cliente:
         cliente = Cliente.objects.first()
     
@@ -381,7 +381,7 @@ def api_conductores_whatsapp(request):
 def test_whatsapp_connection(request):
     """API para probar la conexión de WhatsApp"""
     try:
-        cliente = Cliente.objects.filter(usuario=request.user).first()
+        cliente = Cliente.objects.filter(user=request.user).first()
         if not cliente:
             cliente = Cliente.objects.first()
         
