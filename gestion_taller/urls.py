@@ -6,7 +6,13 @@ from . import views
 # Importar vistas de WhatsApp
 from .views_backup.whatsapp_views import (
     whatsapp_dashboard, enviar_mensaje_individual, enviar_mensaje_masivo,
-    configuracion_whatsapp, api_conductores_whatsapp, test_whatsapp_connection
+    configuracion_whatsapp, api_conductores_whatsapp, test_whatsapp_connection,
+    chatbot_dashboard
+)
+
+# Importar vistas del Chatbot
+from .views_backup.chatbot_views import (
+    whatsapp_webhook, chatbot_test, ChatbotStatsView, chatbot_config
 )
 
 urlpatterns = [
@@ -71,4 +77,11 @@ urlpatterns += [
     # APIs para WhatsApp
     path('api/whatsapp/conductores/', api_conductores_whatsapp, name='api_conductores_whatsapp'),
     path('api/whatsapp/test-connection/', test_whatsapp_connection, name='test_whatsapp_connection'),
+    
+    # URLs para Chatbot
+    path('whatsapp/chatbot/', chatbot_dashboard, name='chatbot_dashboard'),
+    path('webhook/whatsapp/', whatsapp_webhook, name='whatsapp_webhook'),
+    path('api/chatbot/test/', chatbot_test, name='chatbot_test'),
+    path('api/chatbot/stats/', ChatbotStatsView.as_view(), name='chatbot_stats'),
+    path('api/chatbot/config/', chatbot_config, name='chatbot_config'),
 ]

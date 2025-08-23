@@ -1,0 +1,580 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}Chatbot WhatsApp - {{ cliente.nombre }}{% endblock %}
+
+{% block extra_css %}
+<style>
+    .chat-container {
+        height: 500px;
+        overflow-y: auto;
+        border: 1px solid #dee2e6;
+        border-radius: 10px;
+        padding: 15px;
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        background-attachment: fixed;
+    }
+    
+    .message {
+        margin-bottom: 15px;
+        animation: fadeIn 0.3s ease-in;
+    }
+    
+    @keyframes fadeIn {
+        from { opacity: 0; transform: translateY(10px); }
+        to { opacity: 1; transform: translateY(0); }
+    }
+    
+    .message-user {
+        text-align: right;
+    }
+    
+    .message-bot {
+        text-align: left;
+    }
+    
+    .message-bubble {
+        display: inline-block;
+        max-width: 70%;
+        padding: 12px 16px;
+        border-radius: 18px;
+        word-wrap: break-word;
+        box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+    }
+    
+    .message-user .message-bubble {
+        background: #007bff;
+        color: white;
+        border-bottom-right-radius: 5px;
+    }
+    
+    .message-bot .message-bubble {
+        background: white;
+        color: #333;
+        border-bottom-left-radius: 5px;
+        border: 1px solid #e9ecef;
+    }
+    
+    .message-time {
+        font-size: 0.75rem;
+        opacity: 0.7;
+        margin-top: 5px;
+    }
+    
+    .message-intent {
+        font-size: 0.7rem;
+        background: rgba(255,255,255,0.2);
+        padding: 2px 8px;
+        border-radius: 10px;
+        margin-top: 5px;
+        display: inline-block;
+    }
+    
+    .chat-input-container {
+        border-top: 1px solid #dee2e6;
+        padding: 15px;
+        background: white;
+        border-radius: 0 0 10px 10px;
+    }
+    
+    .stats-card {
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        color: white;
+        border: none;
+        transition: transform 0.2s;
+    }
+    
+    .stats-card:hover {
+        transform: translateY(-2px);
+    }
+    
+    .webhook-url {
+        background: #f8f9fa;
+        border: 1px solid #dee2e6;
+        border-radius: 5px;
+        padding: 10px;
+        font-family: monospace;
+        font-size: 0.9rem;
+        word-break: break-all;
+    }
+    
+    .status-indicator {
+        width: 12px;
+        height: 12px;
+        border-radius: 50%;
+        display: inline-block;
+        margin-right: 8px;
+    }
+    
+    .status-active {
+        background: #28a745;
+        box-shadow: 0 0 10px rgba(40, 167, 69, 0.5);
+    }
+    
+    .status-inactive {
+        background: #dc3545;
+    }
+    
+    .typing-indicator {
+        display: none;
+        text-align: left;
+        margin-bottom: 15px;
+    }
+    
+    .typing-bubble {
+        background: white;
+        border: 1px solid #e9ecef;
+        border-radius: 18px;
+        border-bottom-left-radius: 5px;
+        padding: 12px 16px;
+        display: inline-block;
+        box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+    }
+    
+    .typing-dots {
+        display: inline-block;
+    }
+    
+    .typing-dots span {
+        display: inline-block;
+        width: 8px;
+        height: 8px;
+        border-radius: 50%;
+        background: #999;
+        margin: 0 2px;
+        animation: typing 1.4s infinite;
+    }
+    
+    .typing-dots span:nth-child(2) {
+        animation-delay: 0.2s;
+    }
+    
+    .typing-dots span:nth-child(3) {
+        animation-delay: 0.4s;
+    }
+    
+    @keyframes typing {
+        0%, 60%, 100% {
+            transform: translateY(0);
+            opacity: 0.5;
+        }
+        30% {
+            transform: translateY(-10px);
+            opacity: 1;
+        }
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <div class="row mb-4">
+        <div class="col-12">
+            <div class="d-flex justify-content-between align-items-center">
+                <div>
+                    <h2><i class="fas fa-robot text-primary"></i> Chatbot WhatsApp</h2>
+                    <p class="text-muted mb-0">Agente inteligente para {{ cliente.nombre }}</p>
+                </div>
+                <div>
+                    <span class="status-indicator status-active"></span>
+                    <span class="text-success font-weight-bold">Activo</span>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Estadísticas del Chatbot -->
+    <div class="row mb-4">
+        <div class="col-md-3">
+            <div class="card stats-card">
+                <div class="card-body text-center">
+                    <i class="fas fa-comments fa-2x mb-2"></i>
+                    <h4 class="mb-0" id="total-conversations">0</h4>
+                    <small>Conversaciones Hoy</small>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card stats-card">
+                <div class="card-body text-center">
+                    <i class="fas fa-clock fa-2x mb-2"></i>
+                    <h4 class="mb-0" id="response-time">< 1s</h4>
+                    <small>Tiempo Respuesta</small>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card stats-card">
+                <div class="card-body text-center">
+                    <i class="fas fa-percentage fa-2x mb-2"></i>
+                    <h4 class="mb-0" id="success-rate">100%</h4>
+                    <small>Tasa de Éxito</small>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card stats-card">
+                <div class="card-body text-center">
+                    <i class="fas fa-brain fa-2x mb-2"></i>
+                    <h4 class="mb-0" id="intent-accuracy">85%</h4>
+                    <small>Precisión IA</small>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="row">
+        <!-- Simulador de Chat -->
+        <div class="col-lg-8">
+            <div class="card">
+                <div class="card-header bg-primary text-white">
+                    <h5 class="mb-0">
+                        <i class="fas fa-mobile-alt"></i> Simulador de Chat
+                    </h5>
+                </div>
+                <div class="card-body p-0">
+                    <div class="chat-container" id="chat-container">
+                        <!-- Mensaje de bienvenida -->
+                        <div class="message message-bot">
+                            <div class="message-bubble">
+                                ¡Hola! 👋 Soy el asistente virtual de <strong>{{ cliente.nombre|upper }}</strong><br><br>
+                                ¿En qué puedo ayudarte hoy?<br><br>
+                                Puedo ayudarte con:<br>
+                                🔧 Información sobre servicios<br>
+                                💰 Cotizaciones<br>
+                                📅 Agendar citas<br>
+                                📍 Ubicación y horarios<br>
+                                🚗 Estado de tu vehículo
+                            </div>
+                            <div class="message-time text-muted">
+                                <small>Ahora</small>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- Indicador de escritura -->
+                    <div class="typing-indicator" id="typing-indicator">
+                        <div class="typing-bubble">
+                            <div class="typing-dots">
+                                <span></span>
+                                <span></span>
+                                <span></span>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="chat-input-container">
+                        <div class="input-group">
+                            <input type="text" 
+                                   class="form-control" 
+                                   id="chat-input" 
+                                   placeholder="Escribe tu mensaje aquí..."
+                                   maxlength="500">
+                            <div class="input-group-append">
+                                <button class="btn btn-primary" 
+                                        type="button" 
+                                        id="send-message">
+                                    <i class="fas fa-paper-plane"></i>
+                                </button>
+                            </div>
+                        </div>
+                        <small class="text-muted">
+                            Presiona Enter para enviar • 
+                            <span id="char-count">0</span>/500 caracteres
+                        </small>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Panel de Configuración -->
+        <div class="col-lg-4">
+            <!-- Configuración del Webhook -->
+            <div class="card mb-3">
+                <div class="card-header">
+                    <h6 class="mb-0">
+                        <i class="fas fa-link"></i> Configuración Webhook
+                    </h6>
+                </div>
+                <div class="card-body">
+                    <label class="form-label">URL del Webhook:</label>
+                    <div class="webhook-url mb-3">
+                        <span id="webhook-url">{{ request.build_absolute_uri }}webhook/whatsapp/</span>
+                        <button class="btn btn-sm btn-outline-primary float-right" 
+                                onclick="copyWebhookUrl()">
+                            <i class="fas fa-copy"></i>
+                        </button>
+                    </div>
+                    <small class="text-muted">
+                        Configura esta URL en tu proveedor de WhatsApp API
+                    </small>
+                </div>
+            </div>
+
+            <!-- Mensajes de Prueba Rápida -->
+            <div class="card mb-3">
+                <div class="card-header">
+                    <h6 class="mb-0">
+                        <i class="fas fa-bolt"></i> Pruebas Rápidas
+                    </h6>
+                </div>
+                <div class="card-body">
+                    <div class="d-grid gap-2">
+                        <button class="btn btn-outline-primary btn-sm" 
+                                onclick="sendQuickMessage('Hola')">
+                            👋 Saludo
+                        </button>
+                        <button class="btn btn-outline-primary btn-sm" 
+                                onclick="sendQuickMessage('Qué servicios ofrecen?')">
+                            🔧 Servicios
+                        </button>
+                        <button class="btn btn-outline-primary btn-sm" 
+                                onclick="sendQuickMessage('Cuánto cuesta cambio de aceite?')">
+                            💰 Precios
+                        </button>
+                        <button class="btn btn-outline-primary btn-sm" 
+                                onclick="sendQuickMessage('Quiero agendar una cita')">
+                            📅 Cita
+                        </button>
+                        <button class="btn btn-outline-primary btn-sm" 
+                                onclick="sendQuickMessage('Dónde están ubicados?')">
+                            📍 Ubicación
+                        </button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Intenciones Más Comunes -->
+            <div class="card">
+                <div class="card-header">
+                    <h6 class="mb-0">
+                        <i class="fas fa-chart-bar"></i> Intenciones Comunes
+                    </h6>
+                </div>
+                <div class="card-body">
+                    <div class="mb-2">
+                        <div class="d-flex justify-content-between">
+                            <span>Consulta Servicios</span>
+                            <span class="text-primary">35%</span>
+                        </div>
+                        <div class="progress" style="height: 5px;">
+                            <div class="progress-bar" style="width: 35%"></div>
+                        </div>
+                    </div>
+                    <div class="mb-2">
+                        <div class="d-flex justify-content-between">
+                            <span>Consulta Precios</span>
+                            <span class="text-primary">28%</span>
+                        </div>
+                        <div class="progress" style="height: 5px;">
+                            <div class="progress-bar" style="width: 28%"></div>
+                        </div>
+                    </div>
+                    <div class="mb-2">
+                        <div class="d-flex justify-content-between">
+                            <span>Agendar Citas</span>
+                            <span class="text-primary">22%</span>
+                        </div>
+                        <div class="progress" style="height: 5px;">
+                            <div class="progress-bar" style="width: 22%"></div>
+                        </div>
+                    </div>
+                    <div class="mb-2">
+                        <div class="d-flex justify-content-between">
+                            <span>Ubicación</span>
+                            <span class="text-primary">15%</span>
+                        </div>
+                        <div class="progress" style="height: 5px;">
+                            <div class="progress-bar" style="width: 15%"></div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+    // Variables globales
+    const chatContainer = document.getElementById('chat-container');
+    const chatInput = document.getElementById('chat-input');
+    const sendButton = document.getElementById('send-message');
+    const typingIndicator = document.getElementById('typing-indicator');
+    const charCount = document.getElementById('char-count');
+    const clienteId = {{ cliente.id|default:1 }};
+
+    // Función para mostrar alertas
+    function showAlert(message, type = 'info', icon = 'info-circle') {
+        const alertDiv = document.createElement('div');
+        alertDiv.className = `alert alert-${type} alert-dismissible fade show`;
+        alertDiv.innerHTML = `
+            <i class="fas fa-${icon}"></i> ${message}
+            <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+        `;
+        
+        const container = document.querySelector('.container-fluid');
+        if (container) {
+            const firstRow = container.querySelector('.row');
+            if (firstRow) {
+                container.insertBefore(alertDiv, firstRow);
+            } else {
+                container.prepend(alertDiv);
+            }
+        }
+        
+        // Auto-remover después de 5 segundos
+        setTimeout(() => {
+            if (alertDiv.parentNode) {
+                alertDiv.remove();
+            }
+        }, 5000);
+    }
+
+    // Contador de caracteres
+    chatInput.addEventListener('input', function() {
+        charCount.textContent = this.value.length;
+    });
+
+    // Enviar mensaje con Enter
+    chatInput.addEventListener('keypress', function(e) {
+        if (e.key === 'Enter') {
+            sendMessage();
+        }
+    });
+
+    // Botón enviar
+    sendButton.addEventListener('click', sendMessage);
+
+    function sendMessage() {
+        const message = chatInput.value.trim();
+        if (!message) return;
+
+        // Agregar mensaje del usuario
+        addMessage(message, 'user');
+        
+        // Limpiar input
+        chatInput.value = '';
+        charCount.textContent = '0';
+        
+        // Mostrar indicador de escritura
+        showTypingIndicator();
+        
+        // Enviar al chatbot
+        fetch('/api/chatbot/test/', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRFToken': getCookie('csrftoken')
+            },
+            body: JSON.stringify({
+                phone_number: '+593968192046',
+                message: message,
+                cliente_id: clienteId
+            })
+        })
+        .then(response => response.json())
+        .then(data => {
+            hideTypingIndicator();
+            
+            if (data.success) {
+                const response = data.response.response;
+                addMessage(response.message, 'bot', data.response.intent);
+            } else {
+                addMessage('Lo siento, tuve un problema procesando tu mensaje. 😅', 'bot', 'error');
+                showAlert('Error procesando mensaje: ' + data.error, 'danger', 'exclamation-triangle');
+            }
+        })
+        .catch(error => {
+            hideTypingIndicator();
+            addMessage('Lo siento, no pude procesar tu mensaje en este momento.', 'bot', 'error');
+            showAlert('Error de conexión: ' + error.message, 'danger', 'exclamation-triangle');
+        });
+    }
+
+    function addMessage(text, sender, intent = null) {
+        const messageDiv = document.createElement('div');
+        messageDiv.className = `message message-${sender}`;
+        
+        const now = new Date();
+        const timeStr = now.toLocaleTimeString('es-ES', { 
+            hour: '2-digit', 
+            minute: '2-digit' 
+        });
+        
+        let intentBadge = '';
+        if (intent && sender === 'bot') {
+            intentBadge = `<div class="message-intent">${intent}</div>`;
+        }
+        
+        messageDiv.innerHTML = `
+            <div class="message-bubble">
+                ${text.replace(/\n/g, '<br>')}
+            </div>
+            <div class="message-time text-muted">
+                <small>${timeStr}</small>
+                ${intentBadge}
+            </div>
+        `;
+        
+        chatContainer.appendChild(messageDiv);
+        chatContainer.scrollTop = chatContainer.scrollHeight;
+    }
+
+    function showTypingIndicator() {
+        typingIndicator.style.display = 'block';
+        chatContainer.scrollTop = chatContainer.scrollHeight;
+    }
+
+    function hideTypingIndicator() {
+        typingIndicator.style.display = 'none';
+    }
+
+    function sendQuickMessage(message) {
+        chatInput.value = message;
+        sendMessage();
+    }
+
+    function copyWebhookUrl() {
+        const webhookUrl = document.getElementById('webhook-url').textContent;
+        navigator.clipboard.writeText(webhookUrl).then(() => {
+            showAlert('URL del webhook copiada al portapapeles', 'success', 'check');
+        }).catch(() => {
+            showAlert('No se pudo copiar la URL', 'warning', 'exclamation-triangle');
+        });
+    }
+
+    function getCookie(name) {
+        let cookieValue = null;
+        if (document.cookie && document.cookie !== '') {
+            const cookies = document.cookie.split(';');
+            for (let i = 0; i < cookies.length; i++) {
+                const cookie = cookies[i].trim();
+                if (cookie.substring(0, name.length + 1) === (name + '=')) {
+                    cookieValue = decodeURIComponent(cookie.substring(name.length + 1));
+                    break;
+                }
+            }
+        }
+        return cookieValue;
+    }
+
+    // Cargar estadísticas al iniciar
+    function loadStats() {
+        fetch('/api/chatbot/stats/')
+        .then(response => response.json())
+        .then(data => {
+            document.getElementById('total-conversations').textContent = data.messages_today || 0;
+            document.getElementById('response-time').textContent = data.average_response_time || '< 1s';
+            document.getElementById('success-rate').textContent = data.response_rate + '%' || '100%';
+        })
+        .catch(error => {
+            console.log('Error cargando estadísticas:', error);
+        });
+    }
+
+    // Cargar estadísticas al iniciar la página
+    document.addEventListener('DOMContentLoaded', loadStats);
+</script>
+{% endblock %}

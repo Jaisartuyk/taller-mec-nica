@@ -16,6 +16,7 @@ import json
 
 from ..models import Cliente, Conductor, OrdenServicio, ConfiguracionTaller
 from ..services.multi_taller_messaging import MultiTallerMessagingService
+from ..services.chatbot_service import ChatbotService
 from ..forms import ConfiguracionTallerForm
 
 
@@ -393,40 +394,57 @@ def api_conductores_whatsapp(request):
 @require_http_methods(["POST"])
 @login_required
 def test_whatsapp_connection(request):
-    """API para probar la conexión de WhatsApp"""
+    """Prueba la conexión de WhatsApp"""
     try:
         cliente = Cliente.objects.filter(user=request.user).first()
         if not cliente:
-            cliente = Cliente.objects.first()
-        
-        if not cliente:
             return JsonResponse({
                 'success': False,
-                'error': 'No hay clientes configurados'
+                'error': 'Cliente no encontrado'
             })
         
         messaging_service = MultiTallerMessagingService(cliente=cliente)
         
-        # Verificar si WhatsApp está habilitado
-        if not messaging_service._is_whatsapp_enabled():
+        # Probar conexión
+        if messaging_service._is_whatsapp_enabled():
+            return JsonResponse({
+                'success': True,
+                'message': 'Conexión WhatsApp exitosa',
+                'service_info': {
+                    'whatsapp_enabled': True,
+                    'telegram_enabled': False
+                }
+            })
+        else:
             return JsonResponse({
                 'success': False,
-                'error': 'WhatsApp no está habilitado. Verifique el token API.'
+                'error': 'WhatsApp no está configurado'
             })
-        
-        # Obtener información del servicio
-        taller_info = messaging_service.get_taller_info()
-        whatsapp_number = messaging_service.get_whatsapp_number()
-        
-        return JsonResponse({
-            'success': True,
-            'taller_info': taller_info,
-            'whatsapp_number': whatsapp_number,
-            'message': 'Conexión WhatsApp exitosa'
-        })
-        
+            
     except Exception as e:
         return JsonResponse({
             'success': False,
-            'error': f'Error al probar conexión: {str(e)}'
+            'error': str(e)
         })
+
+
+@login_required
+def chatbot_dashboard(request):
+    """Dashboard del chatbot de WhatsApp"""
+    try:
+        cliente = Cliente.objects.filter(user=request.user).first()
+        if not cliente:
+            messages.error(request, 'Cliente no encontrado')
+            return redirect('home')
+        
+        context = {
+            'cliente': cliente,
+            'page_title': 'Chatbot WhatsApp',
+            'chatbot_enabled': True
+        }
+        
+        return render(request, 'gestion_taller/whatsapp/chatbot_dashboard.html', context)
+        
+    except Exception as e:
+        messages.error(request, f'Error cargando dashboard del chatbot: {str(e)}')
+        return redirect('whatsapp_dashboard')
