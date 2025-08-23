@@ -286,17 +286,25 @@
 <script>
 document.addEventListener('DOMContentLoaded', function() {
     // Probar conexión WhatsApp
-    document.getElementById('testConnectionBtn').addEventListener('click', function() {
+    const testBtn = document.getElementById('testConnectionBtn');
+    if (testBtn) {
+        testBtn.addEventListener('click', function() {
         const btn = this;
         const originalText = btn.innerHTML;
         
         btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Probando...';
         btn.disabled = true;
         
+        const csrfToken = document.querySelector('[name=csrfmiddlewaretoken]');
+        if (!csrfToken) {
+            console.error('CSRF token not found');
+            return;
+        }
+        
         fetch('{% url "test_whatsapp_connection" %}', {
             method: 'POST',
             headers: {
-                'X-CSRFToken': document.querySelector('[name=csrfmiddlewaretoken]').value,
+                'X-CSRFToken': csrfToken.value,
                 'Content-Type': 'application/json',
             }
         })
@@ -339,12 +347,19 @@ document.addEventListener('DOMContentLoaded', function() {
             btn.innerHTML = originalText;
             btn.disabled = false;
         });
-    });
+        });
+    }
     
     // Mostrar modal de plantillas
-    document.getElementById('viewTemplatesBtn').addEventListener('click', function() {
-        new bootstrap.Modal(document.getElementById('templatesModal')).show();
-    });
+    const viewTemplatesBtn = document.getElementById('viewTemplatesBtn');
+    if (viewTemplatesBtn) {
+        viewTemplatesBtn.addEventListener('click', function() {
+            const templatesModal = document.getElementById('templatesModal');
+            if (templatesModal) {
+                new bootstrap.Modal(templatesModal).show();
+            }
+        });
+    }
 });
 </script>
 {% endblock %}
