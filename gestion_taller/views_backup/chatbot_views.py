@@ -67,6 +67,16 @@ def process_incoming_message(request):
         print(f"DEBUG WEBHOOK - Headers: {dict(request.headers)}")
         print(f"DEBUG WEBHOOK - Body: {request.body.decode('utf-8')}")
         
+        # Verificar signature del webhook (opcional pero recomendado)
+        webhook_signature = request.headers.get('X-Webhook-Signature')
+        webhook_secret = 'ee8d0cbbb1d7271fbe00463c674be7c9'  # Debe coincidir con WASender
+        
+        if webhook_signature and webhook_signature != webhook_secret:
+            logger.warning(f"Signature inválida: {webhook_signature}")
+            return JsonResponse({'error': 'Invalid signature'}, status=401)
+        
+        print(f"DEBUG WEBHOOK - Signature verificada: {webhook_signature}")
+        
         # Parsear datos del webhook
         data = json.loads(request.body)
         logger.info(f"Mensaje recibido: {data}")
