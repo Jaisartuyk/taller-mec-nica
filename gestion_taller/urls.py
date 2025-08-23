@@ -1,6 +1,8 @@
 from django.urls import path
 from . import views
 
+# Forzar redespliegue - Views import conflicts fixed
+
 # Importar vistas de WhatsApp
 try:
     from .views_backup.whatsapp_views import (
