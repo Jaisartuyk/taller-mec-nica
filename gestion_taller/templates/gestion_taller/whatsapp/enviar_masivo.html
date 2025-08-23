@@ -107,6 +107,13 @@
                                 </button>
                             </div>
                         </div>
+                        
+                        <!-- Nota Informativa -->
+                        <div class="alert alert-info" role="alert">
+                            <i class="fas fa-info-circle me-2"></i>
+                            <strong>Información importante:</strong> Para respetar los límites de la API de WhatsApp, 
+                            se envía 1 mensaje cada 5 segundos. El envío masivo puede tomar varios minutos.
+                        </div>
 
                         <!-- Tipo de Mensaje -->
                         <div class="mb-3">
@@ -438,8 +445,18 @@ document.addEventListener('DOMContentLoaded', function() {
             return;
         }
         
-        // Confirmar envío
-        if (!confirm(`¿Estás seguro de enviar el mensaje a ${selectedCheckboxes.length} conductores?`)) {
+        // Confirmar envío con información sobre el delay
+        const tiempoEstimado = selectedCheckboxes.length > 1 ? (selectedCheckboxes.length - 1) * 5 : 0;
+        const minutos = Math.floor(tiempoEstimado / 60);
+        const segundos = tiempoEstimado % 60;
+        
+        let mensaje_confirmacion = `¿Estás seguro de enviar el mensaje a ${selectedCheckboxes.length} conductores?`;
+        if (selectedCheckboxes.length > 1) {
+            mensaje_confirmacion += `\n\n⏱️ Tiempo estimado: ${minutos > 0 ? minutos + ' min ' : ''}${segundos} seg`;
+            mensaje_confirmacion += `\n(Se respeta el límite de 1 mensaje cada 5 segundos de la API)`;
+        }
+        
+        if (!confirm(mensaje_confirmacion)) {
             return;
         }
         

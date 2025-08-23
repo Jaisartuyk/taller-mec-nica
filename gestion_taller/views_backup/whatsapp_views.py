@@ -1,6 +1,8 @@
 """
 Vistas para la integración de WhatsApp multi-taller
 """
+import json
+import time
 from django.shortcuts import render, redirect, get_object_or_404
 from django.contrib.auth.decorators import login_required
 from django.contrib import messages
@@ -224,7 +226,11 @@ def enviar_mensaje_masivo(request):
                 'detalles': []
             }
             
-            for conductor in conductores:
+            for i, conductor in enumerate(conductores):
+                # Agregar delay de 5 segundos entre mensajes (excepto el primero)
+                if i > 0:
+                    time.sleep(5)
+                
                 # Preparar datos para plantillas
                 datos = {
                     'conductor_nombre': conductor.nombre,
