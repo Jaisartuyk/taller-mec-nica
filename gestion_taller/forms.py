@@ -383,12 +383,12 @@ class ConfiguracionTallerForm(forms.ModelForm):
     class Meta:
         model = ConfiguracionTaller
         fields = [
-            'nombre_taller', 'telefono_principal', 'telefono_whatsapp', 
-            'email', 'direccion', 'horarios_atencion', 'usar_whatsapp', 
+            'nombre', 'telefono_principal', 'telefono_whatsapp', 
+            'email', 'direccion', 'horarios', 'usar_whatsapp', 
             'usar_telegram'
         ]
         widgets = {
-            'nombre_taller': forms.TextInput(attrs={
+            'nombre': forms.TextInput(attrs={
                 'class': 'form-control',
                 'placeholder': 'Nombre del taller'
             }),
@@ -409,7 +409,7 @@ class ConfiguracionTallerForm(forms.ModelForm):
                 'rows': 3,
                 'placeholder': 'Dirección completa del taller'
             }),
-            'horarios_atencion': forms.TextInput(attrs={
+            'horarios': forms.TextInput(attrs={
                 'class': 'form-control',
                 'placeholder': 'Ej: Lun-Vie 8AM-6PM, Sáb 8AM-2PM'
             }),
@@ -421,12 +421,12 @@ class ConfiguracionTallerForm(forms.ModelForm):
             }),
         }
         labels = {
-            'nombre_taller': 'Nombre del Taller',
+            'nombre': 'Nombre del Taller',
             'telefono_principal': 'Teléfono Principal',
             'telefono_whatsapp': 'Teléfono WhatsApp',
             'email': 'Correo Electrónico',
             'direccion': 'Dirección',
-            'horarios_atencion': 'Horarios de Atención',
+            'horarios': 'Horarios de Atención',
             'usar_whatsapp': 'Habilitar WhatsApp',
             'usar_telegram': 'Habilitar Telegram',
         }
@@ -442,7 +442,7 @@ class ConfiguracionTallerForm(forms.ModelForm):
         # Hacer algunos campos opcionales
         self.fields['telefono_whatsapp'].required = False
         self.fields['direccion'].required = False
-        self.fields['horarios_atencion'].required = False
+        self.fields['horarios'].required = False
         
     def clean_telefono_principal(self):
         telefono = self.cleaned_data.get('telefono_principal')
