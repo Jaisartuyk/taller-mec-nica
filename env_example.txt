@@ -1,0 +1,94 @@
+# Configuración de Variables de Entorno para Taller Mecánico
+# Copia este archivo como .env y completa los valores
+
+# TELEGRAM BOT
+# Obtén tu token desde @BotFather en Telegram
+TELEGRAM_BOT_TOKEN=1234567890:ABCdefGHIjklMNOpqrSTUvwxyz
+
+# WASENDER API (WhatsApp)
+# Registrate en https://wasender.com y obtén tus credenciales
+WASENDER_API_TOKEN=tu_token_wasender_aqui
+WASENDER_INSTANCE_ID=tu_instance_id_aqui
+
+# CONFIGURACIÓN DEL TALLER
+# Información básica del negocio
+TALLER_NOMBRE="Taller Mecánico Profesional"
+TALLER_TELEFONO="+57 300 123 4567"
+TALLER_EMAIL="info@tallerprofesional.com"
+TALLER_WEBSITE="www.tallerprofesional.com"
+TALLER_DIRECCION="Calle 123 #45-67, Bogotá, Colombia"
+TALLER_HORARIOS="Lun-Vie 8AM-6PM, Sáb 8AM-2PM"
+
+# CONFIGURACIÓN DE MENSAJERÍA
+# Canales habilitados (telegram, whatsapp, ambos)
+CANAL_PREFERIDO=ambos
+USAR_EMOJIS=True
+INCLUIR_FIRMA_COMERCIAL=True
+
+# Rate limiting (mensajes por minuto)
+WHATSAPP_RATE_LIMIT=30
+TELEGRAM_RATE_LIMIT=30
+
+# CONFIGURACIÓN DE RECORDATORIOS
+RECORDATORIOS_DIAS_ANTICIPACION=7
+RECORDATORIOS_URGENTES_DIAS=3
+HORARIO_ENVIO_INICIO=08:00
+HORARIO_ENVIO_FIN=18:00
+
+# CONFIGURACIÓN DE IA
+USAR_ML_AVANZADO=True
+REENTRENAR_AUTOMATICO=True
+FRECUENCIA_REENTRENAMIENTO_DIAS=30
+UMBRAL_CONFIANZA=0.7
+
+# BASE DE DATOS
+# Configuración para PostgreSQL (recomendado para producción)
+DATABASE_URL=postgresql://usuario:password@localhost:5432/taller_db
+
+# O para SQLite (desarrollo)
+# DATABASE_URL=sqlite:///db.sqlite3
+
+# CONFIGURACIÓN DE DJANGO
+SECRET_KEY=tu_clave_secreta_muy_larga_y_segura_aqui
+DEBUG=True
+ALLOWED_HOSTS=localhost,127.0.0.1
+
+# EMAIL (para notificaciones por correo)
+EMAIL_HOST=smtp.gmail.com
+EMAIL_PORT=587
+EMAIL_HOST_USER=tu_email@gmail.com
+EMAIL_HOST_PASSWORD=tu_password_de_aplicacion
+EMAIL_USE_TLS=True
+
+# CELERY (para tareas asíncronas)
+# Redis como broker (recomendado)
+CELERY_BROKER_URL=redis://localhost:6379/0
+CELERY_RESULT_BACKEND=redis://localhost:6379/0
+
+# O RabbitMQ como alternativa
+# CELERY_BROKER_URL=amqp://guest@localhost//
+
+# CONFIGURACIÓN DE LOGGING
+LOG_LEVEL=INFO
+LOG_FILE=logs/taller.log
+
+# CONFIGURACIÓN DE SEGURIDAD
+# Validaciones de entrada
+TELEFONO_MIN_LENGTH=10
+TELEFONO_MAX_LENGTH=15
+MENSAJE_MAX_LENGTH=1000
+ASUNTO_MAX_LENGTH=100
+
+# Rate limiting avanzado
+API_CALLS_PER_HOUR=1000
+MAX_MENSAJES_MASIVOS=500
+
+# CONFIGURACIÓN DE MONITOREO
+# Métricas y alertas
+ENABLE_METRICS=True
+METRICS_RETENTION_DAYS=90
+ALERT_EMAIL=admin@tallerprofesional.com
+
+# Webhooks para integraciones
+WEBHOOK_SECRET=tu_webhook_secret_aqui
+WEBHOOK_TIMEOUT=30

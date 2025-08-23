@@ -1,6 +1,6 @@
 django>=4.2
 django-allauth>=0.60.0
-requests
+requests>=2.31.0
 django-crispy-forms
 crispy-bootstrap5
 Pillow

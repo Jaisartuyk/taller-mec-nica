@@ -301,21 +301,150 @@ def verificar_recordatorios_pendientes():
     
     return notificaciones_enviadas
 
-def enviar_notificacion_conductor(conductor, mensaje):
-    """Envía notificación a un conductor específico"""
+def enviar_notificacion_conductor(conductor, mensaje, canal='ambos'):
+    """Envía notificación a un conductor por Telegram y/o WhatsApp
+    
+    Args:
+        conductor: Instancia del modelo Conductor
+        mensaje (str): Mensaje a enviar
+        canal (str): 'telegram', 'whatsapp' o 'ambos'
+    
+    Returns:
+        dict: Resultado del envío
+    """
     import requests
     from django.conf import settings
     
-    try:
-        token = settings.TELEGRAM_BOT_TOKEN
-        send_message_url = f'https://api.telegram.org/bot{token}/sendMessage'
-        
-        requests.post(send_message_url, json={
-            'chat_id': conductor.telegram_chat_id,
-            'text': mensaje,
-            'parse_mode': 'Markdown'
-        })
+    resultados = {'telegram': False, 'whatsapp': False}
+    
+    # Enviar por Telegram
+    if canal in ['telegram', 'ambos'] and conductor.telegram_chat_id:
+        try:
+            token = settings.TELEGRAM_BOT_TOKEN
+            send_message_url = f'https://api.telegram.org/bot{token}/sendMessage'
+            
+            response = requests.post(send_message_url, json={
+                'chat_id': conductor.telegram_chat_id,
+                'text': mensaje,
+                'parse_mode': 'Markdown'
+            }, timeout=10)
+            
+            if response.ok:
+                resultados['telegram'] = True
+                print(f'✅ Notificación Telegram enviada a {conductor.nombre}')
+            else:
+                print(f'❌ Error Telegram para {conductor.nombre}: {response.text}')
+                
+        except Exception as e:
+            print(f'❌ Error enviando Telegram a {conductor.nombre}: {str(e)}')
+    
+    # Enviar por WhatsApp
+    if canal in ['whatsapp', 'ambos'] and conductor.telefono:
+        try:
+            from .whatsapp_service import enviar_recordatorio_whatsapp
+            resultado_wa = enviar_recordatorio_whatsapp(conductor, mensaje)
+            
+            if resultado_wa.get('success'):
+                resultados['whatsapp'] = True
+                print(f'✅ Notificación WhatsApp enviada a {conductor.nombre}')
+            else:
+                print(f'❌ Error WhatsApp para {conductor.nombre}: {resultado_wa.get("error")}')
+                
+        except Exception as e:
+            print(f'❌ Error enviando WhatsApp a {conductor.nombre}: {str(e)}')
+    
+    # Log del resultado
+    canales_exitosos = [k for k, v in resultados.items() if v]
+    if canales_exitosos:
+        print(f'📱 Notificación enviada a {conductor.nombre} por: {", ".join(canales_exitosos)}')
         return True
-    except Exception as e:
-        print(f'Error enviando notificación a conductor {conductor.nombre}: {str(e)}')
+    else:
+        print(f'⚠️ No se pudo enviar notificación a {conductor.nombre} por ningún canal')
         return False
+
+
+def verificar_recordatorios_pendientes_con_canal(canal='ambos'):
+    """Verifica recordatorios pendientes y envía notificaciones por el canal especificado
+    
+    Args:
+        canal (str): 'telegram', 'whatsapp' o 'ambos'
+    
+    Returns:
+        list: Lista de recordatorios que fueron notificados
+    """
+    from django.utils import timezone
+    from datetime import timedelta
+    
+    # Buscar recordatorios que deben ser notificados (próximos 7 días)
+    fecha_limite = timezone.now().date() + timedelta(days=7)
+    recordatorios_pendientes = RecordatorioMantenimiento.objects.filter(
+        fecha_proximo__lte=fecha_limite,
+        notificado=False,
+        vehiculo__conductor__isnull=False
+    ).select_related('vehiculo', 'vehiculo__conductor')
+    
+    notificaciones_enviadas = []
+    
+    for recordatorio in recordatorios_pendientes:
+        vehiculo = recordatorio.vehiculo
+        conductor = vehiculo.conductor
+        
+        if not conductor:
+            continue
+            
+        # Crear mensaje personalizado
+        dias_restantes = (recordatorio.fecha_proximo - timezone.now().date()).days
+        
+        if dias_restantes <= 0:
+            urgencia = "🚨 *URGENTE*"
+            mensaje_tiempo = "Tu vehículo necesita mantenimiento **HOY**"
+        elif dias_restantes <= 3:
+            urgencia = "⚠️ *IMPORTANTE*"
+            mensaje_tiempo = f"Tu vehículo necesita mantenimiento en **{dias_restantes} días**"
+        else:
+            urgencia = "📅 *RECORDATORIO*"
+            mensaje_tiempo = f"Tu vehículo necesitará mantenimiento en **{dias_restantes} días**"
+        
+        mensaje = f"""
+{urgencia}
+
+{mensaje_tiempo}
+
+🚗 **Vehículo:** {vehiculo.marca} {vehiculo.modelo}
+🏷️ **Placa:** {vehiculo.placa}
+🔧 **Servicio:** {recordatorio.tipo}
+📅 **Fecha recomendada:** {recordatorio.fecha_proximo.strftime('%d/%m/%Y')}
+📏 **Kilometraje:** {recordatorio.kilometraje_proximo:,} km
+
+¡Agenda tu cita para mantener tu vehículo en perfecto estado!
+        """.strip()
+        
+        # Enviar notificación por el canal especificado usando plantillas
+        if canal in ['whatsapp', 'ambos'] and conductor.telefono:
+            from .whatsapp_service import enviar_recordatorio_whatsapp
+            try:
+                resultado_whatsapp = enviar_recordatorio_whatsapp(
+                    conductor, 
+                    mensaje_personalizado=None,  # Usar plantilla automática
+                    vehiculo=vehiculo,
+                    recordatorio=recordatorio
+                )
+                if resultado_whatsapp.get('success'):
+                    print(f'✅ WhatsApp enviado a {conductor.nombre}')
+                else:
+                    print(f'❌ Error WhatsApp para {conductor.nombre}: {resultado_whatsapp.get("error")}')
+            except Exception as e:
+                print(f'❌ Error WhatsApp para {conductor.nombre}: {e}')
+        
+        # Enviar por Telegram si está configurado
+        exito = enviar_notificacion_conductor(conductor, mensaje, canal)
+        
+        if exito:
+            recordatorio.notificado = True
+            recordatorio.save()
+            notificaciones_enviadas.append(recordatorio)
+            print(f'✅ Recordatorio enviado: {vehiculo.placa} - {recordatorio.tipo} (canal: {canal})')
+        else:
+            print(f'❌ Error enviando recordatorio: {vehiculo.placa} - {recordatorio.tipo}')
+    
+    return notificaciones_enviadas

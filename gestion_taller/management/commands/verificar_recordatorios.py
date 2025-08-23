@@ -22,6 +22,12 @@ class Command(BaseCommand):
             type=int,
             help='ID del cliente específico para procesar (opcional)',
         )
+        parser.add_argument(
+            '--canal',
+            choices=['telegram', 'whatsapp', 'ambos'],
+            default='ambos',
+            help='Canal de notificación: telegram, whatsapp o ambos (por defecto: ambos)'
+        )
 
     def handle(self, *args, **options):
         self.stdout.write(
@@ -55,8 +61,17 @@ class Command(BaseCommand):
                         )
 
             # Verificar recordatorios pendientes
-            self.stdout.write('Verificando recordatorios pendientes...')
-            notificaciones_enviadas = verificar_recordatorios_pendientes()
+            canal = options['canal']
+            self.stdout.write(f'Verificando recordatorios pendientes (canal: {canal})...')
+            
+            # Importar la función con el parámetro de canal
+            from gestion_taller.ai_predictor import verificar_recordatorios_pendientes_con_canal
+            
+            try:
+                notificaciones_enviadas = verificar_recordatorios_pendientes_con_canal(canal)
+            except ImportError:
+                # Fallback a la función original si no existe la nueva
+                notificaciones_enviadas = verificar_recordatorios_pendientes()
             
             if notificaciones_enviadas:
                 self.stdout.write(
