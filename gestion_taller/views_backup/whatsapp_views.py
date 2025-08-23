@@ -21,11 +21,19 @@ from ..forms import ConfiguracionTallerForm
 
 
 def get_user_cliente_or_error(request):
-    """Obtiene el cliente asociado al usuario o retorna error de seguridad"""
-    cliente = Cliente.objects.filter(user=request.user).first()
-    if not cliente:
-        return None, 'No tienes un taller asociado. Contacta al administrador para configurar tu acceso.'
-    return cliente, None
+    """Obtiene el cliente asociado al usuario autenticado de forma segura"""
+    try:
+        # Buscar cliente a través de PerfilUsuario
+        perfil = request.user.perfilusuario
+        cliente = perfil.cliente
+        
+        if not cliente:
+            return None, "No tienes un taller asociado. Contacta al administrador."
+        
+        return cliente, None
+        
+    except Exception as e:
+        return None, "No tienes un perfil de usuario válido. Contacta al administrador."
 
 
 @login_required
@@ -162,9 +170,10 @@ def enviar_mensaje_individual(request):
             })
     
     # GET request - mostrar formulario
-    cliente = Cliente.objects.filter(user=request.user).first()
+    cliente, error_msg = get_user_cliente_or_error(request)
     if not cliente:
-        cliente = Cliente.objects.first()
+        messages.error(request, error_msg)
+        return redirect('home')
     
     conductores = []
     if cliente:
