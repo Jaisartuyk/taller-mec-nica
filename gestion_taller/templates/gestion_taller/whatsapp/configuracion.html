@@ -363,10 +363,16 @@ document.addEventListener('DOMContentLoaded', function() {
         btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Enviando...';
         btn.disabled = true;
         
+        const csrfToken = document.querySelector('[name=csrfmiddlewaretoken]');
+        if (!csrfToken) {
+            console.error('CSRF token not found');
+            return;
+        }
+        
         const formData = new FormData();
         formData.append('telefono', telefono);
         formData.append('mensaje', mensaje);
-        formData.append('csrfmiddlewaretoken', document.querySelector('[name=csrfmiddlewaretoken]').value);
+        formData.append('csrfmiddlewaretoken', csrfToken.value);
         
         fetch('{% url "enviar_mensaje_individual" %}', {
             method: 'POST',
