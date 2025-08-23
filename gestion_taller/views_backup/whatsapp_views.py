@@ -102,8 +102,8 @@ def enviar_mensaje_individual(request):
                     conductor = Conductor.objects.get(id=conductor_id, cliente=cliente)
                     datos['conductor_nombre'] = conductor.nombre
                     datos['conductor_telefono'] = conductor.telefono
-                    if conductor.vehiculo_set.exists():
-                        vehiculo = conductor.vehiculo_set.first()
+                    if conductor.vehiculos.exists():
+                        vehiculo = conductor.vehiculos.first()
                         datos['vehiculo_placa'] = vehiculo.placa
                         datos['vehiculo_marca'] = vehiculo.marca
                         datos['vehiculo_modelo'] = vehiculo.modelo
@@ -231,8 +231,8 @@ def enviar_mensaje_masivo(request):
                     'conductor_telefono': conductor.telefono,
                 }
                 
-                if conductor.vehiculo_set.exists():
-                    vehiculo = conductor.vehiculo_set.first()
+                if conductor.vehiculos.exists():
+                    vehiculo = conductor.vehiculos.first()
                     datos.update({
                         'vehiculo_placa': vehiculo.placa,
                         'vehiculo_marca': vehiculo.marca,

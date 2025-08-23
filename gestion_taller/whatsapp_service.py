@@ -267,7 +267,7 @@ Tu cita ha sido agendada exitosamente:
 
 🗓️ *Fecha:* {fecha_formateada}
 🔧 *Servicio:* {servicio}
-🚗 *Vehículo:* {conductor.vehiculo_set.first().marca if conductor.vehiculo_set.exists() else 'Por confirmar'}
+🚗 *Vehículo:* {conductor.vehiculos.first().marca if conductor.vehiculos.exists() else 'Por confirmar'}
 
 📍 *Ubicación:* [Dirección del Taller]
 📞 *Teléfono:* [Número del Taller]
