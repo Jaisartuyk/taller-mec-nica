@@ -44,6 +44,7 @@
 {% endblock %}
 
 {% block content %}
+{% csrf_token %}
 <div class="container-fluid">
     <!-- Header -->
     <div class="row mb-4">
@@ -86,7 +87,7 @@
                         </div>
                         <div class="flex-grow-1">
                             <h5 class="card-title mb-1">WhatsApp</h5>
-                            <p class="card-text mb-0">
+                            <p class="card-text mb-2">
                                 {% if whatsapp_enabled %}
                                     <span class="badge bg-success">Activo</span>
                                     <small class="text-muted ms-2">{{ whatsapp_number|default:"Sin número configurado" }}</small>
@@ -95,6 +96,11 @@
                                     <small class="text-muted ms-2">Token API no configurado</small>
                                 {% endif %}
                             </p>
+                            {% if whatsapp_enabled %}
+                            <button id="testConnectionBtn" class="btn btn-outline-success btn-sm">
+                                <i class="fas fa-plug me-1"></i> Probar Conexión
+                            </button>
+                            {% endif %}
                         </div>
                     </div>
                 </div>
