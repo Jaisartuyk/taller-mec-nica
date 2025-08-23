@@ -198,7 +198,7 @@
         <h3>RESUMEN FINANCIERO</h3>
         <p><strong>Total de la Orden:</strong> ${{ orden.total|floatformat:2 }}</p>
         <p><strong>Total Pagado:</strong> ${{ total_pagado|floatformat:2 }}</p>
-        <p><strong>Saldo Pendiente:</strong> ${{ orden.total|add:total_pagado|floatformat:2 }}</p>
+
         <p><strong>Estado de Pago:</strong> 
             {% if orden.pagada %}
                 <span style="color: green;">✅ PAGADA</span>

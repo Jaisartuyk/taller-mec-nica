@@ -115,7 +115,61 @@ class Repuesto(models.Model):
     stock = models.PositiveIntegerField(default=0)
     stock_minimo = models.PositiveIntegerField(default=5)
     proveedor = models.CharField(max_length=100, blank=True)
+    
+    # Configuración de IVA específica del producto
+    aplicar_iva_producto = models.BooleanField(
+        null=True, 
+        blank=True, 
+        help_text="Override: aplicar IVA a este producto (None = usar configuración del taller)"
+    )
+    porcentaje_iva_producto = models.DecimalField(
+        max_digits=5, 
+        decimal_places=2, 
+        null=True, 
+        blank=True, 
+        help_text="Override: porcentaje IVA específico para este producto"
+    )
+    
     fecha_creacion = models.DateTimeField(auto_now_add=True)
+    
+    def get_aplicar_iva(self):
+        """Determina si se debe aplicar IVA a este producto"""
+        if self.aplicar_iva_producto is not None:
+            return self.aplicar_iva_producto
+        return self.cliente.configuracion.aplicar_iva if self.cliente.configuracion else False
+    
+    def get_porcentaje_iva(self):
+        """Obtiene el porcentaje de IVA a aplicar"""
+        if self.porcentaje_iva_producto is not None:
+            return self.porcentaje_iva_producto
+        return self.cliente.configuracion.porcentaje_iva if self.cliente.configuracion else 0
+    
+    def get_precio_sin_iva(self):
+        """Calcula el precio sin IVA"""
+        if not self.get_aplicar_iva():
+            return self.precio_venta
+        
+        config = self.cliente.configuracion
+        if config and config.precios_incluyen_iva:
+            # Si los precios incluyen IVA, calculamos el precio base
+            porcentaje = self.get_porcentaje_iva()
+            return self.precio_venta / (1 + porcentaje / 100)
+        else:
+            # Si los precios no incluyen IVA, el precio actual es el base
+            return self.precio_venta
+    
+    def get_valor_iva(self):
+        """Calcula el valor del IVA"""
+        if not self.get_aplicar_iva():
+            return 0
+        
+        precio_sin_iva = self.get_precio_sin_iva()
+        porcentaje = self.get_porcentaje_iva()
+        return precio_sin_iva * (porcentaje / 100)
+    
+    def get_precio_con_iva(self):
+        """Calcula el precio final con IVA"""
+        return self.get_precio_sin_iva() + self.get_valor_iva()
     
     def __str__(self):
         return f"{self.nombre} ({self.codigo or 'Sin código'})"
@@ -238,12 +292,66 @@ class ServicioCatalogo(models.Model):
     frecuencia_meses = models.PositiveIntegerField(blank=True, null=True, help_text="Frecuencia recomendada en meses")
     productos_requeridos = models.ManyToManyField('Repuesto', blank=True, related_name='servicios_catalogo')
     activo = models.BooleanField(default=True)
+    
+    # Configuración de IVA específica del servicio
+    aplicar_iva_servicio = models.BooleanField(
+        null=True, 
+        blank=True, 
+        help_text="Override: aplicar IVA a este servicio (None = usar configuración del taller)"
+    )
+    porcentaje_iva_servicio = models.DecimalField(
+        max_digits=5, 
+        decimal_places=2, 
+        null=True, 
+        blank=True, 
+        help_text="Override: porcentaje IVA específico para este servicio"
+    )
+    
     fecha_creacion = models.DateTimeField(default=timezone.now)
     
     class Meta:
         verbose_name = 'Servicio del Catálogo'
         verbose_name_plural = 'Servicios del Catálogo'
         ordering = ['nombre']
+    
+    def get_aplicar_iva(self):
+        """Determina si se debe aplicar IVA a este servicio"""
+        if self.aplicar_iva_servicio is not None:
+            return self.aplicar_iva_servicio
+        return self.cliente.configuracion.aplicar_iva if self.cliente.configuracion else False
+    
+    def get_porcentaje_iva(self):
+        """Obtiene el porcentaje de IVA a aplicar"""
+        if self.porcentaje_iva_servicio is not None:
+            return self.porcentaje_iva_servicio
+        return self.cliente.configuracion.porcentaje_iva if self.cliente.configuracion else 0
+    
+    def get_precio_sin_iva(self):
+        """Calcula el precio sin IVA"""
+        if not self.get_aplicar_iva():
+            return self.precio_base
+        
+        config = self.cliente.configuracion
+        if config and config.precios_incluyen_iva:
+            # Si los precios incluyen IVA, calculamos el precio base
+            porcentaje = self.get_porcentaje_iva()
+            return self.precio_base / (1 + porcentaje / 100)
+        else:
+            # Si los precios no incluyen IVA, el precio actual es el base
+            return self.precio_base
+    
+    def get_valor_iva(self):
+        """Calcula el valor del IVA"""
+        if not self.get_aplicar_iva():
+            return 0
+        
+        precio_sin_iva = self.get_precio_sin_iva()
+        porcentaje = self.get_porcentaje_iva()
+        return precio_sin_iva * (porcentaje / 100)
+    
+    def get_precio_con_iva(self):
+        """Calcula el precio final con IVA"""
+        return self.get_precio_sin_iva() + self.get_valor_iva()
     
     def __str__(self):
         return f"{self.nombre} - {self.cliente.nombre}"
@@ -528,7 +636,23 @@ class ConfiguracionTaller(models.Model):
     activo = models.BooleanField(default=True)
     es_principal = models.BooleanField(default=False, help_text="Taller principal por defecto")
     
-    # Metadatos
+    # Configuración de IVA
+    aplicar_iva = models.BooleanField(default=False, help_text="Habilitar cálculo de IVA en este taller")
+    porcentaje_iva = models.DecimalField(
+        max_digits=5, 
+        decimal_places=2, 
+        default=15.00, 
+        help_text="Porcentaje de IVA (ej: 15.00 para 15%)"
+    )
+    precios_incluyen_iva = models.BooleanField(
+        default=False, 
+        help_text="Los precios actuales ya incluyen IVA"
+    )
+    mostrar_desglose_iva = models.BooleanField(
+        default=True, 
+        help_text="Mostrar desglose de IVA en PDFs y facturas"
+    )
+    
     fecha_creacion = models.DateTimeField(auto_now_add=True)
     fecha_actualizacion = models.DateTimeField(auto_now=True)
     
@@ -575,6 +699,22 @@ class ConfiguracionTaller(models.Model):
             return cls.objects.get(codigo=codigo, activo=True)
         except cls.DoesNotExist:
             return None
+    
+    def calcular_iva(self, precio_base):
+        """Calcula el valor del IVA para un precio base"""
+        if not self.aplicar_iva:
+            return 0
+        return precio_base * (self.porcentaje_iva / 100)
+    
+    def calcular_precio_con_iva(self, precio_base):
+        """Calcula el precio final incluyendo IVA"""
+        return precio_base + self.calcular_iva(precio_base)
+    
+    def calcular_precio_sin_iva(self, precio_con_iva):
+        """Calcula el precio base desde un precio que incluye IVA"""
+        if not self.aplicar_iva:
+            return precio_con_iva
+        return precio_con_iva / (1 + self.porcentaje_iva / 100)
     
     def save(self, *args, **kwargs):
         # Si se marca como principal, desmarcar otros
