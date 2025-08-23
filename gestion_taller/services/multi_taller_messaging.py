@@ -5,7 +5,7 @@ Maneja mensajes personalizados para cada taller/sucursal
 import logging
 from django.conf import settings
 from ..models import Cliente, ConfiguracionTaller
-from ..whatsapp_service import WhatsAppService
+from gestion_taller.whatsapp_service import WhatsAppService
 # from ..telegram_service import TelegramService  # TODO: Implementar cuando esté disponible
 
 logger = logging.getLogger(__name__)
