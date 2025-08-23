@@ -28,10 +28,14 @@ class WhatsAppService:
             self.base_url = "https://api.wasender.com/v1"
             self.use_instance_id = True
         
+        # Configurar estado del servicio
+        self.is_configured = bool(self.api_token)
+        
         if not self.api_token:
-            raise ValueError("WASENDER_API_TOKEN no está configurado")
-        if self.use_instance_id and not self.instance_id:
-            raise ValueError("WASENDER_INSTANCE_ID no está configurado para este proveedor")
+            logger.warning("WASENDER_API_TOKEN no está configurado. WhatsApp estará deshabilitado.")
+        elif self.use_instance_id and not self.instance_id:
+            logger.warning("WASENDER_INSTANCE_ID no está configurado para este proveedor. WhatsApp estará deshabilitado.")
+            self.is_configured = False
         
     def send_message(self, phone_number, message, message_type="text"):
         """
@@ -45,13 +49,9 @@ class WhatsAppService:
         Returns:
             dict: Respuesta de la API
         """
-        if not self.api_token:
-            logger.error("Token de WASender no configurado")
-            return {"success": False, "error": "Token no configurado"}
-        
-        if self.use_instance_id and not self.instance_id:
-            logger.error("Instance ID de WASender no configurado")
-            return {"success": False, "error": "Instance ID requerido"}
+        if not self.is_configured:
+            logger.warning("WhatsApp no está configurado. Mensaje no enviado.")
+            return {"success": False, "error": "WhatsApp no configurado"}
         
         # Limpiar número de teléfono
         phone_number = self._clean_phone_number(phone_number)
