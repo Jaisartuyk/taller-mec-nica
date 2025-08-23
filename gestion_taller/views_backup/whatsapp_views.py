@@ -20,15 +20,23 @@ from ..services.chatbot_service import ChatbotService
 from ..forms import ConfiguracionTallerForm
 
 
+def get_user_cliente_or_error(request):
+    """Obtiene el cliente asociado al usuario o retorna error de seguridad"""
+    cliente = Cliente.objects.filter(user=request.user).first()
+    if not cliente:
+        return None, 'No tienes un taller asociado. Contacta al administrador para configurar tu acceso.'
+    return cliente, None
+
+
 @login_required
 def whatsapp_dashboard(request):
     """Dashboard principal de WhatsApp con información del sistema"""
-    # Obtener información del cliente actual (basado en el usuario logueado)
+    # Obtener información del cliente actual - SOLO SU PROPIO TALLER
     try:
-        cliente = Cliente.objects.filter(user=request.user).first()
+        cliente, error_msg = get_user_cliente_or_error(request)
         if not cliente:
-            # Si no hay cliente asociado, usar el primer cliente disponible
-            cliente = Cliente.objects.first()
+            messages.error(request, error_msg)
+            return redirect('home')
         
         if cliente:
             messaging_service = MultiTallerMessagingService(cliente=cliente)
@@ -84,15 +92,12 @@ def enviar_mensaje_individual(request):
             tipo_mensaje = request.POST.get('tipo_mensaje')
             conductor_id = request.POST.get('conductor_id')
             
-            # Obtener cliente
-            cliente = Cliente.objects.filter(user=request.user).first()
-            if not cliente:
-                cliente = Cliente.objects.first()
-            
+            # Obtener cliente - SOLO SU PROPIO TALLER
+            cliente, error_msg = get_user_cliente_or_error(request)
             if not cliente:
                 return JsonResponse({
                     'success': False,
-                    'error': 'No hay clientes configurados'
+                    'error': error_msg
                 })
             
             # Inicializar servicio de mensajería
@@ -193,15 +198,12 @@ def enviar_mensaje_masivo(request):
             tipo_mensaje = request.POST.get('tipo_mensaje')
             conductores_ids = request.POST.getlist('conductores')
             
-            # Obtener cliente
-            cliente = Cliente.objects.filter(user=request.user).first()
-            if not cliente:
-                cliente = Cliente.objects.first()
-            
+            # Obtener cliente - SOLO SU PROPIO TALLER
+            cliente, error_msg = get_user_cliente_or_error(request)
             if not cliente:
                 return JsonResponse({
                     'success': False,
-                    'error': 'No hay clientes configurados'
+                    'error': error_msg
                 })
             
             # Inicializar servicio de mensajería
@@ -432,17 +434,13 @@ def test_whatsapp_connection(request):
 def chatbot_dashboard(request):
     """Dashboard del chatbot de WhatsApp"""
     try:
-        # Buscar cliente asociado al usuario
+        # Buscar cliente asociado al usuario - SOLO SU PROPIO CLIENTE
         cliente = Cliente.objects.filter(user=request.user).first()
         
-        # Si no hay cliente, usar el primer cliente disponible (para desarrollo)
+        # Si no hay cliente asociado, denegar acceso por seguridad
         if not cliente:
-            cliente = Cliente.objects.first()
-            if not cliente:
-                messages.error(request, 'No hay clientes configurados en el sistema')
-                return redirect('whatsapp_dashboard')
-            else:
-                messages.warning(request, f'Usando cliente por defecto: {cliente.nombre}')
+            messages.error(request, 'No tienes un taller asociado. Contacta al administrador para configurar tu acceso.')
+            return redirect('home')  # Redirigir a home en lugar de whatsapp_dashboard
         
         # Verificar si el chatbot está habilitado
         messaging_service = MultiTallerMessagingService(cliente=cliente)

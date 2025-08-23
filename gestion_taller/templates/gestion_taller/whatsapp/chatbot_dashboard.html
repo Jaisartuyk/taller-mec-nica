@@ -1,4 +1,4 @@
-{% extends 'base.html' %}
+{% extends 'gestion_taller/base.html' %}
 {% load static %}
 
 {% block title %}Chatbot WhatsApp - {{ cliente.nombre }}{% endblock %}
@@ -403,7 +403,9 @@
     const sendButton = document.getElementById('send-message');
     const typingIndicator = document.getElementById('typing-indicator');
     const charCount = document.getElementById('char-count');
-    const clienteId = {{ cliente.id|default:1 }};
+    
+    // Cliente ID desde Django
+    const clienteId = parseInt('{{ cliente.id|default:1 }}');
 
     // Función para mostrar alertas
     function showAlert(message, type = 'info', icon = 'info-circle') {
