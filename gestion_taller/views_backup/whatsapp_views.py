@@ -306,16 +306,15 @@ def enviar_mensaje_masivo(request):
             })
     
     # GET request - mostrar formulario
-    cliente = Cliente.objects.filter(user=request.user).first()
+    cliente, error_msg = get_user_cliente_or_error(request)
     if not cliente:
-        cliente = Cliente.objects.first()
+        messages.error(request, error_msg)
+        return redirect('home')
     
-    conductores = []
-    if cliente:
-        conductores = Conductor.objects.filter(
-            cliente=cliente,
-            telefono__isnull=False
-        ).exclude(telefono='').order_by('nombre')
+    conductores = Conductor.objects.filter(
+        cliente=cliente,
+        telefono__isnull=False
+    ).exclude(telefono='').order_by('nombre')
     
     context = {
         'cliente': cliente,
@@ -335,12 +334,9 @@ def enviar_mensaje_masivo(request):
 @login_required
 def configuracion_whatsapp(request):
     """Vista para configurar WhatsApp del taller"""
-    cliente = Cliente.objects.filter(user=request.user).first()
+    cliente, error_msg = get_user_cliente_or_error(request)
     if not cliente:
-        cliente = Cliente.objects.first()
-    
-    if not cliente:
-        messages.error(request, 'No hay clientes configurados en el sistema')
+        messages.error(request, error_msg)
         return redirect('whatsapp_dashboard')
     
     # Obtener o crear configuración del taller
@@ -385,12 +381,9 @@ def configuracion_whatsapp(request):
 @login_required
 def api_conductores_whatsapp(request):
     """API para obtener conductores con teléfono para WhatsApp"""
-    cliente = Cliente.objects.filter(user=request.user).first()
+    cliente, error_msg = get_user_cliente_or_error(request)
     if not cliente:
-        cliente = Cliente.objects.first()
-    
-    if not cliente:
-        return JsonResponse({'conductores': []})
+        return JsonResponse({'conductores': [], 'error': error_msg})
     
     conductores = Conductor.objects.filter(
         cliente=cliente,
@@ -407,11 +400,11 @@ def api_conductores_whatsapp(request):
 def test_whatsapp_connection(request):
     """Prueba la conexión de WhatsApp"""
     try:
-        cliente = Cliente.objects.filter(user=request.user).first()
+        cliente, error_msg = get_user_cliente_or_error(request)
         if not cliente:
             return JsonResponse({
                 'success': False,
-                'error': 'Cliente no encontrado'
+                'error': error_msg
             })
         
         messaging_service = MultiTallerMessagingService(cliente=cliente)
@@ -443,12 +436,12 @@ def test_whatsapp_connection(request):
 def chatbot_dashboard(request):
     """Dashboard del chatbot de WhatsApp"""
     try:
-        # Buscar cliente asociado al usuario - SOLO SU PROPIO CLIENTE
-        cliente = Cliente.objects.filter(user=request.user).first()
+        # Obtener cliente asociado usando PerfilUsuario - SOLO SU PROPIO CLIENTE
+        cliente, error_msg = get_user_cliente_or_error(request)
         
         # Si no hay cliente asociado, denegar acceso por seguridad
         if not cliente:
-            messages.error(request, 'No tienes un taller asociado. Contacta al administrador para configurar tu acceso.')
+            messages.error(request, error_msg)
             return redirect('home')  # Redirigir a home en lugar de whatsapp_dashboard
         
         # Verificar si el chatbot está habilitado
