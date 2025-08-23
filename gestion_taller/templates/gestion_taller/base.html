@@ -8,11 +8,40 @@
     <meta name="generator" content="Django">
     <title>{% block title %}Taller Mecánica{% endblock %}</title>
     
-    <!-- Favicon -->
+    <!-- PWA Meta Tags -->
+    <meta name="theme-color" content="#007bff">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="default">
+    <meta name="apple-mobile-web-app-title" content="Taller Mecánica">
+    <meta name="mobile-web-app-capable" content="yes">
+    <meta name="msapplication-TileColor" content="#007bff">
+    <meta name="msapplication-tap-highlight" content="no">
+    
+    <!-- PWA Manifest -->
     {% load static %}
+    <link rel="manifest" href="{% static 'manifest.json' %}">
+    
+    <!-- PWA Icons - Logo Corporativo IQAutoEC -->
+    <link rel="icon" type="image/png" sizes="72x72" href="{% static 'img/IQAutoEC.png' %}">
+    <link rel="icon" type="image/png" sizes="96x96" href="{% static 'img/IQAutoEC.png' %}">
+    <link rel="icon" type="image/png" sizes="128x128" href="{% static 'img/IQAutoEC.png' %}">
+    <link rel="icon" type="image/png" sizes="144x144" href="{% static 'img/IQAutoEC.png' %}">
+    <link rel="icon" type="image/png" sizes="152x152" href="{% static 'img/IQAutoEC.png' %}">
+    <link rel="icon" type="image/png" sizes="192x192" href="{% static 'img/IQAutoEC.png' %}">
+    <link rel="icon" type="image/png" sizes="384x384" href="{% static 'img/IQAutoEC.png' %}">
+    <link rel="icon" type="image/png" sizes="512x512" href="{% static 'img/IQAutoEC.png' %}">
+    
+    <!-- Apple Touch Icons - Logo Corporativo -->
+    <link rel="apple-touch-icon" sizes="72x72" href="{% static 'img/IQAutoEC.png' %}">
+    <link rel="apple-touch-icon" sizes="96x96" href="{% static 'img/IQAutoEC.png' %}">
+    <link rel="apple-touch-icon" sizes="128x128" href="{% static 'img/IQAutoEC.png' %}">
+    <link rel="apple-touch-icon" sizes="144x144" href="{% static 'img/IQAutoEC.png' %}">
+    <link rel="apple-touch-icon" sizes="152x152" href="{% static 'img/IQAutoEC.png' %}">
+    <link rel="apple-touch-icon" sizes="192x192" href="{% static 'img/IQAutoEC.png' %}">
+    
+    <!-- Fallback Favicon -->
     <link rel="icon" type="image/svg+xml" href="{% static 'img/IQAutoEC.png' %}">
     <link rel="shortcut icon" href="{% static 'img/IQAutoEC.png' %}">
-    <link rel="apple-touch-icon" href="{% static 'img/IQAutoEC.png' %}">
     <!-- Cargar HTMX en el head para que esté disponible globalmente -->
     <script src="https://unpkg.com/htmx.org@1.9.6"></script>
     <style>
@@ -354,6 +383,147 @@ document.addEventListener('DOMContentLoaded', function() {
             indicator.style.display = 'none';
         });
     });
+});
+</script>
+
+<!-- PWA Service Worker Registration -->
+<script>
+// Registrar Service Worker para PWA
+if ('serviceWorker' in navigator) {
+    window.addEventListener('load', function() {
+        navigator.serviceWorker.register('/static/sw.js')
+            .then(function(registration) {
+                console.log('🎉 Service Worker registrado exitosamente:', registration.scope);
+                
+                // Verificar actualizaciones
+                registration.addEventListener('updatefound', function() {
+                    console.log('🔄 Nueva versión del Service Worker disponible');
+                    const newWorker = registration.installing;
+                    
+                    newWorker.addEventListener('statechange', function() {
+                        if (newWorker.state === 'installed' && navigator.serviceWorker.controller) {
+                            console.log('✨ Nueva versión instalada, recarga para actualizar');
+                            
+                            // Mostrar notificación de actualización disponible
+                            if (typeof showAlert === 'function') {
+                                showAlert(
+                                    'Nueva versión disponible. Recarga la página para actualizar.',
+                                    'info',
+                                    'info-circle'
+                                );
+                            }
+                        }
+                    });
+                });
+            })
+            .catch(function(error) {
+                console.error('❌ Error registrando Service Worker:', error);
+            });
+    });
+} else {
+    console.log('⚠️ Service Workers no soportados en este navegador');
+}
+
+// Detectar si la app está siendo ejecutada como PWA
+function isPWA() {
+    return window.matchMedia('(display-mode: standalone)').matches || 
+           window.navigator.standalone === true;
+}
+
+// Mostrar estado PWA
+if (isPWA()) {
+    console.log('📱 Ejecutándose como PWA (Progressive Web App)');
+    document.body.classList.add('pwa-mode');
+} else {
+    console.log('🌐 Ejecutándose en navegador web');
+}
+
+// Manejar instalación de PWA
+let deferredPrompt;
+
+window.addEventListener('beforeinstallprompt', function(e) {
+    console.log('💾 PWA puede ser instalada');
+    
+    // Prevenir que Chrome 67 y anteriores muestren automáticamente el prompt
+    e.preventDefault();
+    
+    // Guardar el evento para poder dispararlo más tarde
+    deferredPrompt = e;
+    
+    // Mostrar botón de instalación personalizado (opcional)
+    showInstallButton();
+});
+
+// Función para mostrar botón de instalación
+function showInstallButton() {
+    // Solo mostrar si no está ya instalado
+    if (!isPWA()) {
+        console.log('🔽 Mostrando opción de instalación PWA');
+        
+        // Crear botón de instalación si no existe
+        if (!document.getElementById('pwa-install-btn')) {
+            const installBtn = document.createElement('button');
+            installBtn.id = 'pwa-install-btn';
+            installBtn.className = 'btn btn-primary btn-sm position-fixed';
+            installBtn.style.cssText = 'bottom: 20px; right: 20px; z-index: 1050; border-radius: 50px;';
+            installBtn.innerHTML = '<i class="fas fa-download me-1"></i>Instalar App';
+            installBtn.title = 'Instalar como aplicación';
+            
+            installBtn.addEventListener('click', installPWA);
+            document.body.appendChild(installBtn);
+            
+            // Auto-ocultar después de 10 segundos
+            setTimeout(() => {
+                if (installBtn.parentNode) {
+                    installBtn.remove();
+                }
+            }, 10000);
+        }
+    }
+}
+
+// Función para instalar PWA
+function installPWA() {
+    if (deferredPrompt) {
+        // Mostrar el prompt de instalación
+        deferredPrompt.prompt();
+        
+        // Esperar a que el usuario responda al prompt
+        deferredPrompt.userChoice.then(function(choiceResult) {
+            if (choiceResult.outcome === 'accepted') {
+                console.log('✅ Usuario aceptó instalar la PWA');
+            } else {
+                console.log('❌ Usuario rechazó instalar la PWA');
+            }
+            deferredPrompt = null;
+        });
+        
+        // Ocultar botón de instalación
+        const installBtn = document.getElementById('pwa-install-btn');
+        if (installBtn) {
+            installBtn.remove();
+        }
+    }
+}
+
+// Detectar cuando la PWA es instalada
+window.addEventListener('appinstalled', function(evt) {
+    console.log('🎉 PWA instalada exitosamente');
+    
+    // Mostrar mensaje de éxito
+    if (typeof showAlert === 'function') {
+        showAlert(
+            '¡Aplicación instalada exitosamente! Ya puedes acceder desde tu escritorio.',
+            'success',
+            'check-circle'
+        );
+    }
+    
+    // Ocultar botón de instalación si existe
+    const installBtn = document.getElementById('pwa-install-btn');
+    if (installBtn) {
+        installBtn.remove();
+    }
 });
 </script>
 
