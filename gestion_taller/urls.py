@@ -12,7 +12,7 @@ from .views_backup.whatsapp_views import (
 
 # Importar vistas del Chatbot
 from .views_backup.chatbot_views import (
-    whatsapp_webhook, chatbot_test, ChatbotStatsView, chatbot_config
+    whatsapp_webhook, whatsapp_webhook_test, chatbot_test, ChatbotStatsView, chatbot_config
 )
 
 urlpatterns = [
@@ -81,6 +81,7 @@ urlpatterns += [
     # URLs para Chatbot
     path('whatsapp/chatbot/', chatbot_dashboard, name='chatbot_dashboard'),
     path('webhook/whatsapp/', whatsapp_webhook, name='whatsapp_webhook'),
+    path('webhook/whatsapp/test/', whatsapp_webhook_test, name='whatsapp_webhook_test'),
     path('api/chatbot/test/', chatbot_test, name='chatbot_test'),
     path('api/chatbot/stats/', ChatbotStatsView.as_view(), name='chatbot_stats'),
     path('api/chatbot/config/', chatbot_config, name='chatbot_config'),

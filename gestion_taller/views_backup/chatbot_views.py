@@ -30,6 +30,17 @@ def whatsapp_webhook(request):
         return process_incoming_message(request)
 
 
+@csrf_exempt
+def whatsapp_webhook_test(request):
+    """Endpoint simple para probar conectividad del webhook"""
+    return JsonResponse({
+        'status': 'ok',
+        'method': request.method,
+        'timestamp': timezone.now().isoformat(),
+        'message': 'Webhook test endpoint funcionando'
+    })
+
+
 def verify_webhook(request):
     """Verifica el webhook de WhatsApp (para configuración inicial)"""
     # Token de verificación (configurar en settings)
@@ -50,9 +61,15 @@ def verify_webhook(request):
 def process_incoming_message(request):
     """Procesa mensajes entrantes de WhatsApp"""
     try:
+        # DEBUG: Log del request completo
+        print(f"DEBUG WEBHOOK - Method: {request.method}")
+        print(f"DEBUG WEBHOOK - Headers: {dict(request.headers)}")
+        print(f"DEBUG WEBHOOK - Body: {request.body.decode('utf-8')}")
+        
         # Parsear datos del webhook
         data = json.loads(request.body)
         logger.info(f"Mensaje recibido: {data}")
+        print(f"DEBUG WEBHOOK - Parsed data: {data}")
         
         # Extraer información del mensaje
         message_data = extract_message_data(data)
