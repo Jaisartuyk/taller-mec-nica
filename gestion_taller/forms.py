@@ -1,6 +1,6 @@
 from django import forms
 from django.core.exceptions import ValidationError
-from .models import Vehiculo, Repuesto, Conductor, Cliente, PreguntaFrecuente, DetalleServicio, OrdenServicio, ServicioCatalogo
+from .models import Vehiculo, Repuesto, Conductor, Cliente, PreguntaFrecuente, DetalleServicio, OrdenServicio, ServicioCatalogo, ConfiguracionTaller
 
 class KilometrajeWidget(forms.NumberInput):
     """Widget personalizado para manejar kilometraje con formato de miles"""
@@ -376,3 +376,88 @@ class ServicioCatalogoForm(forms.ModelForm):
             servicio.save()
             self.save_m2m()  # Guardar relaciones many-to-many
         return servicio
+
+
+# --- Formulario para Configuración de Taller (WhatsApp) ---
+class ConfiguracionTallerForm(forms.ModelForm):
+    class Meta:
+        model = ConfiguracionTaller
+        fields = [
+            'nombre_taller', 'telefono_principal', 'telefono_whatsapp', 
+            'email', 'direccion', 'horarios_atencion', 'usar_whatsapp', 
+            'usar_telegram'
+        ]
+        widgets = {
+            'nombre_taller': forms.TextInput(attrs={
+                'class': 'form-control',
+                'placeholder': 'Nombre del taller'
+            }),
+            'telefono_principal': forms.TextInput(attrs={
+                'class': 'form-control',
+                'placeholder': 'Ej: 0968192046'
+            }),
+            'telefono_whatsapp': forms.TextInput(attrs={
+                'class': 'form-control',
+                'placeholder': 'Número para WhatsApp (opcional)'
+            }),
+            'email': forms.EmailInput(attrs={
+                'class': 'form-control',
+                'placeholder': 'correo@taller.com'
+            }),
+            'direccion': forms.Textarea(attrs={
+                'class': 'form-control',
+                'rows': 3,
+                'placeholder': 'Dirección completa del taller'
+            }),
+            'horarios_atencion': forms.TextInput(attrs={
+                'class': 'form-control',
+                'placeholder': 'Ej: Lun-Vie 8AM-6PM, Sáb 8AM-2PM'
+            }),
+            'usar_whatsapp': forms.CheckboxInput(attrs={
+                'class': 'form-check-input'
+            }),
+            'usar_telegram': forms.CheckboxInput(attrs={
+                'class': 'form-check-input'
+            }),
+        }
+        labels = {
+            'nombre_taller': 'Nombre del Taller',
+            'telefono_principal': 'Teléfono Principal',
+            'telefono_whatsapp': 'Teléfono WhatsApp',
+            'email': 'Correo Electrónico',
+            'direccion': 'Dirección',
+            'horarios_atencion': 'Horarios de Atención',
+            'usar_whatsapp': 'Habilitar WhatsApp',
+            'usar_telegram': 'Habilitar Telegram',
+        }
+        help_texts = {
+            'telefono_whatsapp': 'Si no se especifica, se usará el teléfono principal',
+            'usar_whatsapp': 'Activar para enviar mensajes por WhatsApp',
+            'usar_telegram': 'Activar para enviar mensajes por Telegram (próximamente)',
+        }
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        
+        # Hacer algunos campos opcionales
+        self.fields['telefono_whatsapp'].required = False
+        self.fields['direccion'].required = False
+        self.fields['horarios_atencion'].required = False
+        
+    def clean_telefono_principal(self):
+        telefono = self.cleaned_data.get('telefono_principal')
+        if telefono:
+            # Remover espacios y caracteres especiales
+            telefono = ''.join(filter(str.isdigit, telefono))
+            if len(telefono) < 7:
+                raise ValidationError('El teléfono debe tener al menos 7 dígitos')
+        return telefono
+    
+    def clean_telefono_whatsapp(self):
+        telefono = self.cleaned_data.get('telefono_whatsapp')
+        if telefono:
+            # Remover espacios y caracteres especiales
+            telefono = ''.join(filter(str.isdigit, telefono))
+            if len(telefono) < 7:
+                raise ValidationError('El teléfono WhatsApp debe tener al menos 7 dígitos')
+        return telefono

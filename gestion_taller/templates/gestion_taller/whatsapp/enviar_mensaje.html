@@ -1,0 +1,406 @@
+{% extends 'gestion_taller/base.html' %}
+{% load static %}
+
+{% block title %}Enviar Mensaje Individual - {{ block.super }}{% endblock %}
+
+{% block extra_css %}
+<style>
+    .btn-whatsapp {
+        background-color: #25D366;
+        border-color: #25D366;
+        color: white;
+    }
+    .btn-whatsapp:hover {
+        background-color: #128C7E;
+        border-color: #128C7E;
+        color: white;
+    }
+    .conductor-card {
+        cursor: pointer;
+        transition: all 0.3s ease;
+        border: 2px solid transparent;
+    }
+    .conductor-card:hover {
+        border-color: #25D366;
+        transform: translateY(-2px);
+        box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+    }
+    .conductor-card.selected {
+        border-color: #25D366;
+        background-color: #f8f9fa;
+    }
+    .mensaje-preview {
+        background-color: #e3f2fd;
+        border-left: 4px solid #2196f3;
+        padding: 15px;
+        margin-top: 15px;
+        border-radius: 4px;
+    }
+    .char-counter {
+        font-size: 0.875rem;
+        color: #6c757d;
+    }
+    .char-counter.warning {
+        color: #fd7e14;
+    }
+    .char-counter.danger {
+        color: #dc3545;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <!-- Header -->
+    <div class="row mb-4">
+        <div class="col-12">
+            <div class="d-flex justify-content-between align-items-center">
+                <div>
+                    <h1 class="h3 mb-0">
+                        <i class="fas fa-paper-plane text-success me-2"></i>
+                        Enviar Mensaje Individual
+                    </h1>
+                    <p class="text-muted mb-0">Envía mensajes personalizados por WhatsApp</p>
+                </div>
+                <div>
+                    <a href="{% url 'whatsapp_dashboard' %}" class="btn btn-outline-secondary">
+                        <i class="fas fa-arrow-left"></i> Volver al Dashboard
+                    </a>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="row">
+        <!-- Formulario -->
+        <div class="col-lg-8">
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="mb-0">
+                        <i class="fab fa-whatsapp me-2"></i>
+                        Nuevo Mensaje
+                    </h5>
+                </div>
+                <div class="card-body">
+                    <form id="mensajeForm">
+                        {% csrf_token %}
+                        
+                        <!-- Selección de Conductor -->
+                        <div class="mb-3">
+                            <label class="form-label">Destinatario</label>
+                            <div class="row">
+                                <div class="col-md-8">
+                                    <input type="text" class="form-control" id="telefono" name="telefono" 
+                                           placeholder="Número de teléfono (ej: +593968192046)" required>
+                                    <div class="form-text">Incluye el código de país (ej: +593 para Ecuador)</div>
+                                </div>
+                                <div class="col-md-4">
+                                    <button type="button" class="btn btn-outline-primary w-100" id="selectConductorBtn">
+                                        <i class="fas fa-address-book"></i> Seleccionar Conductor
+                                    </button>
+                                </div>
+                            </div>
+                            <input type="hidden" id="conductor_id" name="conductor_id">
+                        </div>
+
+                        <!-- Tipo de Mensaje -->
+                        <div class="mb-3">
+                            <label class="form-label">Tipo de Mensaje</label>
+                            <div class="row">
+                                <div class="col-md-6">
+                                    <div class="form-check">
+                                        <input class="form-check-input" type="radio" name="mensaje_tipo" 
+                                               id="tipo_personalizado" value="personalizado" checked>
+                                        <label class="form-check-label" for="tipo_personalizado">
+                                            <i class="fas fa-edit me-1"></i> Mensaje Personalizado
+                                        </label>
+                                    </div>
+                                </div>
+                                <div class="col-md-6">
+                                    <div class="form-check">
+                                        <input class="form-check-input" type="radio" name="mensaje_tipo" 
+                                               id="tipo_plantilla" value="plantilla">
+                                        <label class="form-check-label" for="tipo_plantilla">
+                                            <i class="fas fa-file-alt me-1"></i> Usar Plantilla
+                                        </label>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Mensaje Personalizado -->
+                        <div class="mb-3" id="mensaje_personalizado_div">
+                            <label for="mensaje" class="form-label">Mensaje</label>
+                            <textarea class="form-control" id="mensaje" name="mensaje" rows="4" 
+                                      placeholder="Escribe tu mensaje aquí..." maxlength="1000"></textarea>
+                            <div class="d-flex justify-content-between">
+                                <div class="form-text">Máximo 1000 caracteres</div>
+                                <div class="char-counter" id="charCounter">0/1000</div>
+                            </div>
+                        </div>
+
+                        <!-- Plantillas -->
+                        <div class="mb-3" id="plantillas_div" style="display: none;">
+                            <label for="tipo_mensaje" class="form-label">Seleccionar Plantilla</label>
+                            <select class="form-select" id="tipo_mensaje" name="tipo_mensaje">
+                                <option value="">Selecciona una plantilla...</option>
+                                {% for valor, nombre in tipos_mensaje %}
+                                <option value="{{ valor }}">{{ nombre }}</option>
+                                {% endfor %}
+                            </select>
+                        </div>
+
+                        <!-- Vista Previa -->
+                        <div id="mensaje_preview" class="mensaje-preview" style="display: none;">
+                            <h6><i class="fas fa-eye me-2"></i>Vista Previa del Mensaje:</h6>
+                            <div id="preview_content"></div>
+                        </div>
+
+                        <!-- Botones -->
+                        <div class="d-flex justify-content-end gap-2">
+                            <button type="button" class="btn btn-outline-secondary" id="previewBtn">
+                                <i class="fas fa-eye"></i> Vista Previa
+                            </button>
+                            <button type="submit" class="btn btn-whatsapp" id="enviarBtn">
+                                <i class="fab fa-whatsapp"></i> Enviar Mensaje
+                            </button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+
+        <!-- Lista de Conductores -->
+        <div class="col-lg-4">
+            <div class="card">
+                <div class="card-header">
+                    <h6 class="mb-0">
+                        <i class="fas fa-users me-2"></i>
+                        Conductores Disponibles ({{ conductores.count }})
+                    </h6>
+                </div>
+                <div class="card-body" style="max-height: 500px; overflow-y: auto;">
+                    {% if conductores %}
+                        {% for conductor in conductores %}
+                        <div class="conductor-card card mb-2" data-conductor-id="{{ conductor.id }}" 
+                             data-conductor-nombre="{{ conductor.nombre }}" 
+                             data-conductor-telefono="{{ conductor.telefono }}">
+                            <div class="card-body py-2">
+                                <div class="d-flex justify-content-between align-items-center">
+                                    <div>
+                                        <h6 class="mb-0">{{ conductor.nombre }}</h6>
+                                        <small class="text-muted">{{ conductor.telefono }}</small>
+                                    </div>
+                                    <div>
+                                        <i class="fab fa-whatsapp text-success"></i>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        {% endfor %}
+                    {% else %}
+                        <div class="text-center text-muted">
+                            <i class="fas fa-users fa-3x mb-3"></i>
+                            <p>No hay conductores con teléfono configurado</p>
+                        </div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Modal de Confirmación -->
+<div class="modal fade" id="confirmModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Confirmar Envío</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <p><strong>Destinatario:</strong> <span id="confirm_telefono"></span></p>
+                <p><strong>Mensaje:</strong></p>
+                <div class="border p-2 bg-light" id="confirm_mensaje"></div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+                <button type="button" class="btn btn-whatsapp" id="confirmSendBtn">
+                    <i class="fab fa-whatsapp"></i> Enviar Ahora
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const form = document.getElementById('mensajeForm');
+    const mensajeTextarea = document.getElementById('mensaje');
+    const charCounter = document.getElementById('charCounter');
+    const tipoPersonalizado = document.getElementById('tipo_personalizado');
+    const tipoPlantilla = document.getElementById('tipo_plantilla');
+    const mensajePersonalizadoDiv = document.getElementById('mensaje_personalizado_div');
+    const plantillasDiv = document.getElementById('plantillas_div');
+    const previewDiv = document.getElementById('mensaje_preview');
+    const previewContent = document.getElementById('preview_content');
+    
+    // Contador de caracteres
+    mensajeTextarea.addEventListener('input', function() {
+        const length = this.value.length;
+        charCounter.textContent = `${length}/1000`;
+        
+        if (length > 800) {
+            charCounter.className = 'char-counter danger';
+        } else if (length > 600) {
+            charCounter.className = 'char-counter warning';
+        } else {
+            charCounter.className = 'char-counter';
+        }
+    });
+    
+    // Cambio de tipo de mensaje
+    tipoPersonalizado.addEventListener('change', function() {
+        if (this.checked) {
+            mensajePersonalizadoDiv.style.display = 'block';
+            plantillasDiv.style.display = 'none';
+            previewDiv.style.display = 'none';
+        }
+    });
+    
+    tipoPlantilla.addEventListener('change', function() {
+        if (this.checked) {
+            mensajePersonalizadoDiv.style.display = 'none';
+            plantillasDiv.style.display = 'block';
+        }
+    });
+    
+    // Selección de conductor
+    document.querySelectorAll('.conductor-card').forEach(card => {
+        card.addEventListener('click', function() {
+            // Remover selección anterior
+            document.querySelectorAll('.conductor-card').forEach(c => c.classList.remove('selected'));
+            
+            // Seleccionar actual
+            this.classList.add('selected');
+            
+            // Llenar datos
+            document.getElementById('telefono').value = this.dataset.conductorTelefono;
+            document.getElementById('conductor_id').value = this.dataset.conductorId;
+        });
+    });
+    
+    // Vista previa
+    document.getElementById('previewBtn').addEventListener('click', function() {
+        const telefono = document.getElementById('telefono').value;
+        const mensaje = mensajeTextarea.value;
+        const tipoMensaje = document.getElementById('tipo_mensaje').value;
+        
+        if (!telefono) {
+            alert('Por favor ingresa un número de teléfono');
+            return;
+        }
+        
+        if (tipoPersonalizado.checked && !mensaje) {
+            alert('Por favor escribe un mensaje');
+            return;
+        }
+        
+        if (tipoPlantilla.checked && !tipoMensaje) {
+            alert('Por favor selecciona una plantilla');
+            return;
+        }
+        
+        let previewText = '';
+        if (tipoPersonalizado.checked) {
+            previewText = mensaje;
+        } else {
+            previewText = `Plantilla: ${tipoMensaje}`;
+        }
+        
+        previewContent.textContent = previewText;
+        previewDiv.style.display = 'block';
+    });
+    
+    // Envío del formulario
+    form.addEventListener('submit', function(e) {
+        e.preventDefault();
+        
+        const telefono = document.getElementById('telefono').value;
+        const mensaje = mensajeTextarea.value;
+        const tipoMensaje = document.getElementById('tipo_mensaje').value;
+        const conductorId = document.getElementById('conductor_id').value;
+        
+        if (!telefono) {
+            alert('Por favor ingresa un número de teléfono');
+            return;
+        }
+        
+        // Mostrar modal de confirmación
+        document.getElementById('confirm_telefono').textContent = telefono;
+        
+        let confirmMensaje = '';
+        if (tipoPersonalizado.checked) {
+            confirmMensaje = mensaje;
+        } else {
+            confirmMensaje = `Plantilla: ${tipoMensaje}`;
+        }
+        document.getElementById('confirm_mensaje').textContent = confirmMensaje;
+        
+        new bootstrap.Modal(document.getElementById('confirmModal')).show();
+    });
+    
+    // Confirmación de envío
+    document.getElementById('confirmSendBtn').addEventListener('click', function() {
+        const btn = this;
+        const originalText = btn.innerHTML;
+        
+        btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Enviando...';
+        btn.disabled = true;
+        
+        const formData = new FormData(form);
+        
+        fetch('{% url "enviar_mensaje_individual" %}', {
+            method: 'POST',
+            body: formData
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                // Cerrar modal
+                bootstrap.Modal.getInstance(document.getElementById('confirmModal')).hide();
+                
+                // Mostrar mensaje de éxito
+                const alert = document.createElement('div');
+                alert.className = 'alert alert-success alert-dismissible fade show';
+                alert.innerHTML = `
+                    <i class="fas fa-check-circle me-2"></i>
+                    ${data.message}
+                    <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+                `;
+                document.querySelector('.container-fluid').insertBefore(alert, document.querySelector('.row'));
+                
+                // Limpiar formulario
+                form.reset();
+                document.querySelectorAll('.conductor-card').forEach(c => c.classList.remove('selected'));
+                previewDiv.style.display = 'none';
+                charCounter.textContent = '0/1000';
+                charCounter.className = 'char-counter';
+            } else {
+                alert('Error: ' + data.error);
+            }
+        })
+        .catch(error => {
+            console.error('Error:', error);
+            alert('Error de conexión: ' + error.message);
+        })
+        .finally(() => {
+            btn.innerHTML = originalText;
+            btn.disabled = false;
+        });
+    });
+});
+</script>
+{% endblock %}

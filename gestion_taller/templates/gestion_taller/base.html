@@ -10,9 +10,9 @@
     
     <!-- Favicon -->
     {% load static %}
-    <link rel="icon" type="image/svg+xml" href="{% static 'img/favicon.svg' %}">
-    <link rel="shortcut icon" href="{% static 'img/favicon.svg' %}">
-    <link rel="apple-touch-icon" href="{% static 'img/favicon.svg' %}">
+    <link rel="icon" type="image/svg+xml" href="{% static 'img/IQAutoEC.png' %}">
+    <link rel="shortcut icon" href="{% static 'img/IQAutoEC.png' %}">
+    <link rel="apple-touch-icon" href="{% static 'img/IQAutoEC.png' %}">
     <!-- Cargar HTMX en el head para que esté disponible globalmente -->
     <script src="https://unpkg.com/htmx.org@1.9.6"></script>
     <style>
@@ -52,7 +52,7 @@
 <body>
 <nav class="navbar navbar-expand-lg navbar-dark bg-dark mb-4">
     <div class="container-fluid">
-        <a class="navbar-brand" href="/">Taller Mecánica</a>
+        <a class="navbar-brand" href="/">INICIO</a>
         
         <!-- Botón hamburguesa para móviles -->
         <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav" 
@@ -66,6 +66,11 @@
                 <li class="nav-item"><a class="nav-link" href="{% url 'vehiculos' %}">Vehículos</a></li>
                 <li class="nav-item"><a class="nav-link" href="{% url 'orden_servicio_listado' %}">Servicios</a></li>
                 <li class="nav-item"><a class="nav-link" href="{% url 'repuestos' %}">Repuestos</a></li>
+                <li class="nav-item">
+                    <a class="nav-link" href="{% url 'whatsapp_dashboard' %}">
+                        <i class="fab fa-whatsapp me-1"></i>WhatsApp
+                    </a>
+                </li>
             </ul>
             <ul class="navbar-nav ms-auto mb-2 mb-lg-0">
                 {% if user.is_authenticated %}

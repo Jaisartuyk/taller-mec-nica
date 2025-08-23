@@ -10,6 +10,15 @@ class Cliente(models.Model):
     correo = models.EmailField(blank=True, null=True)
     direccion = models.CharField(max_length=200, blank=True, null=True)
     logo = models.ImageField(upload_to='logos_taller/', blank=True, null=True, help_text="Logo del taller")
+    
+    # Configuración específica del taller
+    configuracion = models.OneToOneField(
+        'ConfiguracionTaller', 
+        on_delete=models.SET_NULL, 
+        null=True, 
+        blank=True, 
+        related_name='cliente_taller'
+    )
     def default_preferencias_notificacion():
         return {
             "canal": ["email"],  # opciones: "email", "web", "sms"
@@ -470,3 +479,106 @@ class Cita(models.Model):
     
     def __str__(self):
         return f"Interacción de {self.cliente} - {self.get_tipo_display()}"
+
+
+class ConfiguracionTaller(models.Model):
+    """Configuración específica para cada taller/sucursal"""
+    
+    # Información básica del taller
+    nombre = models.CharField(max_length=100, help_text="Nombre del taller")
+    codigo = models.CharField(max_length=20, unique=True, help_text="Código único del taller (ej: TALLER-001)")
+    
+    # Información de contacto
+    telefono_principal = models.CharField(
+        max_length=20,
+        help_text="Número principal del taller con código de país"
+    )
+    telefono_whatsapp = models.CharField(
+        max_length=20,
+        blank=True,
+        help_text="Número de WhatsApp (si es diferente al principal)"
+    )
+    email = models.EmailField(help_text="Email del taller")
+    website = models.URLField(blank=True, help_text="Sitio web del taller")
+    
+    # Dirección
+    direccion = models.TextField(help_text="Dirección completa del taller")
+    ciudad = models.CharField(max_length=50)
+    pais = models.CharField(max_length=50, default="Ecuador")
+    
+    # Horarios
+    horarios = models.TextField(
+        default="Lun-Vie 8AM-6PM, Sáb 8AM-2PM",
+        help_text="Horarios de atención"
+    )
+    
+    # Configuración de mensajería
+    usar_whatsapp = models.BooleanField(default=True)
+    usar_telegram = models.BooleanField(default=False)
+    usar_emojis = models.BooleanField(default=True)
+    incluir_firma = models.BooleanField(default=True)
+    
+    # Configuración de recordatorios
+    dias_recordatorio_mantenimiento = models.IntegerField(default=7)
+    dias_recordatorio_urgente = models.IntegerField(default=3)
+    hora_inicio_envios = models.TimeField(default="08:00")
+    hora_fin_envios = models.TimeField(default="18:00")
+    
+    # Estado
+    activo = models.BooleanField(default=True)
+    es_principal = models.BooleanField(default=False, help_text="Taller principal por defecto")
+    
+    # Metadatos
+    fecha_creacion = models.DateTimeField(auto_now_add=True)
+    fecha_actualizacion = models.DateTimeField(auto_now=True)
+    
+    class Meta:
+        verbose_name = "Configuración de Taller"
+        verbose_name_plural = "Configuraciones de Talleres"
+        ordering = ['nombre']
+    
+    def __str__(self):
+        return f"{self.nombre} ({self.codigo})"
+    
+    def get_telefono_whatsapp(self):
+        """Obtiene el número de WhatsApp a usar"""
+        return self.telefono_whatsapp if self.telefono_whatsapp else self.telefono_principal
+    
+    def get_firma_mensaje(self):
+        """Genera la firma para los mensajes"""
+        if not self.incluir_firma:
+            return ""
+        
+        firma = f"\n\n---\n🔧 {self.nombre}\n"
+        firma += f"📞 {self.telefono_principal}\n"
+        
+        if self.website:
+            firma += f"🌐 {self.website}\n"
+        
+        firma += f"📍 {self.direccion}\n"
+        firma += f"⏰ {self.horarios}"
+        
+        return firma
+    
+    @classmethod
+    def get_taller_principal(cls):
+        """Obtiene el taller marcado como principal"""
+        try:
+            return cls.objects.filter(es_principal=True, activo=True).first()
+        except cls.DoesNotExist:
+            return cls.objects.filter(activo=True).first()
+    
+    @classmethod
+    def get_taller_por_codigo(cls, codigo):
+        """Obtiene un taller por su código"""
+        try:
+            return cls.objects.get(codigo=codigo, activo=True)
+        except cls.DoesNotExist:
+            return None
+    
+    def save(self, *args, **kwargs):
+        # Si se marca como principal, desmarcar otros
+        if self.es_principal:
+            ConfiguracionTaller.objects.filter(es_principal=True).update(es_principal=False)
+        
+        super().save(*args, **kwargs)

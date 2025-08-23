@@ -12,6 +12,12 @@ from .views import (
     OrdenServicioListView, OrdenServicioCreateView, OrdenServicioDetailView, OrdenServicioCambiarEstadoView
 )
 
+# Importar vistas de WhatsApp
+from .views.whatsapp_views import (
+    whatsapp_dashboard, enviar_mensaje_individual, enviar_mensaje_masivo,
+    configuracion_whatsapp, api_conductores_whatsapp, test_whatsapp_connection
+)
+
 urlpatterns = [
     path('telegram_webhook/', views.telegram_webhook, name='telegram_webhook'),
     path('api/vincular-telegram/', vincular_telegram, name='vincular_telegram'),
@@ -63,5 +69,15 @@ urlpatterns = [
     # API para obtener kilometraje de vehículo
     path('api/vehiculo/kilometraje/', views.get_vehiculo_kilometraje, name='get_vehiculo_kilometraje'),
 
-    path('repuestos/editar/<int:pk>/', RepuestoUpdateView.as_view(), name='repuesto_update')
+    path('repuestos/editar/<int:pk>/', RepuestoUpdateView.as_view(), name='repuesto_update'),
+    
+    # URLs para WhatsApp
+    path('whatsapp/', whatsapp_dashboard, name='whatsapp_dashboard'),
+    path('whatsapp/enviar-individual/', enviar_mensaje_individual, name='enviar_mensaje_individual'),
+    path('whatsapp/enviar-masivo/', enviar_mensaje_masivo, name='enviar_mensaje_masivo'),
+    path('whatsapp/configuracion/', configuracion_whatsapp, name='configuracion_whatsapp'),
+    
+    # APIs para WhatsApp
+    path('api/whatsapp/conductores/', api_conductores_whatsapp, name='api_conductores_whatsapp'),
+    path('api/whatsapp/test-connection/', test_whatsapp_connection, name='test_whatsapp_connection'),
 ]

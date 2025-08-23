@@ -1,0 +1,428 @@
+{% extends 'gestion_taller/base.html' %}
+{% load static %}
+
+{% block title %}Configuración WhatsApp - {{ block.super }}{% endblock %}
+
+{% block extra_css %}
+<style>
+    .config-section {
+        border-left: 4px solid #25D366;
+        background-color: #f8f9fa;
+        padding: 1.5rem;
+        margin-bottom: 1.5rem;
+        border-radius: 0.375rem;
+    }
+    .btn-whatsapp {
+        background-color: #25D366;
+        border-color: #25D366;
+        color: white;
+    }
+    .btn-whatsapp:hover {
+        background-color: #128C7E;
+        border-color: #128C7E;
+        color: white;
+    }
+    .status-indicator {
+        display: inline-block;
+        width: 12px;
+        height: 12px;
+        border-radius: 50%;
+        margin-right: 8px;
+    }
+    .status-active {
+        background-color: #28a745;
+    }
+    .status-inactive {
+        background-color: #dc3545;
+    }
+    .help-section {
+        background-color: #e3f2fd;
+        border-left: 4px solid #2196f3;
+        padding: 1rem;
+        border-radius: 0.375rem;
+    }
+    .token-display {
+        font-family: 'Courier New', monospace;
+        background-color: #f8f9fa;
+        padding: 0.5rem;
+        border: 1px solid #dee2e6;
+        border-radius: 0.25rem;
+        word-break: break-all;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <!-- Header -->
+    <div class="row mb-4">
+        <div class="col-12">
+            <div class="d-flex justify-content-between align-items-center">
+                <div>
+                    <h1 class="h3 mb-0">
+                        <i class="fas fa-cog text-success me-2"></i>
+                        Configuración WhatsApp
+                    </h1>
+                    <p class="text-muted mb-0">Configura la integración de WhatsApp para tu taller</p>
+                </div>
+                <div>
+                    <a href="{% url 'whatsapp_dashboard' %}" class="btn btn-outline-secondary">
+                        <i class="fas fa-arrow-left"></i> Volver al Dashboard
+                    </a>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="row">
+        <!-- Formulario de Configuración -->
+        <div class="col-lg-8">
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="mb-0">
+                        <i class="fas fa-store me-2"></i>
+                        Información del Taller
+                    </h5>
+                </div>
+                <div class="card-body">
+                    <form method="post">
+                        {% csrf_token %}
+                        
+                        <div class="row">
+                            <div class="col-md-6">
+                                <div class="mb-3">
+                                    {{ form.nombre_taller.label_tag }}
+                                    {{ form.nombre_taller }}
+                                    {% if form.nombre_taller.help_text %}
+                                        <div class="form-text">{{ form.nombre_taller.help_text }}</div>
+                                    {% endif %}
+                                    {% if form.nombre_taller.errors %}
+                                        <div class="text-danger">{{ form.nombre_taller.errors.0 }}</div>
+                                    {% endif %}
+                                </div>
+                            </div>
+                            <div class="col-md-6">
+                                <div class="mb-3">
+                                    {{ form.email.label_tag }}
+                                    {{ form.email }}
+                                    {% if form.email.help_text %}
+                                        <div class="form-text">{{ form.email.help_text }}</div>
+                                    {% endif %}
+                                    {% if form.email.errors %}
+                                        <div class="text-danger">{{ form.email.errors.0 }}</div>
+                                    {% endif %}
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="row">
+                            <div class="col-md-6">
+                                <div class="mb-3">
+                                    {{ form.telefono_principal.label_tag }}
+                                    {{ form.telefono_principal }}
+                                    {% if form.telefono_principal.help_text %}
+                                        <div class="form-text">{{ form.telefono_principal.help_text }}</div>
+                                    {% endif %}
+                                    {% if form.telefono_principal.errors %}
+                                        <div class="text-danger">{{ form.telefono_principal.errors.0 }}</div>
+                                    {% endif %}
+                                </div>
+                            </div>
+                            <div class="col-md-6">
+                                <div class="mb-3">
+                                    {{ form.telefono_whatsapp.label_tag }}
+                                    {{ form.telefono_whatsapp }}
+                                    {% if form.telefono_whatsapp.help_text %}
+                                        <div class="form-text">{{ form.telefono_whatsapp.help_text }}</div>
+                                    {% endif %}
+                                    {% if form.telefono_whatsapp.errors %}
+                                        <div class="text-danger">{{ form.telefono_whatsapp.errors.0 }}</div>
+                                    {% endif %}
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="mb-3">
+                            {{ form.direccion.label_tag }}
+                            {{ form.direccion }}
+                            {% if form.direccion.help_text %}
+                                <div class="form-text">{{ form.direccion.help_text }}</div>
+                            {% endif %}
+                            {% if form.direccion.errors %}
+                                <div class="text-danger">{{ form.direccion.errors.0 }}</div>
+                            {% endif %}
+                        </div>
+
+                        <div class="mb-3">
+                            {{ form.horarios_atencion.label_tag }}
+                            {{ form.horarios_atencion }}
+                            {% if form.horarios_atencion.help_text %}
+                                <div class="form-text">{{ form.horarios_atencion.help_text }}</div>
+                            {% endif %}
+                            {% if form.horarios_atencion.errors %}
+                                <div class="text-danger">{{ form.horarios_atencion.errors.0 }}</div>
+                            {% endif %}
+                        </div>
+
+                        <!-- Configuración de Servicios -->
+                        <div class="config-section">
+                            <h6><i class="fas fa-toggle-on me-2"></i>Servicios de Mensajería</h6>
+                            
+                            <div class="row">
+                                <div class="col-md-6">
+                                    <div class="form-check form-switch">
+                                        {{ form.usar_whatsapp }}
+                                        {{ form.usar_whatsapp.label_tag }}
+                                        {% if form.usar_whatsapp.help_text %}
+                                            <div class="form-text">{{ form.usar_whatsapp.help_text }}</div>
+                                        {% endif %}
+                                    </div>
+                                </div>
+                                <div class="col-md-6">
+                                    <div class="form-check form-switch">
+                                        {{ form.usar_telegram }}
+                                        {{ form.usar_telegram.label_tag }}
+                                        {% if form.usar_telegram.help_text %}
+                                            <div class="form-text">{{ form.usar_telegram.help_text }}</div>
+                                        {% endif %}
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="d-flex justify-content-end gap-2">
+                            <button type="button" class="btn btn-outline-info" id="testConfigBtn">
+                                <i class="fas fa-vial"></i> Probar Configuración
+                            </button>
+                            <button type="submit" class="btn btn-whatsapp">
+                                <i class="fas fa-save"></i> Guardar Configuración
+                            </button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+
+        <!-- Panel de Estado y Ayuda -->
+        <div class="col-lg-4">
+            <!-- Estado Actual -->
+            <div class="card mb-4">
+                <div class="card-header">
+                    <h6 class="mb-0">
+                        <i class="fas fa-info-circle me-2"></i>
+                        Estado Actual
+                    </h6>
+                </div>
+                <div class="card-body">
+                    <div class="mb-3">
+                        <h6>WhatsApp</h6>
+                        <p class="mb-1">
+                            <span class="status-indicator {% if taller_config.usar_whatsapp %}status-active{% else %}status-inactive{% endif %}"></span>
+                            {% if taller_config.usar_whatsapp %}Habilitado{% else %}Deshabilitado{% endif %}
+                        </p>
+                        <small class="text-muted">
+                            Token API: 
+                            {% if 'WASENDER_API_TOKEN' in request.META or 'WASENDER_API_TOKEN' in request.session %}
+                                <span class="text-success">Configurado</span>
+                            {% else %}
+                                <span class="text-danger">No configurado</span>
+                            {% endif %}
+                        </small>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <h6>Telegram</h6>
+                        <p class="mb-1">
+                            <span class="status-indicator status-inactive"></span>
+                            Próximamente
+                        </p>
+                        <small class="text-muted">En desarrollo</small>
+                    </div>
+
+                    <div class="mb-3">
+                        <h6>Número WhatsApp Activo</h6>
+                        <p class="mb-0">
+                            {% if taller_config.telefono_whatsapp %}
+                                {{ taller_config.telefono_whatsapp }}
+                            {% elif taller_config.telefono_principal %}
+                                {{ taller_config.telefono_principal }} <small class="text-muted">(principal)</small>
+                            {% elif cliente.telefono %}
+                                {{ cliente.telefono }} <small class="text-muted">(cliente)</small>
+                            {% else %}
+                                <span class="text-warning">No configurado</span>
+                            {% endif %}
+                        </p>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Ayuda y Configuración -->
+            <div class="card">
+                <div class="card-header">
+                    <h6 class="mb-0">
+                        <i class="fas fa-question-circle me-2"></i>
+                        Ayuda y Configuración
+                    </h6>
+                </div>
+                <div class="card-body">
+                    <div class="help-section mb-3">
+                        <h6><i class="fas fa-key me-2"></i>Token API WhatsApp</h6>
+                        <p class="small mb-2">
+                            Para usar WhatsApp, necesitas configurar el token API en las variables de entorno del sistema:
+                        </p>
+                        <div class="token-display small">
+                            WASENDER_API_TOKEN=tu_token_aqui
+                        </div>
+                        <p class="small mt-2 mb-0">
+                            Obtén tu token en <a href="https://wasenderapi.com" target="_blank">wasenderapi.com</a>
+                        </p>
+                    </div>
+
+                    <div class="help-section mb-3">
+                        <h6><i class="fas fa-phone me-2"></i>Formato de Teléfonos</h6>
+                        <p class="small mb-0">
+                            Los números de teléfono deben incluir el código de país:
+                        </p>
+                        <ul class="small mb-0">
+                            <li>Ecuador: +593968192046</li>
+                            <li>Colombia: +573001234567</li>
+                            <li>Perú: +51987654321</li>
+                        </ul>
+                    </div>
+
+                    <div class="help-section">
+                        <h6><i class="fas fa-file-alt me-2"></i>Plantillas Disponibles</h6>
+                        <ul class="small mb-0">
+                            <li><strong>Bienvenida:</strong> Mensaje de bienvenida</li>
+                            <li><strong>Vehículo Listo:</strong> Notificación de servicio completado</li>
+                            <li><strong>Recordatorio:</strong> Recordatorio de mantenimiento</li>
+                            <li><strong>Promoción:</strong> Ofertas especiales</li>
+                            <li><strong>Diagnóstico:</strong> Resultado de diagnóstico</li>
+                        </ul>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Modal de Prueba -->
+<div class="modal fade" id="testModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Probar Configuración</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <form id="testForm">
+                    <div class="mb-3">
+                        <label for="test_telefono" class="form-label">Número de Prueba</label>
+                        <input type="text" class="form-control" id="test_telefono" 
+                               placeholder="+593968192046" required>
+                        <div class="form-text">Incluye el código de país</div>
+                    </div>
+                    <div class="mb-3">
+                        <label for="test_mensaje" class="form-label">Mensaje de Prueba</label>
+                        <textarea class="form-control" id="test_mensaje" rows="3" 
+                                  placeholder="Mensaje de prueba desde la configuración">Hola! Este es un mensaje de prueba desde la configuración de WhatsApp de {{ taller_config.nombre_taller|default:"nuestro taller" }}.</textarea>
+                    </div>
+                </form>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+                <button type="button" class="btn btn-whatsapp" id="sendTestBtn">
+                    <i class="fab fa-whatsapp"></i> Enviar Prueba
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    // Probar configuración
+    document.getElementById('testConfigBtn').addEventListener('click', function() {
+        new bootstrap.Modal(document.getElementById('testModal')).show();
+    });
+    
+    // Enviar mensaje de prueba
+    document.getElementById('sendTestBtn').addEventListener('click', function() {
+        const btn = this;
+        const originalText = btn.innerHTML;
+        const telefono = document.getElementById('test_telefono').value;
+        const mensaje = document.getElementById('test_mensaje').value;
+        
+        if (!telefono || !mensaje) {
+            alert('Por favor completa todos los campos');
+            return;
+        }
+        
+        btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Enviando...';
+        btn.disabled = true;
+        
+        const formData = new FormData();
+        formData.append('telefono', telefono);
+        formData.append('mensaje', mensaje);
+        formData.append('csrfmiddlewaretoken', document.querySelector('[name=csrfmiddlewaretoken]').value);
+        
+        fetch('{% url "enviar_mensaje_individual" %}', {
+            method: 'POST',
+            body: formData
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                // Cerrar modal
+                bootstrap.Modal.getInstance(document.getElementById('testModal')).hide();
+                
+                // Mostrar mensaje de éxito
+                const alert = document.createElement('div');
+                alert.className = 'alert alert-success alert-dismissible fade show';
+                alert.innerHTML = `
+                    <i class="fas fa-check-circle me-2"></i>
+                    Mensaje de prueba enviado exitosamente
+                    <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+                `;
+                document.querySelector('.container-fluid').insertBefore(alert, document.querySelector('.row'));
+                
+                // Limpiar formulario
+                document.getElementById('testForm').reset();
+            } else {
+                alert('Error al enviar mensaje de prueba: ' + data.error);
+            }
+        })
+        .catch(error => {
+            console.error('Error:', error);
+            alert('Error de conexión: ' + error.message);
+        })
+        .finally(() => {
+            btn.innerHTML = originalText;
+            btn.disabled = false;
+        });
+    });
+    
+    // Validación de números de teléfono en tiempo real
+    const telefonoInputs = document.querySelectorAll('input[name="telefono_principal"], input[name="telefono_whatsapp"]');
+    telefonoInputs.forEach(input => {
+        input.addEventListener('input', function() {
+            let value = this.value.replace(/\D/g, ''); // Solo números
+            
+            // Agregar + al inicio si no lo tiene
+            if (value && !this.value.startsWith('+')) {
+                this.value = '+' + value;
+            }
+            
+            // Validación básica de longitud
+            if (value.length > 0 && value.length < 7) {
+                this.classList.add('is-invalid');
+            } else {
+                this.classList.remove('is-invalid');
+            }
+        });
+    });
+});
+</script>
+{% endblock %}

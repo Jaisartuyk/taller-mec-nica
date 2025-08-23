@@ -1,0 +1,350 @@
+{% extends 'gestion_taller/base.html' %}
+{% load static %}
+
+{% block title %}Dashboard WhatsApp - {{ block.super }}{% endblock %}
+
+{% block extra_css %}
+<style>
+    .status-card {
+        border-left: 4px solid #28a745;
+        transition: all 0.3s ease;
+    }
+    .status-card.disabled {
+        border-left-color: #dc3545;
+        opacity: 0.7;
+    }
+    .status-card:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+    }
+    .whatsapp-icon {
+        color: #25D366;
+        font-size: 2rem;
+    }
+    .telegram-icon {
+        color: #0088cc;
+        font-size: 2rem;
+    }
+    .stat-number {
+        font-size: 2.5rem;
+        font-weight: bold;
+        color: #2c3e50;
+    }
+    .btn-whatsapp {
+        background-color: #25D366;
+        border-color: #25D366;
+        color: white;
+    }
+    .btn-whatsapp:hover {
+        background-color: #128C7E;
+        border-color: #128C7E;
+        color: white;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <!-- Header -->
+    <div class="row mb-4">
+        <div class="col-12">
+            <div class="d-flex justify-content-between align-items-center">
+                <div>
+                    <h1 class="h3 mb-0">
+                        <i class="fab fa-whatsapp text-success me-2"></i>
+                        Dashboard WhatsApp
+                    </h1>
+                    <p class="text-muted mb-0">Gestión de mensajería multi-taller</p>
+                </div>
+                <div>
+                    <a href="{% url 'configuracion_whatsapp' %}" class="btn btn-outline-primary me-2">
+                        <i class="fas fa-cog"></i> Configuración
+                    </a>
+                    <button type="button" class="btn btn-success" id="testConnectionBtn">
+                        <i class="fas fa-plug"></i> Probar Conexión
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    {% if error %}
+    <div class="alert alert-danger" role="alert">
+        <i class="fas fa-exclamation-triangle me-2"></i>
+        {{ error }}
+    </div>
+    {% else %}
+
+    <!-- Estado del Sistema -->
+    <div class="row mb-4">
+        <div class="col-md-6">
+            <div class="card status-card {% if not whatsapp_enabled %}disabled{% endif %}">
+                <div class="card-body">
+                    <div class="d-flex align-items-center">
+                        <div class="me-3">
+                            <i class="fab fa-whatsapp whatsapp-icon"></i>
+                        </div>
+                        <div class="flex-grow-1">
+                            <h5 class="card-title mb-1">WhatsApp</h5>
+                            <p class="card-text mb-0">
+                                {% if whatsapp_enabled %}
+                                    <span class="badge bg-success">Activo</span>
+                                    <small class="text-muted ms-2">{{ whatsapp_number|default:"Sin número configurado" }}</small>
+                                {% else %}
+                                    <span class="badge bg-danger">Inactivo</span>
+                                    <small class="text-muted ms-2">Token API no configurado</small>
+                                {% endif %}
+                            </p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-6">
+            <div class="card status-card disabled">
+                <div class="card-body">
+                    <div class="d-flex align-items-center">
+                        <div class="me-3">
+                            <i class="fab fa-telegram telegram-icon"></i>
+                        </div>
+                        <div class="flex-grow-1">
+                            <h5 class="card-title mb-1">Telegram</h5>
+                            <p class="card-text mb-0">
+                                <span class="badge bg-warning">Próximamente</span>
+                                <small class="text-muted ms-2">En desarrollo</small>
+                            </p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Información del Taller -->
+    {% if taller_info %}
+    <div class="row mb-4">
+        <div class="col-12">
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="mb-0">
+                        <i class="fas fa-store me-2"></i>
+                        Información del Taller
+                    </h5>
+                </div>
+                <div class="card-body">
+                    <div class="row">
+                        <div class="col-md-6">
+                            <p><strong>Nombre:</strong> {{ taller_info.nombre }}</p>
+                            <p><strong>Teléfono:</strong> {{ taller_info.telefono|default:"No configurado" }}</p>
+                            <p><strong>WhatsApp:</strong> {{ whatsapp_number|default:"No configurado" }}</p>
+                        </div>
+                        <div class="col-md-6">
+                            <p><strong>Email:</strong> {{ taller_info.email|default:"No configurado" }}</p>
+                            <p><strong>Dirección:</strong> {{ taller_info.direccion|default:"No configurada" }}</p>
+                            <p><strong>Horarios:</strong> {{ taller_info.horarios|default:"No configurados" }}</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    {% endif %}
+
+    <!-- Estadísticas -->
+    <div class="row mb-4">
+        <div class="col-md-3">
+            <div class="card text-center">
+                <div class="card-body">
+                    <div class="stat-number">{{ total_conductores }}</div>
+                    <p class="card-text text-muted">Total Conductores</p>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card text-center">
+                <div class="card-body">
+                    <div class="stat-number">{{ conductores_con_telefono }}</div>
+                    <p class="card-text text-muted">Con Teléfono</p>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card text-center">
+                <div class="card-body">
+                    <div class="stat-number">{{ ordenes_pendientes }}</div>
+                    <p class="card-text text-muted">Órdenes Pendientes</p>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card text-center">
+                <div class="card-body">
+                    <div class="stat-number">
+                        {% if total_conductores > 0 %}
+                            {{ conductores_con_telefono|floatformat:0 }}%
+                        {% else %}
+                            0%
+                        {% endif %}
+                    </div>
+                    <p class="card-text text-muted">Cobertura WhatsApp</p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Acciones Rápidas -->
+    <div class="row">
+        <div class="col-md-6">
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="mb-0">
+                        <i class="fas fa-paper-plane me-2"></i>
+                        Enviar Mensajes
+                    </h5>
+                </div>
+                <div class="card-body">
+                    <div class="d-grid gap-2">
+                        <a href="{% url 'enviar_mensaje_individual' %}" 
+                           class="btn btn-whatsapp {% if not whatsapp_enabled %}disabled{% endif %}">
+                            <i class="fas fa-user me-2"></i>
+                            Mensaje Individual
+                        </a>
+                        <a href="{% url 'enviar_mensaje_masivo' %}" 
+                           class="btn btn-outline-success {% if not whatsapp_enabled %}disabled{% endif %}">
+                            <i class="fas fa-users me-2"></i>
+                            Mensaje Masivo
+                        </a>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-6">
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="mb-0">
+                        <i class="fas fa-tools me-2"></i>
+                        Herramientas
+                    </h5>
+                </div>
+                <div class="card-body">
+                    <div class="d-grid gap-2">
+                        <a href="{% url 'configuracion_whatsapp' %}" class="btn btn-outline-primary">
+                            <i class="fas fa-cog me-2"></i>
+                            Configuración WhatsApp
+                        </a>
+                        <button type="button" class="btn btn-outline-info" id="viewTemplatesBtn">
+                            <i class="fas fa-file-alt me-2"></i>
+                            Ver Plantillas de Mensaje
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    {% endif %}
+</div>
+
+<!-- Modal para mostrar plantillas -->
+<div class="modal fade" id="templatesModal" tabindex="-1">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Plantillas de Mensaje Disponibles</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <div class="row">
+                    <div class="col-md-6">
+                        <h6>🎉 Bienvenida</h6>
+                        <p class="text-muted small">Mensaje de bienvenida para nuevos clientes</p>
+                        
+                        <h6>🚗 Vehículo Listo</h6>
+                        <p class="text-muted small">Notificación cuando el vehículo está listo</p>
+                        
+                        <h6>🔧 Recordatorio</h6>
+                        <p class="text-muted small">Recordatorio de mantenimiento</p>
+                    </div>
+                    <div class="col-md-6">
+                        <h6>🎁 Promoción</h6>
+                        <p class="text-muted small">Ofertas y promociones especiales</p>
+                        
+                        <h6>🔍 Diagnóstico</h6>
+                        <p class="text-muted small">Resultado del diagnóstico completado</p>
+                        
+                        <h6>✏️ Personalizado</h6>
+                        <p class="text-muted small">Mensaje personalizado libre</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    // Probar conexión WhatsApp
+    document.getElementById('testConnectionBtn').addEventListener('click', function() {
+        const btn = this;
+        const originalText = btn.innerHTML;
+        
+        btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Probando...';
+        btn.disabled = true;
+        
+        fetch('{% url "test_whatsapp_connection" %}', {
+            method: 'POST',
+            headers: {
+                'X-CSRFToken': document.querySelector('[name=csrfmiddlewaretoken]').value,
+                'Content-Type': 'application/json',
+            }
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                // Mostrar mensaje de éxito
+                const alert = document.createElement('div');
+                alert.className = 'alert alert-success alert-dismissible fade show';
+                alert.innerHTML = `
+                    <i class="fas fa-check-circle me-2"></i>
+                    ${data.message}
+                    <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+                `;
+                document.querySelector('.container-fluid').insertBefore(alert, document.querySelector('.row'));
+            } else {
+                // Mostrar mensaje de error
+                const alert = document.createElement('div');
+                alert.className = 'alert alert-danger alert-dismissible fade show';
+                alert.innerHTML = `
+                    <i class="fas fa-exclamation-triangle me-2"></i>
+                    ${data.error}
+                    <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+                `;
+                document.querySelector('.container-fluid').insertBefore(alert, document.querySelector('.row'));
+            }
+        })
+        .catch(error => {
+            console.error('Error:', error);
+            const alert = document.createElement('div');
+            alert.className = 'alert alert-danger alert-dismissible fade show';
+            alert.innerHTML = `
+                <i class="fas fa-exclamation-triangle me-2"></i>
+                Error de conexión: ${error.message}
+                <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+            `;
+            document.querySelector('.container-fluid').insertBefore(alert, document.querySelector('.row'));
+        })
+        .finally(() => {
+            btn.innerHTML = originalText;
+            btn.disabled = false;
+        });
+    });
+    
+    // Mostrar modal de plantillas
+    document.getElementById('viewTemplatesBtn').addEventListener('click', function() {
+        new bootstrap.Modal(document.getElementById('templatesModal')).show();
+    });
+});
+</script>
+{% endblock %}
