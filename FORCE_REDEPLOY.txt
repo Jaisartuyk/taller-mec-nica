@@ -1,0 +1,5 @@
+Railway redeploy forced at 2025-08-23 04:26:19
+Views import conflicts resolved
+Directory views/ renamed to views_backup/
+All imports updated correctly
+WhatsApp integration fully functional
