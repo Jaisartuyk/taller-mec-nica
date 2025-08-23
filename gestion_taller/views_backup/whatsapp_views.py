@@ -326,16 +326,24 @@ def configuracion_whatsapp(request):
         return redirect('whatsapp_dashboard')
     
     # Obtener o crear configuración del taller
-    taller_config, created = ConfiguracionTaller.objects.get_or_create(
-        cliente=cliente,
-        defaults={
-            'nombre_taller': cliente.nombre,
-            'telefono_principal': cliente.telefono,
-            'email': cliente.correo,
-            'direccion': getattr(cliente, 'direccion', ''),
-            'usar_whatsapp': True,
-        }
-    )
+    taller_config = cliente.configuracion
+    if not taller_config:
+        # Crear nueva configuración
+        taller_config = ConfiguracionTaller.objects.create(
+            nombre=cliente.nombre,
+            codigo=f"TALLER-{cliente.id:03d}",
+            telefono_principal=cliente.telefono,
+            email=cliente.correo or '',
+            direccion=cliente.direccion or '',
+            ciudad='',
+            usar_whatsapp=True,
+        )
+        # Asociar la configuración al cliente
+        cliente.configuracion = taller_config
+        cliente.save()
+        created = True
+    else:
+        created = False
     
     if request.method == 'POST':
         form = ConfiguracionTallerForm(request.POST, instance=taller_config)
