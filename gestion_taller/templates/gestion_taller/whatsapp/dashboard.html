@@ -291,6 +291,33 @@
 {% block extra_js %}
 <script>
 document.addEventListener('DOMContentLoaded', function() {
+    // Función auxiliar para mostrar alertas
+    function showAlert(message, type = 'success', icon = 'check-circle') {
+        const alert = document.createElement('div');
+        alert.className = `alert alert-${type} alert-dismissible fade show`;
+        alert.innerHTML = `
+            <i class="fas fa-${icon} me-2"></i>
+            ${message}
+            <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+        `;
+        
+        const container = document.querySelector('.container-fluid');
+        if (container) {
+            const firstRow = container.querySelector('.row');
+            if (firstRow) {
+                container.insertBefore(alert, firstRow);
+            } else {
+                container.prepend(alert);
+            }
+        }
+        
+        // Auto-remover después de 5 segundos
+        setTimeout(() => {
+            if (alert && alert.parentNode) {
+                alert.remove();
+            }
+        }, 5000);
+    }
     // Probar conexión WhatsApp
     const testBtn = document.getElementById('testConnectionBtn');
     if (testBtn) {
@@ -317,37 +344,14 @@ document.addEventListener('DOMContentLoaded', function() {
         .then(response => response.json())
         .then(data => {
             if (data.success) {
-                // Mostrar mensaje de éxito
-                const alert = document.createElement('div');
-                alert.className = 'alert alert-success alert-dismissible fade show';
-                alert.innerHTML = `
-                    <i class="fas fa-check-circle me-2"></i>
-                    ${data.message}
-                    <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
-                `;
-                document.querySelector('.container-fluid').insertBefore(alert, document.querySelector('.row'));
+                showAlert(data.message, 'success', 'check-circle');
             } else {
-                // Mostrar mensaje de error
-                const alert = document.createElement('div');
-                alert.className = 'alert alert-danger alert-dismissible fade show';
-                alert.innerHTML = `
-                    <i class="fas fa-exclamation-triangle me-2"></i>
-                    ${data.error}
-                    <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
-                `;
-                document.querySelector('.container-fluid').insertBefore(alert, document.querySelector('.row'));
+                showAlert(data.error, 'danger', 'exclamation-triangle');
             }
         })
         .catch(error => {
             console.error('Error:', error);
-            const alert = document.createElement('div');
-            alert.className = 'alert alert-danger alert-dismissible fade show';
-            alert.innerHTML = `
-                <i class="fas fa-exclamation-triangle me-2"></i>
-                Error de conexión: ${error.message}
-                <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
-            `;
-            document.querySelector('.container-fluid').insertBefore(alert, document.querySelector('.row'));
+            showAlert(`Error de conexión: ${error.message}`, 'danger', 'exclamation-triangle');
         })
         .finally(() => {
             btn.innerHTML = originalText;

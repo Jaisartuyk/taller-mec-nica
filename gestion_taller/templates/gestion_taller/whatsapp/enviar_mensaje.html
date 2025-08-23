@@ -237,6 +237,34 @@
 {% block extra_js %}
 <script>
 document.addEventListener('DOMContentLoaded', function() {
+    // Función auxiliar para mostrar alertas
+    function showAlert(message, type = 'success', icon = 'check-circle') {
+        const alert = document.createElement('div');
+        alert.className = `alert alert-${type} alert-dismissible fade show`;
+        alert.innerHTML = `
+            <i class="fas fa-${icon} me-2"></i>
+            ${message}
+            <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+        `;
+        
+        const container = document.querySelector('.container-fluid');
+        if (container) {
+            const firstRow = container.querySelector('.row');
+            if (firstRow) {
+                container.insertBefore(alert, firstRow);
+            } else {
+                container.prepend(alert);
+            }
+        }
+        
+        // Auto-remover después de 5 segundos
+        setTimeout(() => {
+            if (alert && alert.parentNode) {
+                alert.remove();
+            }
+        }, 5000);
+    }
+    
     const form = document.getElementById('mensajeForm');
     const mensajeTextarea = document.getElementById('mensaje');
     const charCounter = document.getElementById('charCounter');
@@ -373,14 +401,7 @@ document.addEventListener('DOMContentLoaded', function() {
                 bootstrap.Modal.getInstance(document.getElementById('confirmModal')).hide();
                 
                 // Mostrar mensaje de éxito
-                const alert = document.createElement('div');
-                alert.className = 'alert alert-success alert-dismissible fade show';
-                alert.innerHTML = `
-                    <i class="fas fa-check-circle me-2"></i>
-                    ${data.message}
-                    <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
-                `;
-                document.querySelector('.container-fluid').insertBefore(alert, document.querySelector('.row'));
+                showAlert(data.message, 'success', 'check-circle');
                 
                 // Limpiar formulario
                 form.reset();
@@ -389,12 +410,12 @@ document.addEventListener('DOMContentLoaded', function() {
                 charCounter.textContent = '0/1000';
                 charCounter.className = 'char-counter';
             } else {
-                alert('Error: ' + data.error);
+                showAlert('Error: ' + data.error, 'danger', 'exclamation-triangle');
             }
         })
         .catch(error => {
             console.error('Error:', error);
-            alert('Error de conexión: ' + error.message);
+            showAlert('Error de conexión: ' + error.message, 'danger', 'exclamation-triangle');
         })
         .finally(() => {
             btn.innerHTML = originalText;
