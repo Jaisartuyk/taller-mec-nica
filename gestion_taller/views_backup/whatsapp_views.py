@@ -154,7 +154,7 @@ def enviar_mensaje_individual(request):
             })
     
     # GET request - mostrar formulario
-    cliente = Cliente.objects.filter(usuario=request.user).first()
+    cliente = Cliente.objects.filter(user=request.user).first()
     if not cliente:
         cliente = Cliente.objects.first()
     
@@ -288,7 +288,7 @@ def enviar_mensaje_masivo(request):
             })
     
     # GET request - mostrar formulario
-    cliente = Cliente.objects.filter(usuario=request.user).first()
+    cliente = Cliente.objects.filter(user=request.user).first()
     if not cliente:
         cliente = Cliente.objects.first()
     
@@ -367,7 +367,7 @@ def configuracion_whatsapp(request):
 @login_required
 def api_conductores_whatsapp(request):
     """API para obtener conductores con teléfono para WhatsApp"""
-    cliente = Cliente.objects.filter(usuario=request.user).first()
+    cliente = Cliente.objects.filter(user=request.user).first()
     if not cliente:
         cliente = Cliente.objects.first()
     
