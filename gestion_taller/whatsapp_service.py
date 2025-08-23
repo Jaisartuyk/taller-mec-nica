@@ -148,6 +148,9 @@ class WhatsAppService:
         """Limpia y formatea el número de teléfono para WhatsApp"""
         if not phone_number:
             return None
+        
+        # Remover sufijos de WhatsApp primero
+        phone_number = phone_number.replace('@s.whatsapp.net', '').replace('@c.us', '')
             
         # Remover espacios, guiones, paréntesis y el símbolo +
         clean_number = ''.join(filter(str.isdigit, phone_number))

@@ -118,7 +118,7 @@ def process_incoming_message(request):
             send_response = send_chatbot_response(
                 cliente, 
                 phone_number, 
-                response_data['response']
+                response_data
             )
             
             logger.info(f"Respuesta enviada: {send_response}")
@@ -297,24 +297,49 @@ def determine_client_from_webhook(webhook_data):
 def send_chatbot_response(cliente, phone_number, response_data):
     """Envía respuesta del chatbot via WhatsApp"""
     try:
+        print(f"DEBUG send_chatbot_response - Cliente: {cliente.nombre}")
+        print(f"DEBUG send_chatbot_response - Phone: {phone_number}")
+        print(f"DEBUG send_chatbot_response - Response data: {response_data}")
+        
+        # Limpiar número de teléfono (remover @s.whatsapp.net)
+        clean_phone = phone_number.replace('@s.whatsapp.net', '').replace('@c.us', '')
+        print(f"DEBUG send_chatbot_response - Clean phone: {clean_phone}")
+        
         messaging_service = MultiTallerMessagingService(cliente=cliente)
         
         # Preparar datos del mensaje
+        # El ChatbotService retorna 'response', no 'message'
+        response_text = response_data.get('response', '')
+        if isinstance(response_text, dict):
+            response_text = response_text.get('text', str(response_text))
+        
+        print(f"DEBUG send_chatbot_response - Response text: {response_text}")
+        
         datos = {
-            'mensaje_personalizado': response_data['message']
+            'mensaje_personalizado': response_text
         }
+        
+        print(f"DEBUG send_chatbot_response - Datos: {datos}")
         
         # Enviar mensaje
         resultado = messaging_service.enviar_mensaje(
-            telefono=phone_number,
+            telefono=clean_phone,
             tipo_mensaje='personalizado',
             datos=datos,
             canal='whatsapp'
         )
         
-        return resultado.get('whatsapp', {})
+        print(f"DEBUG send_chatbot_response - Resultado: {resultado}")
+        
+        whatsapp_result = resultado.get('whatsapp', {})
+        print(f"DEBUG send_chatbot_response - WhatsApp result: {whatsapp_result}")
+        
+        return whatsapp_result
         
     except Exception as e:
+        print(f"ERROR send_chatbot_response: {str(e)}")
+        import traceback
+        traceback.print_exc()
         logger.error(f"Error enviando respuesta del chatbot: {str(e)}")
         return {'success': False, 'error': str(e)}
 
