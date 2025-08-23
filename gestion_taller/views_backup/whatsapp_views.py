@@ -331,7 +331,7 @@ def configuracion_whatsapp(request):
         defaults={
             'nombre_taller': cliente.nombre,
             'telefono_principal': cliente.telefono,
-            'email': cliente.email,
+            'email': cliente.correo,
             'direccion': getattr(cliente, 'direccion', ''),
             'usar_whatsapp': True,
         }
