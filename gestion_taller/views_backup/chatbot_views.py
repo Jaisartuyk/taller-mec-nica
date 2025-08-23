@@ -71,10 +71,20 @@ def process_incoming_message(request):
         logger.info(f"Mensaje recibido: {data}")
         print(f"DEBUG WEBHOOK - Parsed data: {data}")
         
+        # Manejar evento de prueba específicamente
+        if data.get('event') == 'webhook.test':
+            print("DEBUG: Evento de prueba de WASender recibido")
+            return JsonResponse({
+                'status': 'test_received',
+                'message': 'Webhook test successful',
+                'timestamp': timezone.now().isoformat()
+            })
+        
         # Extraer información del mensaje
         message_data = extract_message_data(data)
         
         if not message_data:
+            print("DEBUG: No se encontró mensaje válido en los datos")
             return JsonResponse({'status': 'no_message'})
         
         phone_number = message_data['from']
@@ -117,21 +127,39 @@ def process_incoming_message(request):
 
 
 def extract_message_data(webhook_data):
-    """Extrae datos del mensaje del webhook"""
+    """Extrae información del mensaje del webhook"""
     try:
-        # Estructura típica de webhook de WhatsApp Business API
-        if 'messages' in webhook_data:
-            message = webhook_data['messages'][0]
-            return {
-                'id': message.get('id'),
-                'from': message.get('from'),
-                'text': message.get('text', {}).get('body', ''),
-                'type': message.get('type', 'text'),
-                'timestamp': message.get('timestamp')
-            }
+        print(f"DEBUG extract_message_data - webhook_data keys: {list(webhook_data.keys())}")
         
-        # Estructura de WASender API (si es diferente)
+        # Manejar evento de prueba de WASender
+        if webhook_data.get('event') == 'webhook.test':
+            print("DEBUG: Evento de prueba detectado")
+            return None  # No procesar eventos de prueba como mensajes
+        
+        # Estructura típica de WhatsApp Business API
+        if 'entry' in webhook_data:
+            print("DEBUG: Estructura WhatsApp Business API detectada")
+            entry = webhook_data['entry'][0]
+            changes = entry.get('changes', [])
+            
+            if changes:
+                change = changes[0]
+                value = change.get('value', {})
+                messages = value.get('messages', [])
+                
+                if messages:
+                    message = messages[0]
+                    return {
+                        'id': message.get('id'),
+                        'from': message.get('from'),
+                        'text': message.get('text', {}).get('body', ''),
+                        'type': message.get('type', 'text'),
+                        'timestamp': message.get('timestamp')
+                    }
+        
+        # Estructura de WASender API
         elif 'message' in webhook_data:
+            print("DEBUG: Estructura WASender API detectada")
             message = webhook_data['message']
             return {
                 'id': message.get('id'),
@@ -140,7 +168,19 @@ def extract_message_data(webhook_data):
                 'type': message.get('type', 'text'),
                 'timestamp': message.get('timestamp')
             }
+        
+        # Estructura directa de mensaje (WASender)
+        elif 'from' in webhook_data and ('body' in webhook_data or 'text' in webhook_data):
+            print("DEBUG: Estructura directa de mensaje detectada")
+            return {
+                'id': webhook_data.get('id'),
+                'from': webhook_data.get('from'),
+                'text': webhook_data.get('body') or webhook_data.get('text', ''),
+                'type': webhook_data.get('type', 'text'),
+                'timestamp': webhook_data.get('timestamp')
+            }
             
+        print(f"DEBUG: No se encontró estructura de mensaje reconocida. Datos: {webhook_data}")
         return None
         
     except Exception as e:
