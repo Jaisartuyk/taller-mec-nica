@@ -4,14 +4,10 @@ from . import views
 # Forzar redespliegue - Views import conflicts fixed
 
 # Importar vistas de WhatsApp
-try:
-    from .views_backup.whatsapp_views import (
-        whatsapp_dashboard, enviar_mensaje_individual, enviar_mensaje_masivo,
-        configuracion_whatsapp, api_conductores_whatsapp, test_whatsapp_connection
-    )
-    WHATSAPP_AVAILABLE = True
-except ImportError:
-    WHATSAPP_AVAILABLE = False
+from .views_backup.whatsapp_views import (
+    whatsapp_dashboard, enviar_mensaje_individual, enviar_mensaje_masivo,
+    configuracion_whatsapp, api_conductores_whatsapp, test_whatsapp_connection
+)
 
 urlpatterns = [
     path('telegram_webhook/', views.telegram_webhook, name='telegram_webhook'),
@@ -65,16 +61,14 @@ urlpatterns = [
     path('api/vehiculo/kilometraje/', views.get_vehiculo_kilometraje, name='get_vehiculo_kilometraje'),
 ]
 
-# Agregar URLs de WhatsApp si están disponibles
-if WHATSAPP_AVAILABLE:
-    urlpatterns += [
-        # URLs para WhatsApp
-        path('whatsapp/', whatsapp_dashboard, name='whatsapp_dashboard'),
-        path('whatsapp/enviar-individual/', enviar_mensaje_individual, name='enviar_mensaje_individual'),
-        path('whatsapp/enviar-masivo/', enviar_mensaje_masivo, name='enviar_mensaje_masivo'),
-        path('whatsapp/configuracion/', configuracion_whatsapp, name='configuracion_whatsapp'),
-        
-        # APIs para WhatsApp
-        path('api/whatsapp/conductores/', api_conductores_whatsapp, name='api_conductores_whatsapp'),
-        path('api/whatsapp/test-connection/', test_whatsapp_connection, name='test_whatsapp_connection'),
-    ]
+# URLs para WhatsApp
+urlpatterns += [
+    path('whatsapp/', whatsapp_dashboard, name='whatsapp_dashboard'),
+    path('whatsapp/enviar-individual/', enviar_mensaje_individual, name='enviar_mensaje_individual'),
+    path('whatsapp/enviar-masivo/', enviar_mensaje_masivo, name='enviar_mensaje_masivo'),
+    path('whatsapp/configuracion/', configuracion_whatsapp, name='configuracion_whatsapp'),
+    
+    # APIs para WhatsApp
+    path('api/whatsapp/conductores/', api_conductores_whatsapp, name='api_conductores_whatsapp'),
+    path('api/whatsapp/test-connection/', test_whatsapp_connection, name='test_whatsapp_connection'),
+]
