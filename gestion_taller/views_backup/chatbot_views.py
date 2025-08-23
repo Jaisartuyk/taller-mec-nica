@@ -137,6 +137,38 @@ def process_incoming_message(request):
         return JsonResponse({'status': 'error', 'message': str(e)})
 
 
+def determine_client_from_webhook(webhook_data):
+    """Determina el cliente basado en los datos del webhook"""
+    try:
+        # Para WASender, el sessionId contiene el token API que corresponde al cliente
+        session_id = webhook_data.get('sessionId')
+        
+        if session_id:
+            # Buscar cliente por token API (si está configurado)
+            # Por ahora, usar el cliente por defecto 'deaquipaya' para pruebas
+            from gestion_taller.models import Cliente
+            
+            # Buscar cliente 'deaquipaya' para pruebas
+            cliente = Cliente.objects.filter(nombre='deaquipaya').first()
+            
+            if cliente:
+                print(f"DEBUG: Cliente encontrado: {cliente.nombre}")
+                return cliente
+            
+            # Fallback: usar el primer cliente disponible
+            cliente = Cliente.objects.first()
+            if cliente:
+                print(f"DEBUG: Usando cliente fallback: {cliente.nombre}")
+                return cliente
+        
+        print("DEBUG: No se pudo determinar cliente del webhook")
+        return None
+        
+    except Exception as e:
+        print(f"ERROR determine_client_from_webhook: {e}")
+        return None
+
+
 def extract_message_data(webhook_data):
     """Extrae información del mensaje del webhook"""
     try:
@@ -147,8 +179,43 @@ def extract_message_data(webhook_data):
             print("DEBUG: Evento de prueba detectado")
             return None  # No procesar eventos de prueba como mensajes
         
+        # Estructura específica de WASender messages.upsert
+        if webhook_data.get('event') == 'messages.upsert' and 'data' in webhook_data:
+            print("DEBUG: Estructura WASender messages.upsert detectada")
+            data = webhook_data['data']
+            messages = data.get('messages', {})
+            
+            if messages:
+                # Extraer información del mensaje
+                key = messages.get('key', {})
+                message_content = messages.get('message', {})
+                
+                # Obtener el texto del mensaje
+                text = ''
+                if 'conversation' in message_content:
+                    text = message_content['conversation']
+                elif 'extendedTextMessage' in message_content:
+                    text = message_content['extendedTextMessage'].get('text', '')
+                elif 'text' in message_content:
+                    text = message_content['text']
+                
+                # Solo procesar mensajes personales (no newsletters)
+                remote_jid = key.get('remoteJid', '')
+                if '@newsletter' in remote_jid:
+                    print(f"DEBUG: Ignorando mensaje de newsletter: {remote_jid}")
+                    return None
+                
+                if text and remote_jid:
+                    return {
+                        'id': key.get('id'),
+                        'from': remote_jid,
+                        'text': text,
+                        'type': 'text',
+                        'timestamp': messages.get('messageTimestamp')
+                    }
+        
         # Estructura típica de WhatsApp Business API
-        if 'entry' in webhook_data:
+        elif 'entry' in webhook_data:
             print("DEBUG: Estructura WhatsApp Business API detectada")
             entry = webhook_data['entry'][0]
             changes = entry.get('changes', [])
@@ -168,9 +235,9 @@ def extract_message_data(webhook_data):
                         'timestamp': message.get('timestamp')
                     }
         
-        # Estructura de WASender API
+        # Estructura de WASender API (legacy)
         elif 'message' in webhook_data:
-            print("DEBUG: Estructura WASender API detectada")
+            print("DEBUG: Estructura WASender API legacy detectada")
             message = webhook_data['message']
             return {
                 'id': message.get('id'),
@@ -180,7 +247,7 @@ def extract_message_data(webhook_data):
                 'timestamp': message.get('timestamp')
             }
         
-        # Estructura directa de mensaje (WASender)
+        # Estructura directa de mensaje (WASender legacy)
         elif 'from' in webhook_data and ('body' in webhook_data or 'text' in webhook_data):
             print("DEBUG: Estructura directa de mensaje detectada")
             return {
