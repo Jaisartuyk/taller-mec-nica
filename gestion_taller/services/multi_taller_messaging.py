@@ -250,10 +250,16 @@ class MultiTallerMessagingService:
         emoji_telefono = "📞" if usar_emojis else ""
         emoji_horario = "⏰" if usar_emojis else ""
         
+        # Obtener nombre del cliente
+        nombre_cliente = datos.get('conductor_nombre') or datos.get('nombre_cliente', 'estimado cliente')
+        
+        # Construir información del vehículo
+        vehiculo_info = self._construir_info_vehiculo(datos)
+        
         mensaje = f"{emoji_inicio} **{taller_info['nombre'].upper()}** {emoji_inicio}\n\n"
-        mensaje += f"¡Hola {datos.get('nombre_cliente', 'estimado cliente')}! {emoji_saludo}\n\n"
+        mensaje += f"¡Hola {nombre_cliente}! {emoji_saludo}\n\n"
         mensaje += f"Su vehículo ha sido recibido:\n"
-        mensaje += f"{emoji_auto} {datos.get('vehiculo', 'Vehículo')} - {datos.get('placa', 'N/A')}\n"
+        mensaje += f"{emoji_auto} {vehiculo_info}\n"
         
         if datos.get('servicio'):
             mensaje += f"🔍 Servicio: {datos['servicio']}\n"
@@ -267,6 +273,30 @@ class MultiTallerMessagingService:
         
         return mensaje
     
+    def _construir_info_vehiculo(self, datos):
+        """Construye la información del vehículo de manera robusta"""
+        # Prioridad 1: Datos de las vistas web (vehiculo_marca, vehiculo_modelo, vehiculo_placa)
+        if datos.get('vehiculo_marca') or datos.get('vehiculo_modelo'):
+            marca = datos.get('vehiculo_marca', '')
+            modelo = datos.get('vehiculo_modelo', '')
+            placa = datos.get('vehiculo_placa', 'N/A')
+            
+            vehiculo_str = f"{marca} {modelo}".strip()
+            if not vehiculo_str:
+                vehiculo_str = "Vehículo"
+            
+            return f"{vehiculo_str} - {placa}"
+        
+        # Prioridad 2: Datos del comando de prueba (vehiculo, placa)
+        elif datos.get('vehiculo'):
+            vehiculo = datos.get('vehiculo', 'Vehículo')
+            placa = datos.get('placa', 'N/A')
+            return f"{vehiculo} - {placa}"
+        
+        # Fallback: información genérica
+        else:
+            return "Vehículo - N/A"
+
     def _crear_mensaje_recordatorio(self, taller_info, datos, usar_emojis):
         """Crea mensaje de recordatorio personalizado"""
         emoji_campana = "🔔" if usar_emojis else ""
@@ -367,8 +397,12 @@ class MultiTallerMessagingService:
         emoji_ubicacion = "📍" if usar_emojis else ""
         emoji_telefono = "📞" if usar_emojis else ""
         
+        # Obtener nombre del cliente y vehículo
+        nombre_cliente = datos.get('conductor_nombre') or datos.get('nombre_cliente', 'Cliente')
+        vehiculo_info = self._construir_info_vehiculo(datos)
+        
         mensaje = f"{emoji_fiesta} VEHÍCULO LISTO!\n\n"
-        mensaje += f"{datos.get('nombre_cliente', 'Cliente')}, su {datos.get('vehiculo', 'vehículo')} está listo:\n\n"
+        mensaje += f"{nombre_cliente}, su {vehiculo_info} está listo:\n\n"
         
         if datos.get('trabajos_realizados'):
             for trabajo in datos['trabajos_realizados']:
@@ -376,8 +410,9 @@ class MultiTallerMessagingService:
         
         mensaje += f"{emoji_check} Prueba de funcionamiento OK\n"
         
-        if datos.get('total'):
-            mensaje += f"\n{emoji_dinero} Total a pagar: ${datos['total']}\n"
+        if datos.get('total') or datos.get('costo_total'):
+            total = datos.get('total') or datos.get('costo_total')
+            mensaje += f"\n{emoji_dinero} Total a pagar: ${total}\n"
         
         mensaje += f"\n{emoji_ubicacion} Puede recogerlo hasta las {datos.get('hora_limite', '6:00 PM')}\n"
         mensaje += f"{emoji_telefono} {taller_info['telefono']}\n\n"
