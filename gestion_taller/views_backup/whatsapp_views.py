@@ -432,15 +432,27 @@ def test_whatsapp_connection(request):
 def chatbot_dashboard(request):
     """Dashboard del chatbot de WhatsApp"""
     try:
+        # Buscar cliente asociado al usuario
         cliente = Cliente.objects.filter(user=request.user).first()
+        
+        # Si no hay cliente, usar el primer cliente disponible (para desarrollo)
         if not cliente:
-            messages.error(request, 'Cliente no encontrado')
-            return redirect('home')
+            cliente = Cliente.objects.first()
+            if not cliente:
+                messages.error(request, 'No hay clientes configurados en el sistema')
+                return redirect('whatsapp_dashboard')
+            else:
+                messages.warning(request, f'Usando cliente por defecto: {cliente.nombre}')
+        
+        # Verificar si el chatbot está habilitado
+        messaging_service = MultiTallerMessagingService(cliente=cliente)
+        chatbot_enabled = messaging_service._is_whatsapp_enabled()
         
         context = {
             'cliente': cliente,
             'page_title': 'Chatbot WhatsApp',
-            'chatbot_enabled': True
+            'chatbot_enabled': chatbot_enabled,
+            'user': request.user
         }
         
         return render(request, 'gestion_taller/whatsapp/chatbot_dashboard.html', context)
