@@ -119,8 +119,21 @@ document.addEventListener('DOMContentLoaded', function() {
     
     // Función para validar kilometraje ingresado
     function validarKilometraje() {
-      // Remover comas del valor ingresado para comparación
-      const valorLimpio = kilometrajeInput.value.replace(/,/g, '').trim();
+      // Limpiar el valor ingresado: remover comas y espacios, manejar puntos como separadores de miles
+      let valorLimpio = kilometrajeInput.value.trim();
+      
+      // Si contiene puntos como separadores de miles (ej: 50.000), convertir a formato sin separadores
+      if (valorLimpio.includes('.') && !valorLimpio.includes(',')) {
+        // Verificar si es separador de miles (más de 3 dígitos después del último punto)
+        const partes = valorLimpio.split('.');
+        if (partes.length > 1 && partes[partes.length - 1].length === 3) {
+          valorLimpio = valorLimpio.replace(/\./g, '');
+        }
+      }
+      
+      // Remover comas (separadores de miles)
+      valorLimpio = valorLimpio.replace(/,/g, '');
+      
       const kilometrajeIngresado = parseFloat(valorLimpio) || 0;
       
       console.log('Validando kilometraje:', {

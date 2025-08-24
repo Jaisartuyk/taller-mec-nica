@@ -120,11 +120,29 @@
 {% endblock %}
 
 {% block extra_js %}
-<script src="{% static 'gestion_taller/orden_servicio.js' %}"></script>
 <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/js/select2.min.js"></script>
+<script src="{% static 'gestion_taller/orden_servicio.js' %}"></script>
 <script>
+// Variable para evitar múltiples inicializaciones
+if (typeof window.ordenServicioFormInitialized === 'undefined') {
+    window.ordenServicioFormInitialized = false;
+}
+
 $(document).ready(function() {
+    // Evitar múltiples inicializaciones
+    if (window.ordenServicioFormInitialized) {
+        console.log('Formulario ya inicializado, saltando...');
+        return;
+    }
+    
+    // Destruir Select2 existente antes de inicializar para evitar duplicados
+    $('#id_vehiculo, #id_servicios, #id_productos').each(function() {
+        if ($(this).hasClass('select2-hidden-accessible')) {
+            $(this).select2('destroy');
+        }
+    });
+    
     // Inicializar Select2 solo una vez por campo
     $('#id_vehiculo').select2({
         theme: 'bootstrap-5',
@@ -331,6 +349,10 @@ $(document).ready(function() {
     // Inicializar
     calcularPrecios();
     filtrarProductosPorServicios();
+    
+    // Marcar como inicializado
+    window.ordenServicioFormInitialized = true;
+    console.log('Formulario de orden de servicio inicializado correctamente');
 });
 </script>
 {% endblock %}
