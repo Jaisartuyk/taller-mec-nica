@@ -464,7 +464,7 @@
         showTypingIndicator();
         
         // Enviar al chatbot
-        fetch('/api/chatbot/test/', {
+        fetch('/chatbot/test/', {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
@@ -481,8 +481,8 @@
             hideTypingIndicator();
             
             if (data.success) {
-                const response = data.response.response;
-                addMessage(response.message, 'bot', data.response.intent);
+                const response = data.response;
+                addMessage(response.message, 'bot', data.intent);
             } else {
                 addMessage('Lo siento, tuve un problema procesando tu mensaje. 😅', 'bot', 'error');
                 showAlert('Error procesando mensaje: ' + data.error, 'danger', 'exclamation-triangle');

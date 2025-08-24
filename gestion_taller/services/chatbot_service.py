@@ -59,6 +59,9 @@ class ChatbotService:
             }
             
         except Exception as e:
+            import logging
+            logger = logging.getLogger(__name__)
+            logger.error(f"Error en ChatbotService.process_message: {str(e)}", exc_info=True)
             return {
                 'success': False,
                 'error': str(e),
@@ -85,81 +88,114 @@ class ChatbotService:
         Returns:
             Tuple[intent, entities]
         """
-        # Patrones de intenciones
-        intent_patterns = {
-            'saludo': [
-                r'\b(hola|buenos días|buenas tardes|buenas noches|saludos|hey)\b',
-                r'\b(qué tal|cómo está|cómo están)\b'
-            ],
-            'consulta_servicio': [
-                r'\b(qué servicios|servicios|que hacen|trabajos)\b',
-                r'\b(cambio de aceite|frenos|motor|transmisión|suspensión)\b',
-                r'\b(mantenimiento|reparación|revisión)\b'
-            ],
-            'consulta_precio': [
-                r'\b(cuánto cuesta|precio|costo|cotización|presupuesto)\b',
-                r'\b(cuánto cobran|tarifa|valor)\b'
-            ],
-            'agendar_cita': [
-                r'\b(agendar|cita|turno|reservar|apartar)\b',
-                r'\b(cuándo pueden|horario|disponible)\b'
-            ],
-            'consulta_estado': [
-                r'\b(cómo va|estado|avance|listo|terminado)\b',
-                r'\b(mi carro|mi vehículo|mi auto)\b'
-            ],
-            'ubicacion_horario': [
-                r'\b(dónde están|ubicación|dirección|donde quedan)\b',
-                r'\b(horario|qué hora|abren|cierran)\b'
-            ],
-            'despedida': [
-                r'\b(gracias|muchas gracias|perfecto|ok|vale)\b',
-                r'\b(adiós|hasta luego|nos vemos|chao)\b'
-            ]
-        }
-        
-        # Buscar patrones
-        for intent, patterns in intent_patterns.items():
-            for pattern in patterns:
-                if re.search(pattern, message):
-                    entities = self._extract_entities(message, intent)
-                    return intent, entities
-        
-        # Si no encuentra patrón específico, es consulta general
-        return 'consulta_general', {}
+        try:
+            # Convertir a minúsculas para comparación
+            message_lower = message.lower()
+            
+            # Patrones de intenciones simplificados
+            intent_patterns = {
+                'saludo': [
+                    r'\bhola\b',
+                    r'\bbuenos días\b',
+                    r'\bbuenas tardes\b',
+                    r'\bbuenas noches\b',
+                    r'\bsaludos\b',
+                    r'\bhey\b',
+                    r'\bqué tal\b'
+                ],
+                'consulta_servicio': [
+                    r'\bservicios\b',
+                    r'\bqué servicios\b',
+                    r'\bque hacen\b',
+                    r'\btrabajos\b',
+                    r'\bcambio de aceite\b',
+                    r'\bfrenos\b',
+                    r'\bmotor\b',
+                    r'\bmantenimiento\b',
+                    r'\breparación\b'
+                ],
+                'consulta_precio': [
+                    r'\bcuánto cuesta\b',
+                    r'\bprecio\b',
+                    r'\bcosto\b',
+                    r'\bcotización\b',
+                    r'\bpresupuesto\b',
+                    r'\btarifa\b'
+                ],
+                'agendar_cita': [
+                    r'\bagendar\b',
+                    r'\bcita\b',
+                    r'\bturno\b',
+                    r'\breservar\b',
+                    r'\bapartar\b',
+                    r'\bhorario\b'
+                ],
+                'despedida': [
+                    r'\bgracias\b',
+                    r'\bperfecto\b',
+                    r'\bok\b',
+                    r'\bvale\b',
+                    r'\badiós\b',
+                    r'\bchao\b'
+                ]
+            }
+            
+            # Buscar patrones
+            for intent, patterns in intent_patterns.items():
+                for pattern in patterns:
+                    if re.search(pattern, message_lower, re.IGNORECASE):
+                        entities = self._extract_entities(message, intent)
+                        return intent, entities
+            
+            # Si no encuentra patrón específico, es consulta general
+            return 'consulta_general', {}
+            
+        except Exception as e:
+            import logging
+            logger = logging.getLogger(__name__)
+            logger.error(f"Error en _identify_intent: {str(e)}", exc_info=True)
+            return 'consulta_general', {}
     
     def _extract_entities(self, message: str, intent: str) -> Dict:
         """Extrae entidades específicas del mensaje"""
-        entities = {}
-        
-        # Extraer números de teléfono
-        phone_pattern = r'\b(\d{10}|\d{4}-\d{4}|\d{3}-\d{3}-\d{4})\b'
-        phones = re.findall(phone_pattern, message)
-        if phones:
-            entities['telefono'] = phones[0]
-        
-        # Extraer placas de vehículos
-        placa_pattern = r'\b[A-Z]{3}-\d{3,4}\b'
-        placas = re.findall(placa_pattern, message.upper())
-        if placas:
-            entities['placa'] = placas[0]
-        
-        # Extraer servicios específicos
-        servicios = {
-            'aceite': ['aceite', 'lubricante'],
-            'frenos': ['frenos', 'pastillas', 'discos'],
-            'motor': ['motor', 'bujías', 'filtros'],
-            'transmision': ['transmisión', 'caja', 'embrague'],
-            'suspension': ['suspensión', 'amortiguadores', 'muelles']
-        }
-        
-        for servicio, keywords in servicios.items():
-            for keyword in keywords:
-                if keyword in message:
-                    entities['servicio'] = servicio
-                    break
-        
-        return entities
+        try:
+            entities = {}
+            
+            # Extraer números de teléfono
+            phone_pattern = r'\b(\d{10}|\d{4}-\d{4}|\d{3}-\d{3}-\d{4})\b'
+            phones = re.findall(phone_pattern, message)
+            if phones:
+                entities['telefono'] = phones[0]
+            
+            # Extraer placas de vehículos
+            placa_pattern = r'\b[A-Z]{3}-\d{3,4}\b'
+            placas = re.findall(placa_pattern, message.upper())
+            if placas:
+                entities['placa'] = placas[0]
+            
+            # Extraer servicios específicos
+            servicios = {
+                'aceite': ['aceite', 'lubricante'],
+                'frenos': ['frenos', 'pastillas', 'discos'],
+                'motor': ['motor', 'bujías', 'filtros'],
+                'transmision': ['transmisión', 'caja', 'embrague'],
+                'suspension': ['suspensión', 'amortiguadores', 'muelles']
+            }
+            
+            message_lower = message.lower()
+            for servicio, keywords in servicios.items():
+                for keyword in keywords:
+                    if keyword in message_lower:
+                        entities['servicio'] = servicio
+                        break
+            
+            return entities
+            
+        except Exception as e:
+            import logging
+            logger = logging.getLogger(__name__)
+            logger.error(f"Error en _extract_entities: {str(e)}", exc_info=True)
+            return {}
     
     def _generate_response(self, intent: str, entities: Dict, context: Dict, phone_number: str) -> Dict:
         """Genera respuesta basada en la intención"""

@@ -374,11 +374,19 @@ def chatbot_test(request):
         chatbot = ChatbotService(cliente)
         response_data = chatbot.process_message(phone_number, message)
         
-        return JsonResponse({
-            'success': True,
-            'input_message': message,
-            'response': response_data
-        })
+        if response_data.get('success'):
+            return JsonResponse({
+                'success': True,
+                'input_message': message,
+                'response': response_data.get('response'),
+                'intent': response_data.get('intent'),
+                'entities': response_data.get('entities')
+            })
+        else:
+            return JsonResponse({
+                'success': False,
+                'error': response_data.get('error', 'Error desconocido')
+            })
         
     except Exception as e:
         return JsonResponse({
