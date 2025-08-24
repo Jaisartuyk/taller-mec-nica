@@ -47,8 +47,9 @@ class ChatbotService:
             # Generar respuesta basada en intención
             response = self._generate_response(intent, entities, context, phone_number)
             
-            # Actualizar contexto
+            # Actualizar contexto con información de la respuesta
             self._update_conversation_context(phone_number, intent, entities, message)
+            self._save_response_context(phone_number, response)
             
             return {
                 'success': True,
@@ -96,7 +97,7 @@ class ChatbotService:
             current_step = context.get('next_step', '')
             
             # Si estamos en proceso de agendamiento, detectar respuestas contextuales
-            if current_step == 'collect_appointment_details':
+            if current_step in ['select_datetime', 'collect_appointment_details']:
                 # Detectar fecha/hora en el mensaje
                 if self._contains_datetime_info(message_lower):
                     return 'appointment_datetime', self._extract_datetime_entities(message)
@@ -614,6 +615,29 @@ class ChatbotService:
         
         # Mantener solo últimos 10 mensajes
         context['messages'] = context['messages'][-10:]
+    
+    def _save_response_context(self, phone_number: str, response: Dict):
+        """Guarda información de la respuesta en el contexto"""
+        if phone_number not in self.conversation_context:
+            self.conversation_context[phone_number] = {}
+        
+        context = self.conversation_context[phone_number]
+        
+        # Guardar información importante de la respuesta
+        if 'next_step' in response:
+            context['next_step'] = response['next_step']
+        
+        if 'conductor_id' in response:
+            context['conductor_id'] = response['conductor_id']
+        
+        if 'vehiculo_id' in response:
+            context['vehiculo_id'] = response['vehiculo_id']
+        
+        if 'servicio_sugerido' in response:
+            context['servicio_sugerido'] = response['servicio_sugerido']
+        
+        if 'type' in response:
+            context['last_response_type'] = response['type']
     
     def _get_error_response(self, custom_message: str = None) -> Dict:
         """Respuesta de error genérica"""
@@ -1457,3 +1481,167 @@ class ChatbotService:
                 'type': 'emergency_fallback',
                 'escalate_to_human': True
             }
+    
+    def _contains_datetime_info(self, message: str) -> bool:
+        """Detecta si el mensaje contiene información de fecha/hora"""
+        datetime_patterns = [
+            r'\b(lunes|martes|miércoles|miercoles|jueves|viernes|sábado|sabado|domingo)\b',
+            r'\b(mañana|tarde|noche)\b',
+            r'\b\d{1,2}\s*[:/]\s*\d{2}\b',  # 9:00, 14:30
+            r'\b\d{1,2}\s*(am|pm|a\.m\.|p\.m\.)\b',  # 9 AM, 2 PM
+            r'\b(hoy|mañana|pasado mañana)\b',
+            r'\b\d{1,2}\s*de\s*(enero|febrero|marzo|abril|mayo|junio|julio|agosto|septiembre|octubre|noviembre|diciembre)\b',
+            r'\b\d{1,2}/\d{1,2}\b',  # 25/08
+            r'\b(enero|febrero|marzo|abril|mayo|junio|julio|agosto|septiembre|octubre|noviembre|diciembre)\s*\d{1,2}\b'
+        ]
+        
+        for pattern in datetime_patterns:
+            if re.search(pattern, message, re.IGNORECASE):
+                return True
+        return False
+    
+    def _extract_datetime_entities(self, message: str) -> Dict:
+        """Extrae entidades de fecha y hora del mensaje"""
+        entities = {}
+        message_lower = message.lower()
+        
+        # Detectar días de la semana
+        days_pattern = r'\b(lunes|martes|miércoles|miercoles|jueves|viernes|sábado|sabado|domingo)\b'
+        day_match = re.search(days_pattern, message_lower)
+        if day_match:
+            entities['day'] = day_match.group(1)
+        
+        # Detectar números de día (ej: "lunes 25")
+        day_number_pattern = r'\b(\d{1,2})\b'
+        day_numbers = re.findall(day_number_pattern, message)
+        if day_numbers:
+            entities['day_number'] = day_numbers[0]
+        
+        # Detectar horas
+        time_patterns = [
+            r'\b(\d{1,2})\s*[:/]\s*(\d{2})\s*(am|pm|a\.m\.|p\.m\.)?\b',
+            r'\b(\d{1,2})\s*(am|pm|a\.m\.|p\.m\.)\b'
+        ]
+        
+        for pattern in time_patterns:
+            time_match = re.search(pattern, message_lower)
+            if time_match:
+                entities['time'] = time_match.group(0)
+                break
+        
+        # Detectar referencias temporales
+        time_refs = {
+            'mañana': 'morning',
+            'tarde': 'afternoon', 
+            'noche': 'evening',
+            'madrugada': 'dawn'
+        }
+        
+        for ref, value in time_refs.items():
+            if ref in message_lower:
+                entities['time_reference'] = value
+                break
+        
+        return entities
+    
+    def _contains_service_info(self, message: str) -> bool:
+        """Detecta si el mensaje contiene información de servicios"""
+        service_patterns = [
+            r'\b(aceite|cambio de aceite)\b',
+            r'\b(frenos|pastillas)\b',
+            r'\b(motor|revisión de motor)\b',
+            r'\b(mantenimiento|servicio)\b',
+            r'\b(reparación|arreglo)\b',
+            r'\b(diagnóstico|diagnostico)\b',
+            r'\b(llantas|neumáticos|neumaticos)\b'
+        ]
+        
+        for pattern in service_patterns:
+            if re.search(pattern, message, re.IGNORECASE):
+                return True
+        return False
+    
+    def _extract_service_entities(self, message: str) -> Dict:
+        """Extrae entidades de servicios del mensaje"""
+        entities = {}
+        message_lower = message.lower()
+        
+        service_mapping = {
+            'aceite': 'cambio_aceite',
+            'cambio de aceite': 'cambio_aceite',
+            'frenos': 'revision_frenos',
+            'pastillas': 'revision_frenos',
+            'motor': 'revision_motor',
+            'mantenimiento': 'mantenimiento_general',
+            'servicio': 'mantenimiento_general',
+            'diagnóstico': 'diagnostico',
+            'diagnostico': 'diagnostico'
+        }
+        
+        for keyword, service_type in service_mapping.items():
+            if keyword in message_lower:
+                entities['service_type'] = service_type
+                entities['service_name'] = keyword
+                break
+        
+        return entities
+    
+    def _contains_customer_data(self, message: str) -> bool:
+        """Detecta si el mensaje contiene datos de nuevo cliente"""
+        # Detectar nombres (palabras con mayúscula inicial)
+        name_pattern = r'\b[A-ZÁÉÍÓÚÑ][a-záéíóúñ]+\s+[A-ZÁÉÍÓÚÑ][a-záéíóúñ]+\b'
+        if re.search(name_pattern, message):
+            return True
+        
+        # Detectar información de vehículos
+        vehicle_patterns = [
+            r'\b(toyota|nissan|chevrolet|ford|hyundai|kia|mazda|honda|volkswagen)\b',
+            r'\b(hilux|corolla|sentra|aveo|accent|rio|cx-5|civic|jetta)\b',
+            r'\b[A-Z]{3}-\d{3,4}\b'  # Placas
+        ]
+        
+        for pattern in vehicle_patterns:
+            if re.search(pattern, message, re.IGNORECASE):
+                return True
+        
+        return False
+    
+    def _extract_customer_entities(self, message: str) -> Dict:
+        """Extrae entidades de datos de cliente del mensaje"""
+        entities = {}
+        
+        # Extraer nombre
+        name_pattern = r'\b([A-ZÁÉÍÓÚÑ][a-záéíóúñ]+\s+[A-ZÁÉÍÓÚÑ][a-záéíóúñ]+)\b'
+        name_match = re.search(name_pattern, message)
+        if name_match:
+            entities['customer_name'] = name_match.group(1)
+        
+        # Extraer información de vehículo
+        vehicle_pattern = r'\b(toyota|nissan|chevrolet|ford|hyundai|kia|mazda|honda|volkswagen)\s+(\w+)\b'
+        vehicle_match = re.search(vehicle_pattern, message, re.IGNORECASE)
+        if vehicle_match:
+            entities['vehicle_brand'] = vehicle_match.group(1).title()
+            entities['vehicle_model'] = vehicle_match.group(2).title()
+        
+        # Extraer placa
+        placa_pattern = r'\b([A-Z]{3}-\d{3,4})\b'
+        placa_match = re.search(placa_pattern, message.upper())
+        if placa_match:
+            entities['vehicle_plate'] = placa_match.group(1)
+        
+        return entities
+    
+    def _extract_vehicle_selection(self, message: str) -> Dict:
+        """Extrae selección de vehículo por número"""
+        # Buscar números en el mensaje
+        number_pattern = r'\b(\d+)\b'
+        numbers = re.findall(number_pattern, message)
+        
+        if numbers:
+            try:
+                selection = int(numbers[0])
+                return {'vehicle_selection': selection}
+            except ValueError:
+                pass
+        
+        return {}
