@@ -93,12 +93,56 @@
 </form>
 
 <script>
+// Variable para evitar múltiples inicializaciones del modal
+if (typeof window.ordenServicioModalInitialized === 'undefined') {
+    window.ordenServicioModalInitialized = false;
+}
+
 $(document).ready(function() {
-    // Inicializar Select2 solo en el modal
-    $('#ordenServicioForm select').select2({
+    // Evitar múltiples inicializaciones del modal
+    if (window.ordenServicioModalInitialized) {
+        console.log('Modal ya inicializado, saltando...');
+        return;
+    }
+    
+    // Destruir Select2 existente antes de inicializar
+    $('#ordenServicioForm select').each(function() {
+        if ($(this).hasClass('select2-hidden-accessible')) {
+            $(this).select2('destroy');
+        }
+    });
+    
+    // Inicializar Select2 específicamente para cada campo en el modal
+    $('#ordenServicioForm #id_vehiculo').select2({
         dropdownParent: $('#ordenServicioForm').closest('.modal'),
         width: '100%',
-        theme: 'bootstrap-5'
+        theme: 'bootstrap-5',
+        allowClear: true,
+        placeholder: 'Seleccione un vehículo...'
+    });
+    
+    $('#ordenServicioForm #id_servicios').select2({
+        dropdownParent: $('#ordenServicioForm').closest('.modal'),
+        width: '100%',
+        theme: 'bootstrap-5',
+        allowClear: true,
+        placeholder: 'Seleccione servicios...'
+    });
+    
+    $('#ordenServicioForm #id_productos').select2({
+        dropdownParent: $('#ordenServicioForm').closest('.modal'),
+        width: '100%',
+        theme: 'bootstrap-5',
+        allowClear: true,
+        placeholder: 'Seleccione productos...'
+    });
+    
+    $('#ordenServicioForm #id_metodo_pago').select2({
+        dropdownParent: $('#ordenServicioForm').closest('.modal'),
+        width: '100%',
+        theme: 'bootstrap-5',
+        allowClear: true,
+        placeholder: 'Seleccione método de pago...'
     });
     
     // Función para actualizar conductor basado en vehículo seleccionado
@@ -218,5 +262,15 @@ $(document).ready(function() {
     
     // Inicializar filtrado de productos
     filtrarProductosPorServicios();
+    
+    // Marcar modal como inicializado
+    window.ordenServicioModalInitialized = true;
+    console.log('Modal de orden de servicio inicializado correctamente');
+});
+
+// Resetear inicialización cuando se cierre el modal
+$(document).on('hidden.bs.modal', '#formModal', function () {
+    window.ordenServicioModalInitialized = false;
+    console.log('Modal cerrado, reseteando inicialización');
 });
 </script>
