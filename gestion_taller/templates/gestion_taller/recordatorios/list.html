@@ -1,0 +1,434 @@
+{% extends 'gestion_taller/base.html' %}
+{% load static %}
+
+{% block title %}Recordatorios de Mantenimiento{% endblock %}
+
+{% block extra_css %}
+<style>
+    .recordatorio-card {
+        transition: transform 0.2s, box-shadow 0.2s;
+        border-left: 4px solid #007bff;
+    }
+    .recordatorio-card:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 4px 15px rgba(0,0,0,0.1);
+    }
+    .recordatorio-vencido {
+        border-left-color: #dc3545;
+        background-color: #fff5f5;
+    }
+    .recordatorio-urgente {
+        border-left-color: #fd7e14;
+        background-color: #fff8f0;
+    }
+    .recordatorio-proximo {
+        border-left-color: #ffc107;
+        background-color: #fffbf0;
+    }
+    .recordatorio-normal {
+        border-left-color: #28a745;
+        background-color: #f8fff8;
+    }
+    .badge-vencido { background-color: #dc3545; }
+    .badge-urgente { background-color: #fd7e14; }
+    .badge-proximo { background-color: #ffc107; color: #000; }
+    .badge-normal { background-color: #28a745; }
+    .filtros-card {
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        color: white;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <!-- Header -->
+    <div class="row mb-4">
+        <div class="col-12">
+            <div class="d-flex justify-content-between align-items-center">
+                <div>
+                    <h1 class="h3 mb-0"><i class="fas fa-calendar-check text-primary"></i> Recordatorios de Mantenimiento</h1>
+                    <p class="text-muted mb-0">Gestiona los recordatorios de mantenimiento de todos los vehículos</p>
+                </div>
+                <div>
+                    <a href="{% url 'recordatorios_dashboard' %}" class="btn btn-info me-2">
+                        <i class="fas fa-chart-bar"></i> Dashboard
+                    </a>
+                    <button type="button" class="btn btn-success" data-bs-toggle="modal" data-bs-target="#generarRecordatoriosModal">
+                        <i class="fas fa-plus"></i> Generar Recordatorios
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Filtros -->
+    <div class="row mb-4">
+        <div class="col-12">
+            <div class="card filtros-card">
+                <div class="card-body">
+                    <form method="get" class="row g-3">
+                        <div class="col-md-3">
+                            <label class="form-label">Vehículo</label>
+                            <select name="vehiculo" class="form-select">
+                                <option value="">Todos los vehículos</option>
+                                {% for vehiculo in vehiculos_disponibles %}
+                                <option value="{{ vehiculo.id }}" {% if request.GET.vehiculo == vehiculo.id|stringformat:"s" %}selected{% endif %}>
+                                    {{ vehiculo.placa }} - {{ vehiculo.marca }} {{ vehiculo.modelo }}
+                                </option>
+                                {% endfor %}
+                            </select>
+                        </div>
+                        <div class="col-md-3">
+                            <label class="form-label">Tipo de Mantenimiento</label>
+                            <select name="tipo" class="form-select">
+                                <option value="">Todos los tipos</option>
+                                {% for tipo in tipos_disponibles %}
+                                <option value="{{ tipo }}" {% if request.GET.tipo == tipo %}selected{% endif %}>{{ tipo }}</option>
+                                {% endfor %}
+                            </select>
+                        </div>
+                        <div class="col-md-2">
+                            <label class="form-label">Estado</label>
+                            <select name="estado" class="form-select">
+                                <option value="">Todos</option>
+                                <option value="vencido" {% if request.GET.estado == 'vencido' %}selected{% endif %}>Vencidos</option>
+                                <option value="urgente" {% if request.GET.estado == 'urgente' %}selected{% endif %}>Urgentes</option>
+                                <option value="proximo" {% if request.GET.estado == 'proximo' %}selected{% endif %}>Próximos</option>
+                                <option value="normal" {% if request.GET.estado == 'normal' %}selected{% endif %}>Normales</option>
+                            </select>
+                        </div>
+                        <div class="col-md-2">
+                            <label class="form-label">Notificado</label>
+                            <select name="notificado" class="form-select">
+                                <option value="">Todos</option>
+                                <option value="si" {% if request.GET.notificado == 'si' %}selected{% endif %}>Sí</option>
+                                <option value="no" {% if request.GET.notificado == 'no' %}selected{% endif %}>No</option>
+                            </select>
+                        </div>
+                        <div class="col-md-2">
+                            <label class="form-label">&nbsp;</label>
+                            <div class="d-grid">
+                                <button type="submit" class="btn btn-light">
+                                    <i class="fas fa-filter"></i> Filtrar
+                                </button>
+                            </div>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Estadísticas rápidas -->
+    <div class="row mb-4">
+        <div class="col-md-3">
+            <div class="card bg-danger text-white">
+                <div class="card-body">
+                    <div class="d-flex justify-content-between">
+                        <div>
+                            <h5 class="card-title">Vencidos</h5>
+                            <h2 class="mb-0">{{ stats.vencidos }}</h2>
+                        </div>
+                        <div class="align-self-center">
+                            <i class="fas fa-exclamation-triangle fa-2x"></i>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card bg-warning text-dark">
+                <div class="card-body">
+                    <div class="d-flex justify-content-between">
+                        <div>
+                            <h5 class="card-title">Urgentes</h5>
+                            <h2 class="mb-0">{{ stats.urgentes }}</h2>
+                        </div>
+                        <div class="align-self-center">
+                            <i class="fas fa-clock fa-2x"></i>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card bg-info text-white">
+                <div class="card-body">
+                    <div class="d-flex justify-content-between">
+                        <div>
+                            <h5 class="card-title">Próximos</h5>
+                            <h2 class="mb-0">{{ stats.proximos }}</h2>
+                        </div>
+                        <div class="align-self-center">
+                            <i class="fas fa-calendar-alt fa-2x"></i>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card bg-success text-white">
+                <div class="card-body">
+                    <div class="d-flex justify-content-between">
+                        <div>
+                            <h5 class="card-title">Total</h5>
+                            <h2 class="mb-0">{{ stats.total }}</h2>
+                        </div>
+                        <div class="align-self-center">
+                            <i class="fas fa-list fa-2x"></i>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Lista de recordatorios -->
+    <div class="row">
+        <div class="col-12">
+            {% if recordatorios %}
+                <div class="row">
+                    {% for recordatorio in recordatorios %}
+                    <div class="col-md-6 col-lg-4 mb-4">
+                        <div class="card recordatorio-card recordatorio-{{ recordatorio.estado_urgencia }}">
+                            <div class="card-header d-flex justify-content-between align-items-center">
+                                <h6 class="mb-0">
+                                    <i class="fas fa-car text-primary"></i>
+                                    {{ recordatorio.vehiculo.placa }}
+                                </h6>
+                                <span class="badge badge-{{ recordatorio.estado_urgencia }}">
+                                    {% if recordatorio.dias_restantes <= 0 %}
+                                        Vencido
+                                    {% elif recordatorio.dias_restantes <= 3 %}
+                                        Urgente
+                                    {% elif recordatorio.dias_restantes <= 7 %}
+                                        Próximo
+                                    {% else %}
+                                        Normal
+                                    {% endif %}
+                                </span>
+                            </div>
+                            <div class="card-body">
+                                <h6 class="card-title">{{ recordatorio.tipo_mantenimiento }}</h6>
+                                <p class="card-text text-muted small">
+                                    <strong>Vehículo:</strong> {{ recordatorio.vehiculo.marca }} {{ recordatorio.vehiculo.modelo }}<br>
+                                    <strong>Conductor:</strong> {{ recordatorio.vehiculo.conductor.nombre }}<br>
+                                    <strong>Fecha límite:</strong> {{ recordatorio.fecha_limite|date:"d/m/Y" }}<br>
+                                    <strong>Días restantes:</strong> 
+                                    {% if recordatorio.dias_restantes <= 0 %}
+                                        <span class="text-danger fw-bold">{{ recordatorio.dias_restantes }} días</span>
+                                    {% elif recordatorio.dias_restantes <= 3 %}
+                                        <span class="text-warning fw-bold">{{ recordatorio.dias_restantes }} días</span>
+                                    {% else %}
+                                        <span class="text-success">{{ recordatorio.dias_restantes }} días</span>
+                                    {% endif %}
+                                </p>
+                                {% if recordatorio.notificado %}
+                                    <small class="text-success">
+                                        <i class="fas fa-check-circle"></i> Notificado el {{ recordatorio.fecha_notificacion|date:"d/m/Y" }}
+                                    </small>
+                                {% else %}
+                                    <small class="text-muted">
+                                        <i class="fas fa-clock"></i> Sin notificar
+                                    </small>
+                                {% endif %}
+                            </div>
+                            <div class="card-footer">
+                                <div class="btn-group w-100" role="group">
+                                    <a href="{% url 'recordatorio_mantenimiento_detail' recordatorio.pk %}" class="btn btn-outline-primary btn-sm">
+                                        <i class="fas fa-eye"></i> Ver
+                                    </a>
+                                    {% if not recordatorio.notificado %}
+                                    <button type="button" class="btn btn-outline-success btn-sm" data-recordatorio-id="{{ recordatorio.pk }}" data-action="enviar">
+                                        <i class="fas fa-paper-plane"></i> Enviar
+                                    </button>
+                                    {% endif %}
+                                    <button type="button" class="btn btn-outline-danger btn-sm" data-recordatorio-id="{{ recordatorio.pk }}" data-action="completar">
+                                        <i class="fas fa-check"></i> Completar
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    {% endfor %}
+                </div>
+
+                <!-- Paginación -->
+                {% if is_paginated %}
+                <nav aria-label="Paginación de recordatorios">
+                    <ul class="pagination justify-content-center">
+                        {% if page_obj.has_previous %}
+                            <li class="page-item">
+                                <a class="page-link" href="?{% for key, value in request.GET.items %}{% if key != 'page' %}{{ key }}={{ value }}&{% endif %}{% endfor %}page={{ page_obj.previous_page_number }}">Anterior</a>
+                            </li>
+                        {% endif %}
+                        
+                        {% for num in page_obj.paginator.page_range %}
+                            {% if page_obj.number == num %}
+                                <li class="page-item active">
+                                    <span class="page-link">{{ num }}</span>
+                                </li>
+                            {% elif num > page_obj.number|add:'-3' and num < page_obj.number|add:'3' %}
+                                <li class="page-item">
+                                    <a class="page-link" href="?{% for key, value in request.GET.items %}{% if key != 'page' %}{{ key }}={{ value }}&{% endif %}{% endfor %}page={{ num }}">{{ num }}</a>
+                                </li>
+                            {% endif %}
+                        {% endfor %}
+                        
+                        {% if page_obj.has_next %}
+                            <li class="page-item">
+                                <a class="page-link" href="?{% for key, value in request.GET.items %}{% if key != 'page' %}{{ key }}={{ value }}&{% endif %}{% endfor %}page={{ page_obj.next_page_number }}">Siguiente</a>
+                            </li>
+                        {% endif %}
+                    </ul>
+                </nav>
+                {% endif %}
+
+            {% else %}
+                <div class="card">
+                    <div class="card-body text-center py-5">
+                        <i class="fas fa-calendar-times fa-3x text-muted mb-3"></i>
+                        <h4 class="text-muted">No hay recordatorios</h4>
+                        <p class="text-muted">No se encontraron recordatorios con los filtros aplicados.</p>
+                        <button type="button" class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#generarRecordatoriosModal">
+                            <i class="fas fa-plus"></i> Generar Recordatorios
+                        </button>
+                    </div>
+                </div>
+            {% endif %}
+        </div>
+    </div>
+</div>
+
+<!-- Modal para generar recordatorios -->
+<div class="modal fade" id="generarRecordatoriosModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Generar Recordatorios Automáticos</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <p>¿Deseas generar recordatorios automáticos para todos los vehículos basados en su kilometraje y fechas de último mantenimiento?</p>
+                <div class="alert alert-info">
+                    <i class="fas fa-info-circle"></i>
+                    <strong>Nota:</strong> Este proceso generará recordatorios para mantenimientos como cambio de aceite, revisión de frenos, etc., basándose en los intervalos recomendados.
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+                <button type="button" class="btn btn-success" id="btnGenerarRecordatorios">
+                    <i class="fas fa-cog"></i> Generar Recordatorios
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+{% endblock %}
+
+{% block extra_js %}
+<script>
+// Event listeners para botones con data attributes
+document.addEventListener('DOMContentLoaded', function() {
+    // Manejar botones de enviar y completar
+    document.querySelectorAll('button[data-action]').forEach(button => {
+        button.addEventListener('click', function() {
+            const recordatorioId = this.getAttribute('data-recordatorio-id');
+            const action = this.getAttribute('data-action');
+            
+            if (action === 'enviar') {
+                enviarRecordatorio(recordatorioId);
+            } else if (action === 'completar') {
+                marcarCompletado(recordatorioId);
+            }
+        });
+    });
+    
+    // Manejar botón de generar recordatorios
+    const btnGenerarRecordatorios = document.getElementById('btnGenerarRecordatorios');
+    if (btnGenerarRecordatorios) {
+        btnGenerarRecordatorios.addEventListener('click', function() {
+            generarRecordatoriosAutomaticos();
+        });
+    }
+});
+
+function enviarRecordatorio(recordatorioId) {
+    if (confirm('¿Estás seguro de que deseas enviar este recordatorio por WhatsApp?')) {
+        fetch(`/recordatorios/${recordatorioId}/enviar/`, {
+            method: 'POST',
+            headers: {
+                'X-CSRFToken': document.querySelector('[name=csrfmiddlewaretoken]').value,
+                'Content-Type': 'application/json',
+            },
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                alert('Recordatorio enviado exitosamente');
+                location.reload();
+            } else {
+                alert('Error: ' + data.message);
+            }
+        })
+        .catch(error => {
+            console.error('Error:', error);
+            alert('Error al enviar el recordatorio');
+        });
+    }
+}
+
+function marcarCompletado(recordatorioId) {
+    if (confirm('¿Estás seguro de que deseas marcar este recordatorio como completado? Esta acción eliminará el recordatorio.')) {
+        fetch(`/recordatorios/${recordatorioId}/completar/`, {
+            method: 'POST',
+            headers: {
+                'X-CSRFToken': document.querySelector('[name=csrfmiddlewaretoken]').value,
+                'Content-Type': 'application/json',
+            },
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                alert('Recordatorio marcado como completado');
+                location.reload();
+            } else {
+                alert('Error: ' + data.message);
+            }
+        })
+        .catch(error => {
+            console.error('Error:', error);
+            alert('Error al marcar el recordatorio como completado');
+        });
+    }
+}
+
+function generarRecordatoriosAutomaticos() {
+    fetch('/api/generar-recordatorios-automaticos/', {
+        method: 'POST',
+        headers: {
+            'X-CSRFToken': document.querySelector('[name=csrfmiddlewaretoken]').value,
+            'Content-Type': 'application/json',
+        },
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            alert(`Recordatorios generados exitosamente: ${data.generados} nuevos recordatorios`);
+            location.reload();
+        } else {
+            alert('Error: ' + data.message);
+        }
+    })
+    .catch(error => {
+        console.error('Error:', error);
+        alert('Error al generar recordatorios automáticos');
+    });
+    
+    // Cerrar modal
+    bootstrap.Modal.getInstance(document.getElementById('generarRecordatoriosModal')).hide();
+}
+</script>
+{% endblock %}

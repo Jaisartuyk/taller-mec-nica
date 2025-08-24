@@ -1,5 +1,6 @@
 from django.urls import path
 from . import views
+from . import api_views
 
 # Forzar redespliegue - Views import conflicts fixed
 
@@ -80,11 +81,30 @@ urlpatterns += [
     path('api/whatsapp/conductores/', api_conductores_whatsapp, name='api_conductores_whatsapp'),
     path('api/whatsapp/test-connection/', test_whatsapp_connection, name='test_whatsapp_connection'),
     
-    # URLs para Chatbot
-    path('whatsapp/chatbot/', chatbot_dashboard, name='chatbot_dashboard'),
+    # Chatbot
+    path('chatbot/', chatbot_dashboard, name='chatbot_dashboard'),
+]
+
+# URLs para Chatbot
+urlpatterns += [
     path('webhook/whatsapp/', whatsapp_webhook, name='whatsapp_webhook'),
     path('webhook/whatsapp/test/', whatsapp_webhook_test, name='whatsapp_webhook_test'),
-    path('api/chatbot/test/', chatbot_test, name='chatbot_test'),
-    path('api/chatbot/stats/', ChatbotStatsView.as_view(), name='chatbot_stats'),
-    path('api/chatbot/config/', chatbot_config, name='chatbot_config'),
+    path('chatbot/test/', chatbot_test, name='chatbot_test'),
+    path('chatbot/stats/', ChatbotStatsView.as_view(), name='chatbot_stats'),
+    path('chatbot/config/', chatbot_config, name='chatbot_config'),
+]
+
+# URLs para Recordatorios de Mantenimiento
+urlpatterns += [
+    path('recordatorios/', views.recordatorios_mantenimiento_list, name='recordatorios_mantenimiento_list'),
+    path('recordatorios/dashboard/', views.recordatorios_dashboard, name='recordatorios_dashboard'),
+    path('recordatorios/<int:pk>/', views.recordatorio_mantenimiento_detail, name='recordatorio_mantenimiento_detail'),
+    path('recordatorios/<int:pk>/enviar/', views.enviar_recordatorio_manual, name='enviar_recordatorio_manual'),
+    path('recordatorios/<int:pk>/completar/', views.marcar_recordatorio_completado, name='marcar_recordatorio_completado'),
+    path('vehiculos/<int:vehiculo_id>/generar-recordatorios/', views.generar_recordatorios_vehiculo, name='generar_recordatorios_vehiculo'),
+    
+    # APIs para recordatorios
+    path('api/generar-recordatorios-automaticos/', api_views.api_generar_recordatorios_automaticos, name='api_generar_recordatorios_automaticos'),
+    path('api/enviar-recordatorios-masivos/', api_views.api_enviar_recordatorios_masivos, name='api_enviar_recordatorios_masivos'),
+    path('api/exportar-reporte-recordatorios/', api_views.api_exportar_reporte_recordatorios, name='api_exportar_reporte_recordatorios'),
 ]

@@ -1,0 +1,519 @@
+{% extends 'gestion_taller/base.html' %}
+{% load static %}
+
+{% block title %}Dashboard Recordatorios de Mantenimiento{% endblock %}
+
+{% block extra_css %}
+<style>
+    .dashboard-card {
+        transition: transform 0.2s, box-shadow 0.2s;
+        border: none;
+        border-radius: 15px;
+    }
+    .dashboard-card:hover {
+        transform: translateY(-5px);
+        box-shadow: 0 8px 25px rgba(0,0,0,0.15);
+    }
+    .stat-card {
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        color: white;
+    }
+    .stat-card-danger {
+        background: linear-gradient(135deg, #ff6b6b 0%, #ee5a24 100%);
+    }
+    .stat-card-warning {
+        background: linear-gradient(135deg, #feca57 0%, #ff9ff3 100%);
+        color: #333;
+    }
+    .stat-card-success {
+        background: linear-gradient(135deg, #48dbfb 0%, #0abde3 100%);
+    }
+    .chart-container {
+        position: relative;
+        height: 300px;
+    }
+    .vehiculo-item {
+        border-left: 4px solid #007bff;
+        transition: all 0.2s;
+    }
+    .vehiculo-item:hover {
+        background-color: #f8f9fa;
+        border-left-color: #0056b3;
+    }
+    .urgencia-badge {
+        font-size: 0.8em;
+    }
+    .timeline-container {
+        max-height: 400px;
+        overflow-y: auto;
+    }
+    .timeline-item {
+        border-left: 3px solid #dee2e6;
+        padding-left: 20px;
+        margin-bottom: 20px;
+        position: relative;
+    }
+    .timeline-item::before {
+        content: '';
+        position: absolute;
+        left: -8px;
+        top: 5px;
+        width: 13px;
+        height: 13px;
+        border-radius: 50%;
+        background: #007bff;
+    }
+    .timeline-vencido::before { background: #dc3545; }
+    .timeline-urgente::before { background: #fd7e14; }
+    .timeline-proximo::before { background: #ffc107; }
+    .timeline-normal::before { background: #28a745; }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <!-- Header -->
+    <div class="row mb-4">
+        <div class="col-12">
+            <div class="d-flex justify-content-between align-items-center">
+                <div>
+                    <h1 class="h3 mb-0">
+                        <i class="fas fa-chart-bar text-primary"></i> 
+                        Dashboard Recordatorios de Mantenimiento
+                    </h1>
+                    <p class="text-muted mb-0">Resumen completo del estado de mantenimientos</p>
+                </div>
+                <div>
+                    <a href="{% url 'recordatorios_mantenimiento_list' %}" class="btn btn-outline-primary me-2">
+                        <i class="fas fa-list"></i> Ver Lista
+                    </a>
+                    <button type="button" class="btn btn-success" data-bs-toggle="modal" data-bs-target="#accionesRapidasModal">
+                        <i class="fas fa-bolt"></i> Acciones Rápidas
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Estadísticas principales -->
+    <div class="row mb-4">
+        <div class="col-md-3 mb-3">
+            <div class="card dashboard-card stat-card-danger">
+                <div class="card-body text-center">
+                    <i class="fas fa-exclamation-triangle fa-3x mb-3"></i>
+                    <h2 class="mb-1">{{ stats.vencidos }}</h2>
+                    <p class="mb-0">Vencidos</p>
+                    <small class="opacity-75">Requieren atención inmediata</small>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3 mb-3">
+            <div class="card dashboard-card stat-card-warning">
+                <div class="card-body text-center">
+                    <i class="fas fa-clock fa-3x mb-3"></i>
+                    <h2 class="mb-1">{{ stats.urgentes }}</h2>
+                    <p class="mb-0">Urgentes</p>
+                    <small class="opacity-75">Próximos 3 días</small>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3 mb-3">
+            <div class="card dashboard-card stat-card-success">
+                <div class="card-body text-center">
+                    <i class="fas fa-calendar-alt fa-3x mb-3"></i>
+                    <h2 class="mb-1">{{ stats.proximos }}</h2>
+                    <p class="mb-0">Próximos</p>
+                    <small class="opacity-75">Próximos 7 días</small>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3 mb-3">
+            <div class="card dashboard-card stat-card">
+                <div class="card-body text-center">
+                    <i class="fas fa-list fa-3x mb-3"></i>
+                    <h2 class="mb-1">{{ stats.total }}</h2>
+                    <p class="mb-0">Total</p>
+                    <small class="opacity-75">Todos los recordatorios</small>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="row">
+        <!-- Gráfico de recordatorios por tipo -->
+        <div class="col-lg-6 mb-4">
+            <div class="card dashboard-card">
+                <div class="card-header">
+                    <h5 class="mb-0">
+                        <i class="fas fa-chart-pie text-primary"></i>
+                        Recordatorios por Tipo de Mantenimiento
+                    </h5>
+                </div>
+                <div class="card-body">
+                    <div class="chart-container">
+                        <canvas id="tiposChart"></canvas>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Gráfico de urgencia -->
+        <div class="col-lg-6 mb-4">
+            <div class="card dashboard-card">
+                <div class="card-header">
+                    <h5 class="mb-0">
+                        <i class="fas fa-chart-doughnut text-success"></i>
+                        Estado de Urgencia
+                    </h5>
+                </div>
+                <div class="card-body">
+                    <div class="chart-container">
+                        <canvas id="urgenciaChart"></canvas>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="row">
+        <!-- Vehículos con más recordatorios -->
+        <div class="col-lg-6 mb-4">
+            <div class="card dashboard-card">
+                <div class="card-header d-flex justify-content-between align-items-center">
+                    <h5 class="mb-0">
+                        <i class="fas fa-car text-warning"></i>
+                        Vehículos con Más Recordatorios
+                    </h5>
+                    <span class="badge bg-primary">Top {{ vehiculos_top|length }}</span>
+                </div>
+                <div class="card-body">
+                    {% if vehiculos_top %}
+                        {% for vehiculo in vehiculos_top %}
+                        <div class="vehiculo-item p-3 mb-3 rounded">
+                            <div class="d-flex justify-content-between align-items-center">
+                                <div>
+                                    <h6 class="mb-1">
+                                        <i class="fas fa-car text-primary"></i>
+                                        {{ vehiculo.placa }} - {{ vehiculo.marca }} {{ vehiculo.modelo }}
+                                    </h6>
+                                    <p class="text-muted small mb-1">
+                                        <i class="fas fa-user"></i> {{ vehiculo.conductor.nombre }}
+                                    </p>
+                                    <div class="d-flex gap-1">
+                                        {% if vehiculo.recordatorios_vencidos > 0 %}
+                                        <span class="badge bg-danger urgencia-badge">
+                                            {{ vehiculo.recordatorios_vencidos }} vencidos
+                                        </span>
+                                        {% endif %}
+                                        {% if vehiculo.recordatorios_urgentes > 0 %}
+                                        <span class="badge bg-warning urgencia-badge">
+                                            {{ vehiculo.recordatorios_urgentes }} urgentes
+                                        </span>
+                                        {% endif %}
+                                        {% if vehiculo.recordatorios_proximos > 0 %}
+                                        <span class="badge bg-info urgencia-badge">
+                                            {{ vehiculo.recordatorios_proximos }} próximos
+                                        </span>
+                                        {% endif %}
+                                    </div>
+                                </div>
+                                <div class="text-end">
+                                    <h4 class="mb-0 text-primary">{{ vehiculo.total_recordatorios }}</h4>
+                                    <small class="text-muted">recordatorios</small>
+                                </div>
+                            </div>
+                        </div>
+                        {% endfor %}
+                    {% else %}
+                        <div class="text-center py-4">
+                            <i class="fas fa-car fa-3x text-muted mb-3"></i>
+                            <p class="text-muted">No hay vehículos con recordatorios activos</p>
+                        </div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+
+        <!-- Timeline de recordatorios próximos -->
+        <div class="col-lg-6 mb-4">
+            <div class="card dashboard-card">
+                <div class="card-header">
+                    <h5 class="mb-0">
+                        <i class="fas fa-clock text-info"></i>
+                        Próximos Recordatorios (15 días)
+                    </h5>
+                </div>
+                <div class="card-body">
+                    <div class="timeline-container">
+                        {% if recordatorios_proximos %}
+                            {% for recordatorio in recordatorios_proximos %}
+                            <div class="timeline-item timeline-{% if recordatorio.dias_restantes <= 0 %}vencido{% elif recordatorio.dias_restantes <= 3 %}urgente{% elif recordatorio.dias_restantes <= 7 %}proximo{% else %}normal{% endif %}">
+                                <div class="d-flex justify-content-between align-items-start">
+                                    <div>
+                                        <h6 class="mb-1">{{ recordatorio.tipo_mantenimiento }}</h6>
+                                        <p class="text-muted small mb-1">
+                                            <i class="fas fa-car"></i> {{ recordatorio.vehiculo.placa }} - {{ recordatorio.vehiculo.conductor.nombre }}
+                                        </p>
+                                        <p class="text-muted small mb-0">
+                                            <i class="fas fa-calendar"></i> {{ recordatorio.fecha_limite|date:"d/m/Y" }}
+                                        </p>
+                                    </div>
+                                    <div class="text-end">
+                                        {% if recordatorio.dias_restantes <= 0 %}
+                                            <span class="badge bg-danger">Vencido</span>
+                                        {% elif recordatorio.dias_restantes <= 3 %}
+                                            <span class="badge bg-warning">{{ recordatorio.dias_restantes }}d</span>
+                                        {% elif recordatorio.dias_restantes <= 7 %}
+                                            <span class="badge bg-info">{{ recordatorio.dias_restantes }}d</span>
+                                        {% else %}
+                                            <span class="badge bg-success">{{ recordatorio.dias_restantes }}d</span>
+                                        {% endif %}
+                                    </div>
+                                </div>
+                            </div>
+                            {% endfor %}
+                        {% else %}
+                            <div class="text-center py-4">
+                                <i class="fas fa-calendar-check fa-3x text-muted mb-3"></i>
+                                <p class="text-muted">No hay recordatorios próximos</p>
+                            </div>
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Estadísticas adicionales -->
+    <div class="row">
+        <div class="col-12">
+            <div class="card dashboard-card">
+                <div class="card-header">
+                    <h5 class="mb-0">
+                        <i class="fas fa-info-circle text-primary"></i>
+                        Estadísticas Adicionales
+                    </h5>
+                </div>
+                <div class="card-body">
+                    <div class="row text-center">
+                        <div class="col-md-3 mb-3">
+                            <div class="border-end">
+                                <h4 class="text-primary mb-1">{{ stats.notificados }}</h4>
+                                <p class="text-muted small mb-0">Recordatorios Notificados</p>
+                            </div>
+                        </div>
+                        <div class="col-md-3 mb-3">
+                            <div class="border-end">
+                                <h4 class="text-warning mb-1">{{ stats.pendientes_notificar }}</h4>
+                                <p class="text-muted small mb-0">Pendientes de Notificar</p>
+                            </div>
+                        </div>
+                        <div class="col-md-3 mb-3">
+                            <div class="border-end">
+                                <h4 class="text-info mb-1">{{ stats.vehiculos_con_recordatorios }}</h4>
+                                <p class="text-muted small mb-0">Vehículos con Recordatorios</p>
+                            </div>
+                        </div>
+                        <div class="col-md-3 mb-3">
+                            <h4 class="text-success mb-1">{{ stats.promedio_dias|floatformat:1 }}</h4>
+                            <p class="text-muted small mb-0">Promedio Días Restantes</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Modal de acciones rápidas -->
+<div class="modal fade" id="accionesRapidasModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">
+                    <i class="fas fa-bolt text-warning"></i>
+                    Acciones Rápidas
+                </h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <div class="d-grid gap-2">
+                    <button type="button" class="btn btn-success" onclick="enviarRecordatoriosVencidos()">
+                        <i class="fas fa-paper-plane"></i>
+                        Enviar Todos los Recordatorios Vencidos ({{ stats.vencidos }})
+                    </button>
+                    
+                    <button type="button" class="btn btn-warning" onclick="enviarRecordatoriosUrgentes()">
+                        <i class="fas fa-clock"></i>
+                        Enviar Recordatorios Urgentes ({{ stats.urgentes }})
+                    </button>
+                    
+                    <button type="button" class="btn btn-info" onclick="generarRecordatoriosAutomaticos()">
+                        <i class="fas fa-cog"></i>
+                        Generar Recordatorios Automáticos
+                    </button>
+                    
+                    <hr>
+                    
+                    <button type="button" class="btn btn-outline-primary" onclick="exportarReporte()">
+                        <i class="fas fa-download"></i>
+                        Exportar Reporte Excel
+                    </button>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cerrar</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+{% endblock %}
+
+{% block extra_js %}
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script>
+// Datos para gráficos
+const tiposData = JSON.parse('{{ stats_por_tipo|escapejs }}');
+const urgenciaData = {
+    'Vencidos': parseInt('{{ stats.vencidos|default:0 }}'),
+    'Urgentes': parseInt('{{ stats.urgentes|default:0 }}'),
+    'Próximos': parseInt('{{ stats.proximos|default:0 }}'),
+    'Normales': parseInt('{{ stats.normales|default:0 }}')
+};
+
+// Gráfico de tipos de mantenimiento
+const tiposCtx = document.getElementById('tiposChart').getContext('2d');
+new Chart(tiposCtx, {
+    type: 'bar',
+    data: {
+        labels: Object.keys(tiposData),
+        datasets: [{
+            label: 'Recordatorios',
+            data: Object.values(tiposData),
+            backgroundColor: [
+                '#FF6384', '#36A2EB', '#FFCE56', '#4BC0C0',
+                '#9966FF', '#FF9F40', '#FF6384', '#C9CBCF'
+            ],
+            borderWidth: 1
+        }]
+    },
+    options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        plugins: {
+            legend: {
+                display: false
+            }
+        },
+        scales: {
+            y: {
+                beginAtZero: true,
+                ticks: {
+                    stepSize: 1
+                }
+            }
+        }
+    }
+});
+
+// Gráfico de urgencia
+const urgenciaCtx = document.getElementById('urgenciaChart').getContext('2d');
+new Chart(urgenciaCtx, {
+    type: 'doughnut',
+    data: {
+        labels: Object.keys(urgenciaData),
+        datasets: [{
+            data: Object.values(urgenciaData),
+            backgroundColor: ['#dc3545', '#fd7e14', '#17a2b8', '#28a745'],
+            borderWidth: 2,
+            borderColor: '#fff'
+        }]
+    },
+    options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        plugins: {
+            legend: {
+                position: 'bottom'
+            }
+        }
+    }
+});
+
+// Funciones de acciones rápidas
+function enviarRecordatoriosVencidos() {
+    if (confirm(`¿Estás seguro de enviar ${{{ stats.vencidos }}} recordatorios vencidos por WhatsApp?`)) {
+        enviarRecordatoriosMasivos('vencidos');
+    }
+}
+
+function enviarRecordatoriosUrgentes() {
+    if (confirm(`¿Estás seguro de enviar ${{{ stats.urgentes }}} recordatorios urgentes por WhatsApp?`)) {
+        enviarRecordatoriosMasivos('urgentes');
+    }
+}
+
+function enviarRecordatoriosMasivos(tipo) {
+    fetch('/api/enviar-recordatorios-masivos/', {
+        method: 'POST',
+        headers: {
+            'X-CSRFToken': document.querySelector('[name=csrfmiddlewaretoken]').value,
+            'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ tipo: tipo })
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            alert(`Se enviaron ${data.enviados} recordatorios exitosamente`);
+            location.reload();
+        } else {
+            alert('Error: ' + data.message);
+        }
+    })
+    .catch(error => {
+        console.error('Error:', error);
+        alert('Error al enviar recordatorios masivos');
+    });
+    
+    // Cerrar modal
+    bootstrap.Modal.getInstance(document.getElementById('accionesRapidasModal')).hide();
+}
+
+function generarRecordatoriosAutomaticos() {
+    if (confirm('¿Deseas generar recordatorios automáticos para todos los vehículos?')) {
+        fetch('/api/generar-recordatorios-automaticos/', {
+            method: 'POST',
+            headers: {
+                'X-CSRFToken': document.querySelector('[name=csrfmiddlewaretoken]').value,
+                'Content-Type': 'application/json',
+            },
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                alert(`Se generaron ${data.generados} nuevos recordatorios`);
+                location.reload();
+            } else {
+                alert('Error: ' + data.message);
+            }
+        })
+        .catch(error => {
+            console.error('Error:', error);
+            alert('Error al generar recordatorios automáticos');
+        });
+    }
+    
+    // Cerrar modal
+    bootstrap.Modal.getInstance(document.getElementById('accionesRapidasModal')).hide();
+}
+
+function exportarReporte() {
+    window.open('/api/exportar-reporte-recordatorios/', '_blank');
+    
+    // Cerrar modal
+    bootstrap.Modal.getInstance(document.getElementById('accionesRapidasModal')).hide();
+}
+</script>
+{% endblock %}

@@ -1,0 +1,436 @@
+{% extends 'gestion_taller/base.html' %}
+{% load static %}
+
+{% block title %}Detalle Recordatorio - {{ recordatorio.tipo_mantenimiento }}{% endblock %}
+
+{% block extra_css %}
+<style>
+    .recordatorio-header {
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        color: white;
+        border-radius: 10px 10px 0 0;
+    }
+    .estado-badge {
+        font-size: 1.1em;
+        padding: 0.5rem 1rem;
+    }
+    .info-card {
+        transition: transform 0.2s;
+    }
+    .info-card:hover {
+        transform: translateY(-2px);
+    }
+    .timeline-item {
+        border-left: 3px solid #007bff;
+        padding-left: 20px;
+        margin-bottom: 20px;
+        position: relative;
+    }
+    .timeline-item::before {
+        content: '';
+        position: absolute;
+        left: -8px;
+        top: 0;
+        width: 13px;
+        height: 13px;
+        border-radius: 50%;
+        background: #007bff;
+    }
+    .urgencia-vencido { color: #dc3545; }
+    .urgencia-urgente { color: #fd7e14; }
+    .urgencia-proximo { color: #ffc107; }
+    .urgencia-normal { color: #28a745; }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <!-- Header -->
+    <div class="row mb-4">
+        <div class="col-12">
+            <div class="card">
+                <div class="recordatorio-header p-4">
+                    <div class="d-flex justify-content-between align-items-start">
+                        <div>
+                            <h1 class="h3 mb-2">
+                                <i class="fas fa-wrench"></i>
+                                {{ recordatorio.tipo_mantenimiento }}
+                            </h1>
+                            <p class="mb-0 opacity-75">
+                                <i class="fas fa-car"></i>
+                                {{ recordatorio.vehiculo.marca }} {{ recordatorio.vehiculo.modelo }} - {{ recordatorio.vehiculo.placa }}
+                            </p>
+                        </div>
+                        <div class="text-end">
+                            {% if recordatorio.dias_restantes <= 0 %}
+                                <span class="badge bg-danger estado-badge">
+                                    <i class="fas fa-exclamation-triangle"></i> VENCIDO
+                                </span>
+                            {% elif recordatorio.dias_restantes <= 3 %}
+                                <span class="badge bg-warning estado-badge">
+                                    <i class="fas fa-clock"></i> URGENTE
+                                </span>
+                            {% elif recordatorio.dias_restantes <= 7 %}
+                                <span class="badge bg-info estado-badge">
+                                    <i class="fas fa-calendar-alt"></i> PRÓXIMO
+                                </span>
+                            {% else %}
+                                <span class="badge bg-success estado-badge">
+                                    <i class="fas fa-check-circle"></i> NORMAL
+                                </span>
+                            {% endif %}
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="row">
+        <!-- Información principal -->
+        <div class="col-lg-8">
+            <!-- Detalles del recordatorio -->
+            <div class="card info-card mb-4">
+                <div class="card-header">
+                    <h5 class="mb-0"><i class="fas fa-info-circle text-primary"></i> Información del Recordatorio</h5>
+                </div>
+                <div class="card-body">
+                    <div class="row">
+                        <div class="col-md-6">
+                            <table class="table table-borderless">
+                                <tr>
+                                    <td><strong><i class="fas fa-calendar-check text-primary"></i> Fecha límite:</strong></td>
+                                    <td>{{ recordatorio.fecha_limite|date:"d/m/Y" }}</td>
+                                </tr>
+                                <tr>
+                                    <td><strong><i class="fas fa-clock text-primary"></i> Días restantes:</strong></td>
+                                    <td>
+                                        {% if recordatorio.dias_restantes <= 0 %}
+                                            <span class="urgencia-vencido fw-bold">{{ recordatorio.dias_restantes }} días (VENCIDO)</span>
+                                        {% elif recordatorio.dias_restantes <= 3 %}
+                                            <span class="urgencia-urgente fw-bold">{{ recordatorio.dias_restantes }} días</span>
+                                        {% elif recordatorio.dias_restantes <= 7 %}
+                                            <span class="urgencia-proximo fw-bold">{{ recordatorio.dias_restantes }} días</span>
+                                        {% else %}
+                                            <span class="urgencia-normal">{{ recordatorio.dias_restantes }} días</span>
+                                        {% endif %}
+                                    </td>
+                                </tr>
+                                <tr>
+                                    <td><strong><i class="fas fa-tachometer-alt text-primary"></i> Kilometraje límite:</strong></td>
+                                    <td>{{ recordatorio.kilometraje_limite|floatformat:0 }} km</td>
+                                </tr>
+                                <tr>
+                                    <td><strong><i class="fas fa-calendar-plus text-primary"></i> Creado:</strong></td>
+                                    <td>{{ recordatorio.fecha_creacion|date:"d/m/Y H:i" }}</td>
+                                </tr>
+                            </table>
+                        </div>
+                        <div class="col-md-6">
+                            <table class="table table-borderless">
+                                <tr>
+                                    <td><strong><i class="fas fa-bell text-primary"></i> Estado notificación:</strong></td>
+                                    <td>
+                                        {% if recordatorio.notificado %}
+                                            <span class="badge bg-success">
+                                                <i class="fas fa-check"></i> Notificado
+                                            </span>
+                                        {% else %}
+                                            <span class="badge bg-warning">
+                                                <i class="fas fa-clock"></i> Pendiente
+                                            </span>
+                                        {% endif %}
+                                    </td>
+                                </tr>
+                                {% if recordatorio.notificado %}
+                                <tr>
+                                    <td><strong><i class="fas fa-calendar text-primary"></i> Fecha notificación:</strong></td>
+                                    <td>{{ recordatorio.fecha_notificacion|date:"d/m/Y H:i" }}</td>
+                                </tr>
+                                {% endif %}
+                                {% if recordatorio.notas %}
+                                <tr>
+                                    <td><strong><i class="fas fa-sticky-note text-primary"></i> Notas:</strong></td>
+                                    <td>{{ recordatorio.notas }}</td>
+                                </tr>
+                                {% endif %}
+                            </table>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Información del vehículo -->
+            <div class="card info-card mb-4">
+                <div class="card-header">
+                    <h5 class="mb-0"><i class="fas fa-car text-success"></i> Información del Vehículo</h5>
+                </div>
+                <div class="card-body">
+                    <div class="row">
+                        <div class="col-md-6">
+                            <table class="table table-borderless">
+                                <tr>
+                                    <td><strong><i class="fas fa-id-card text-success"></i> Placa:</strong></td>
+                                    <td>{{ recordatorio.vehiculo.placa }}</td>
+                                </tr>
+                                <tr>
+                                    <td><strong><i class="fas fa-industry text-success"></i> Marca:</strong></td>
+                                    <td>{{ recordatorio.vehiculo.marca }}</td>
+                                </tr>
+                                <tr>
+                                    <td><strong><i class="fas fa-car-side text-success"></i> Modelo:</strong></td>
+                                    <td>{{ recordatorio.vehiculo.modelo }}</td>
+                                </tr>
+                                <tr>
+                                    <td><strong><i class="fas fa-calendar text-success"></i> Año:</strong></td>
+                                    <td>{{ recordatorio.vehiculo.anio|default:"No especificado" }}</td>
+                                </tr>
+                            </table>
+                        </div>
+                        <div class="col-md-6">
+                            <table class="table table-borderless">
+                                <tr>
+                                    <td><strong><i class="fas fa-tachometer-alt text-success"></i> Kilometraje actual:</strong></td>
+                                    <td>{{ recordatorio.vehiculo.kilometraje_actual|floatformat:0|default:"No registrado" }} km</td>
+                                </tr>
+                                <tr>
+                                    <td><strong><i class="fas fa-palette text-success"></i> Color:</strong></td>
+                                    <td>{{ recordatorio.vehiculo.color|default:"No especificado" }}</td>
+                                </tr>
+                                <tr>
+                                    <td><strong><i class="fas fa-cog text-success"></i> Motor:</strong></td>
+                                    <td>{{ recordatorio.vehiculo.motor|default:"No especificado" }}</td>
+                                </tr>
+                                <tr>
+                                    <td><strong><i class="fas fa-gas-pump text-success"></i> Combustible:</strong></td>
+                                    <td>{{ recordatorio.vehiculo.tipo_combustible|default:"No especificado" }}</td>
+                                </tr>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Información del conductor -->
+            <div class="card info-card">
+                <div class="card-header">
+                    <h5 class="mb-0"><i class="fas fa-user text-info"></i> Información del Conductor</h5>
+                </div>
+                <div class="card-body">
+                    <div class="row">
+                        <div class="col-md-6">
+                            <table class="table table-borderless">
+                                <tr>
+                                    <td><strong><i class="fas fa-user text-info"></i> Nombre:</strong></td>
+                                    <td>{{ recordatorio.vehiculo.conductor.nombre }}</td>
+                                </tr>
+                                <tr>
+                                    <td><strong><i class="fas fa-id-card text-info"></i> Cédula:</strong></td>
+                                    <td>{{ recordatorio.vehiculo.conductor.cedula }}</td>
+                                </tr>
+                            </table>
+                        </div>
+                        <div class="col-md-6">
+                            <table class="table table-borderless">
+                                <tr>
+                                    <td><strong><i class="fas fa-phone text-info"></i> Teléfono:</strong></td>
+                                    <td>
+                                        {% if recordatorio.vehiculo.conductor.telefono %}
+                                            {{ recordatorio.vehiculo.conductor.telefono }}
+                                            <span class="badge bg-success ms-2">
+                                                <i class="fas fa-whatsapp"></i> WhatsApp disponible
+                                            </span>
+                                        {% else %}
+                                            <span class="text-muted">No registrado</span>
+                                            <span class="badge bg-warning ms-2">
+                                                <i class="fas fa-exclamation-triangle"></i> Sin WhatsApp
+                                            </span>
+                                        {% endif %}
+                                    </td>
+                                </tr>
+                                <tr>
+                                    <td><strong><i class="fas fa-envelope text-info"></i> Email:</strong></td>
+                                    <td>{{ recordatorio.vehiculo.conductor.email|default:"No registrado" }}</td>
+                                </tr>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Panel de acciones -->
+        <div class="col-lg-4">
+            <!-- Acciones -->
+            <div class="card mb-4">
+                <div class="card-header">
+                    <h5 class="mb-0"><i class="fas fa-cogs text-primary"></i> Acciones</h5>
+                </div>
+                <div class="card-body">
+                    <div class="d-grid gap-2">
+                        {% if not recordatorio.notificado and recordatorio.vehiculo.conductor.telefono %}
+                        <button type="button" class="btn btn-success" onclick="enviarRecordatorio()">
+                            <i class="fas fa-paper-plane"></i> Enviar por WhatsApp
+                        </button>
+                        {% elif not recordatorio.vehiculo.conductor.telefono %}
+                        <button type="button" class="btn btn-secondary" disabled>
+                            <i class="fas fa-exclamation-triangle"></i> Sin teléfono registrado
+                        </button>
+                        {% else %}
+                        <button type="button" class="btn btn-outline-success" disabled>
+                            <i class="fas fa-check"></i> Ya notificado
+                        </button>
+                        {% endif %}
+                        
+                        <button type="button" class="btn btn-warning" onclick="marcarCompletado()">
+                            <i class="fas fa-check-circle"></i> Marcar como Completado
+                        </button>
+                        
+                        <button type="button" class="btn btn-info" onclick="generarRecordatoriosVehiculo()">
+                            <i class="fas fa-plus"></i> Generar Más Recordatorios
+                        </button>
+                        
+                        <hr>
+                        
+                        <a href="{% url 'recordatorios_mantenimiento_list' %}" class="btn btn-outline-secondary">
+                            <i class="fas fa-arrow-left"></i> Volver a la Lista
+                        </a>
+                        
+                        <a href="{% url 'recordatorios_dashboard' %}" class="btn btn-outline-info">
+                            <i class="fas fa-chart-bar"></i> Ver Dashboard
+                        </a>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Recomendaciones -->
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="mb-0"><i class="fas fa-lightbulb text-warning"></i> Recomendaciones</h5>
+                </div>
+                <div class="card-body">
+                    {% if recordatorio.dias_restantes <= 0 %}
+                        <div class="alert alert-danger">
+                            <i class="fas fa-exclamation-triangle"></i>
+                            <strong>¡Mantenimiento vencido!</strong><br>
+                            Este mantenimiento debería haberse realizado hace {{ recordatorio.dias_restantes|add:"-1" }} días. Es importante programar la cita lo antes posible.
+                        </div>
+                    {% elif recordatorio.dias_restantes <= 3 %}
+                        <div class="alert alert-warning">
+                            <i class="fas fa-clock"></i>
+                            <strong>Mantenimiento urgente</strong><br>
+                            Solo quedan {{ recordatorio.dias_restantes }} días. Se recomienda programar la cita esta semana.
+                        </div>
+                    {% elif recordatorio.dias_restantes <= 7 %}
+                        <div class="alert alert-info">
+                            <i class="fas fa-calendar-alt"></i>
+                            <strong>Mantenimiento próximo</strong><br>
+                            Quedan {{ recordatorio.dias_restantes }} días. Es un buen momento para programar la cita.
+                        </div>
+                    {% else %}
+                        <div class="alert alert-success">
+                            <i class="fas fa-check-circle"></i>
+                            <strong>Tiempo suficiente</strong><br>
+                            Aún quedan {{ recordatorio.dias_restantes }} días para el mantenimiento.
+                        </div>
+                    {% endif %}
+                    
+                    <h6 class="mt-3"><i class="fas fa-tools"></i> Sobre este mantenimiento:</h6>
+                    <p class="small text-muted">
+                        {% if "aceite" in recordatorio.tipo_mantenimiento|lower %}
+                            El cambio de aceite es fundamental para el buen funcionamiento del motor. Se recomienda usar aceite de calidad y cambiar también el filtro.
+                        {% elif "freno" in recordatorio.tipo_mantenimiento|lower %}
+                            La revisión de frenos es crucial para la seguridad. Incluye pastillas, discos, líquido de frenos y sistema hidráulico.
+                        {% elif "filtro" in recordatorio.tipo_mantenimiento|lower %}
+                            Los filtros mantienen limpios los fluidos del vehículo. Su cambio regular previene daños mayores en el motor.
+                        {% elif "batería" in recordatorio.tipo_mantenimiento|lower %}
+                            La batería debe revisarse regularmente. Verificar terminales, nivel de electrolito y voltaje.
+                        {% else %}
+                            Mantenimiento preventivo importante para el buen funcionamiento y seguridad del vehículo.
+                        {% endif %}
+                    </p>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+function enviarRecordatorio() {
+    if (confirm('¿Estás seguro de que deseas enviar este recordatorio por WhatsApp al conductor?')) {
+        fetch(`/recordatorios/{{ recordatorio.pk }}/enviar/`, {
+            method: 'POST',
+            headers: {
+                'X-CSRFToken': document.querySelector('[name=csrfmiddlewaretoken]').value,
+                'Content-Type': 'application/json',
+            },
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                alert('Recordatorio enviado exitosamente por WhatsApp');
+                location.reload();
+            } else {
+                alert('Error al enviar el recordatorio: ' + data.message);
+            }
+        })
+        .catch(error => {
+            console.error('Error:', error);
+            alert('Error al enviar el recordatorio');
+        });
+    }
+}
+
+function marcarCompletado() {
+    if (confirm('¿Estás seguro de que deseas marcar este recordatorio como completado? Esta acción eliminará el recordatorio de la lista.')) {
+        fetch(`/recordatorios/{{ recordatorio.pk }}/completar/`, {
+            method: 'POST',
+            headers: {
+                'X-CSRFToken': document.querySelector('[name=csrfmiddlewaretoken]').value,
+                'Content-Type': 'application/json',
+            },
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                alert('Recordatorio marcado como completado');
+                window.location.href = '{% url "recordatorios_mantenimiento_list" %}';
+            } else {
+                alert('Error al marcar el recordatorio como completado: ' + data.message);
+            }
+        })
+        .catch(error => {
+            console.error('Error:', error);
+            alert('Error al marcar el recordatorio como completado');
+        });
+    }
+}
+
+function generarRecordatoriosVehiculo() {
+    if (confirm('¿Deseas generar recordatorios adicionales para este vehículo basados en su kilometraje actual?')) {
+        fetch(`/vehiculos/{{ recordatorio.vehiculo.pk }}/generar-recordatorios/`, {
+            method: 'POST',
+            headers: {
+                'X-CSRFToken': document.querySelector('[name=csrfmiddlewaretoken]').value,
+                'Content-Type': 'application/json',
+            },
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                alert(`Se generaron ${data.generados} nuevos recordatorios para este vehículo`);
+                window.location.href = '{% url "recordatorios_mantenimiento_list" %}';
+            } else {
+                alert('Error al generar recordatorios: ' + data.message);
+            }
+        })
+        .catch(error => {
+            console.error('Error:', error);
+            alert('Error al generar recordatorios para el vehículo');
+        });
+    }
+}
+</script>
+{% endblock %}

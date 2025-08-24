@@ -2222,6 +2222,356 @@ def imprimir_orden_pdf(request, pk):
         'mostrar_desglose_iva': config_taller.mostrar_desglose_iva if config_taller else False,
         'aplicar_iva': config_taller.aplicar_iva if config_taller else False
     }
+
+# ===== VISTAS DE RECORDATORIOS DE MANTENIMIENTO =====
+
+from .models import RecordatorioMantenimiento
+from .notification_service import notification_service
+from .signals import enviar_recordatorio_mantenimiento_manual
+from django.core.paginator import Paginator
+from django.db.models import Q
+from datetime import datetime, timedelta
+
+@login_required
+def recordatorios_mantenimiento_list(request):
+    """Lista de recordatorios de mantenimiento"""
+    try:
+        cliente, error_msg = get_user_cliente_or_error(request)
+        if not cliente:
+            messages.error(request, error_msg)
+            return redirect('home')
+        
+        # Filtros
+        filtro_estado = request.GET.get('estado', 'todos')
+        filtro_vehiculo = request.GET.get('vehiculo', '')
+        filtro_tipo = request.GET.get('tipo', '')
+        busqueda = request.GET.get('q', '')
+        
+        # Query base
+        recordatorios = RecordatorioMantenimiento.objects.filter(
+            vehiculo__conductor__cliente=cliente
+        ).select_related('vehiculo', 'vehiculo__conductor')
+        
+        # Aplicar filtros
+        if filtro_estado == 'pendientes':
+            recordatorios = recordatorios.filter(notificado=False)
+        elif filtro_estado == 'notificados':
+            recordatorios = recordatorios.filter(notificado=True)
+        elif filtro_estado == 'vencidos':
+            recordatorios = recordatorios.filter(
+                notificado=False,
+                fecha_proximo__lt=timezone.now().date()
+            )
+        elif filtro_estado == 'proximos':
+            fecha_limite = timezone.now().date() + timedelta(days=7)
+            recordatorios = recordatorios.filter(
+                notificado=False,
+                fecha_proximo__gte=timezone.now().date(),
+                fecha_proximo__lte=fecha_limite
+            )
+        
+        if filtro_vehiculo:
+            recordatorios = recordatorios.filter(
+                Q(vehiculo__placa__icontains=filtro_vehiculo) |
+                Q(vehiculo__marca__icontains=filtro_vehiculo) |
+                Q(vehiculo__modelo__icontains=filtro_vehiculo)
+            )
+        
+        if filtro_tipo:
+            recordatorios = recordatorios.filter(tipo__icontains=filtro_tipo)
+        
+        if busqueda:
+            recordatorios = recordatorios.filter(
+                Q(tipo__icontains=busqueda) |
+                Q(descripcion__icontains=busqueda) |
+                Q(vehiculo__placa__icontains=busqueda) |
+                Q(vehiculo__conductor__nombre__icontains=busqueda)
+            )
+        
+        # Ordenar por fecha próxima
+        recordatorios = recordatorios.order_by('fecha_proximo', 'notificado')
+        
+        # Paginación
+        paginator = Paginator(recordatorios, 20)
+        page_number = request.GET.get('page')
+        recordatorios_page = paginator.get_page(page_number)
+        
+        # Estadísticas
+        total_recordatorios = RecordatorioMantenimiento.objects.filter(
+            vehiculo__conductor__cliente=cliente
+        ).count()
+        
+        pendientes = RecordatorioMantenimiento.objects.filter(
+            vehiculo__conductor__cliente=cliente,
+            notificado=False
+        ).count()
+        
+        vencidos = RecordatorioMantenimiento.objects.filter(
+            vehiculo__conductor__cliente=cliente,
+            notificado=False,
+            fecha_proximo__lt=timezone.now().date()
+        ).count()
+        
+        proximos_7_dias = RecordatorioMantenimiento.objects.filter(
+            vehiculo__conductor__cliente=cliente,
+            notificado=False,
+            fecha_proximo__gte=timezone.now().date(),
+            fecha_proximo__lte=timezone.now().date() + timedelta(days=7)
+        ).count()
+        
+        # Obtener vehículos y tipos para filtros
+        vehiculos_disponibles = Vehiculo.objects.filter(
+            conductor__cliente=cliente,
+            activo=True
+        ).order_by('placa')
+        
+        tipos_disponibles = RecordatorioMantenimiento.objects.filter(
+            vehiculo__conductor__cliente=cliente
+        ).values_list('tipo', flat=True).distinct().order_by('tipo')
+        
+        context = {
+            'recordatorios': recordatorios_page,
+            'filtro_estado': filtro_estado,
+            'filtro_vehiculo': filtro_vehiculo,
+            'filtro_tipo': filtro_tipo,
+            'busqueda': busqueda,
+            'vehiculos_disponibles': vehiculos_disponibles,
+            'tipos_disponibles': tipos_disponibles,
+            'estadisticas': {
+                'total': total_recordatorios,
+                'pendientes': pendientes,
+                'vencidos': vencidos,
+                'proximos_7_dias': proximos_7_dias,
+            },
+            'cliente': cliente,
+        }
+        
+        return render(request, 'gestion_taller/recordatorios/list.html', context)
+        
+    except Exception as e:
+        messages.error(request, f'Error cargando recordatorios: {str(e)}')
+        return redirect('home')
+
+@login_required
+def recordatorio_mantenimiento_detail(request, pk):
+    """Detalle de un recordatorio de mantenimiento"""
+    try:
+        cliente, error_msg = get_user_cliente_or_error(request)
+        if not cliente:
+            messages.error(request, error_msg)
+            return redirect('home')
+        
+        recordatorio = get_object_or_404(
+            RecordatorioMantenimiento,
+            pk=pk,
+            vehiculo__conductor__cliente=cliente
+        )
+        
+        # Calcular días restantes
+        fecha_actual = timezone.now().date()
+        dias_restantes = (recordatorio.fecha_proximo - fecha_actual).days
+        
+        context = {
+            'recordatorio': recordatorio,
+            'dias_restantes': dias_restantes,
+            'cliente': cliente,
+        }
+        
+        return render(request, 'gestion_taller/recordatorios/detail.html', context)
+        
+    except Exception as e:
+        messages.error(request, f'Error cargando recordatorio: {str(e)}')
+        return redirect('recordatorios_mantenimiento_list')
+
+@login_required
+def enviar_recordatorio_manual(request, pk):
+    """Enviar recordatorio de mantenimiento manualmente"""
+    if request.method != 'POST':
+        return JsonResponse({'success': False, 'error': 'Método no permitido'}, status=405)
+    
+    try:
+        cliente, error_msg = get_user_cliente_or_error(request)
+        if not cliente:
+            return JsonResponse({'success': False, 'error': error_msg}, status=403)
+        
+        recordatorio = get_object_or_404(
+            RecordatorioMantenimiento,
+            pk=pk,
+            vehiculo__conductor__cliente=cliente
+        )
+        
+        # Verificar que el conductor tenga teléfono
+        conductor = recordatorio.vehiculo.conductor
+        if not conductor or not conductor.telefono:
+            return JsonResponse({
+                'success': False,
+                'error': 'El conductor no tiene número de teléfono registrado'
+            }, status=400)
+        
+        # Calcular días restantes
+        fecha_actual = timezone.now().date()
+        dias_restantes = (recordatorio.fecha_proximo - fecha_actual).days
+        
+        # Enviar recordatorio
+        enviar_recordatorio_mantenimiento_manual(
+            conductor=conductor,
+            vehiculo=recordatorio.vehiculo,
+            recordatorio=recordatorio,
+            dias_restantes=dias_restantes
+        )
+        
+        # Marcar como notificado
+        recordatorio.notificado = True
+        recordatorio.fecha_notificacion = timezone.now()
+        recordatorio.save()
+        
+        return JsonResponse({
+            'success': True,
+            'message': f'Recordatorio enviado exitosamente a {conductor.nombre}'
+        })
+        
+    except Exception as e:
+        return JsonResponse({
+            'success': False,
+            'error': f'Error enviando recordatorio: {str(e)}'
+        }, status=500)
+
+@login_required
+def marcar_recordatorio_completado(request, pk):
+    """Marcar recordatorio como completado"""
+    if request.method != 'POST':
+        return JsonResponse({'success': False, 'error': 'Método no permitido'}, status=405)
+    
+    try:
+        cliente, error_msg = get_user_cliente_or_error(request)
+        if not cliente:
+            return JsonResponse({'success': False, 'error': error_msg}, status=403)
+        
+        recordatorio = get_object_or_404(
+            RecordatorioMantenimiento,
+            pk=pk,
+            vehiculo__conductor__cliente=cliente
+        )
+        
+        # Marcar como completado (eliminar o marcar como realizado)
+        recordatorio.delete()  # O podrías agregar un campo 'completado'
+        
+        return JsonResponse({
+            'success': True,
+            'message': 'Recordatorio marcado como completado'
+        })
+        
+    except Exception as e:
+        return JsonResponse({
+            'success': False,
+            'error': f'Error marcando recordatorio: {str(e)}'
+        }, status=500)
+
+@login_required
+def generar_recordatorios_vehiculo(request, vehiculo_id):
+    """Generar recordatorios automáticos para un vehículo específico"""
+    if request.method != 'POST':
+        return JsonResponse({'success': False, 'error': 'Método no permitido'}, status=405)
+    
+    try:
+        cliente, error_msg = get_user_cliente_or_error(request)
+        if not cliente:
+            return JsonResponse({'success': False, 'error': error_msg}, status=403)
+        
+        vehiculo = get_object_or_404(
+            Vehiculo,
+            pk=vehiculo_id,
+            conductor__cliente=cliente
+        )
+        
+        # Usar el comando de generación automática
+        from django.core.management import call_command
+        from io import StringIO
+        
+        out = StringIO()
+        call_command(
+            'generar_recordatorios_automaticos',
+            vehiculo_id=vehiculo_id,
+            forzar=True,
+            stdout=out
+        )
+        
+        return JsonResponse({
+            'success': True,
+            'message': f'Recordatorios generados para {vehiculo.placa}'
+        })
+        
+    except Exception as e:
+        return JsonResponse({
+            'success': False,
+            'error': f'Error generando recordatorios: {str(e)}'
+        }, status=500)
+
+@login_required
+def recordatorios_dashboard(request):
+    """Dashboard de recordatorios de mantenimiento"""
+    try:
+        cliente, error_msg = get_user_cliente_or_error(request)
+        if not cliente:
+            messages.error(request, error_msg)
+            return redirect('home')
+        
+        fecha_actual = timezone.now().date()
+        
+        # Recordatorios vencidos
+        vencidos = RecordatorioMantenimiento.objects.filter(
+            vehiculo__conductor__cliente=cliente,
+            notificado=False,
+            fecha_proximo__lt=fecha_actual
+        ).select_related('vehiculo', 'vehiculo__conductor').order_by('fecha_proximo')[:10]
+        
+        # Recordatorios próximos (7 días)
+        proximos = RecordatorioMantenimiento.objects.filter(
+            vehiculo__conductor__cliente=cliente,
+            notificado=False,
+            fecha_proximo__gte=fecha_actual,
+            fecha_proximo__lte=fecha_actual + timedelta(days=7)
+        ).select_related('vehiculo', 'vehiculo__conductor').order_by('fecha_proximo')[:10]
+        
+        # Estadísticas por tipo
+        from django.db.models import Count
+        tipos_stats = RecordatorioMantenimiento.objects.filter(
+            vehiculo__conductor__cliente=cliente,
+            notificado=False
+        ).values('tipo').annotate(
+            count=Count('id')
+        ).order_by('-count')[:5]
+        
+        # Vehículos con más recordatorios pendientes
+        vehiculos_stats = RecordatorioMantenimiento.objects.filter(
+            vehiculo__conductor__cliente=cliente,
+            notificado=False
+        ).values(
+            'vehiculo__placa',
+            'vehiculo__marca',
+            'vehiculo__modelo',
+            'vehiculo__conductor__nombre'
+        ).annotate(
+            count=Count('id')
+        ).order_by('-count')[:5]
+        
+        context = {
+            'vencidos': vencidos,
+            'proximos': proximos,
+            'tipos_stats': tipos_stats,
+            'vehiculos_stats': vehiculos_stats,
+            'cliente': cliente,
+            'estadisticas': {
+                'total_vencidos': len(vencidos),
+                'total_proximos': len(proximos),
+            }
+        }
+        
+        return render(request, 'gestion_taller/recordatorios/dashboard.html', context)
+        
+    except Exception as e:
+        messages.error(request, f'Error cargando dashboard: {str(e)}')
+        return redirect('home')
     
     # Renderizar template HTML
     template = get_template('gestion_taller/orden_servicio_pdf.html')
@@ -2362,3 +2712,178 @@ def get_vehiculo_kilometraje(request):
             })
     
     return JsonResponse({'success': False, 'error': 'Método no permitido'}, status=405)
+
+# APIs para recordatorios de mantenimiento
+@login_required
+def api_generar_recordatorios_automaticos(request):
+    """API para generar recordatorios automáticos"""
+    if request.method == 'POST':
+        try:
+            cliente, error_msg = get_user_cliente_or_error(request)
+            if not cliente:
+                return JsonResponse({
+                    'success': False,
+                    'message': error_msg
+                })
+            
+            # Importar y ejecutar el comando de generación automática
+            from django.core.management import call_command
+            from io import StringIO
+            import sys
+            
+            # Capturar la salida del comando
+            old_stdout = sys.stdout
+            sys.stdout = captured_output = StringIO()
+            
+            try:
+                call_command('generar_recordatorios_automaticos', cliente_id=cliente.id)
+                output = captured_output.getvalue()
+                
+                # Extraer número de recordatorios generados del output
+                generados = 0
+                if 'recordatorios generados' in output:
+                    import re
+                    match = re.search(r'(\d+) recordatorios generados', output)
+                    if match:
+                        generados = int(match.group(1))
+                
+                return JsonResponse({
+                    'success': True,
+                    'message': f'Recordatorios generados exitosamente',
+                    'generados': generados,
+                    'output': output
+                })
+                
+            except Exception as e:
+                return JsonResponse({
+                    'success': False,
+                    'message': f'Error al generar recordatorios: {str(e)}'
+                })
+            finally:
+                sys.stdout = old_stdout
+                
+        except Exception as e:
+            return JsonResponse({
+                'success': False,
+                'message': f'Error interno: {str(e)}'
+            })
+    
+    return JsonResponse({'success': False, 'message': 'Método no permitido'}, status=405)
+
+
+@login_required
+def api_enviar_recordatorios_masivos(request):
+    """API para enviar recordatorios masivos por WhatsApp"""
+    if request.method == 'POST':
+        try:
+            cliente, error_msg = get_user_cliente_or_error(request)
+            if not cliente:
+                return JsonResponse({
+                    'success': False,
+                    'message': error_msg
+                })
+            
+            # Obtener recordatorios pendientes
+            recordatorios_pendientes = RecordatorioMantenimiento.objects.filter(
+                vehiculo__cliente=cliente,
+                notificado=False
+            )
+            
+            if not recordatorios_pendientes.exists():
+                return JsonResponse({
+                    'success': False,
+                    'message': 'No hay recordatorios pendientes para enviar'
+                })
+            
+            enviados = 0
+            errores = []
+            
+            # Importar servicio de notificaciones
+            from .notification_service import NotificationService
+            notification_service = NotificationService()
+            
+            for recordatorio in recordatorios_pendientes:
+                try:
+                    # Enviar recordatorio
+                    resultado = notification_service.enviar_recordatorio_mantenimiento(
+                        recordatorio.vehiculo.conductor,
+                        recordatorio.vehiculo,
+                        recordatorio
+                    )
+                    
+                    if resultado.get('success'):
+                        recordatorio.notificado = True
+                        recordatorio.fecha_notificacion = timezone.now()
+                        recordatorio.save()
+                        enviados += 1
+                    else:
+                        errores.append(f"Error en {recordatorio.vehiculo.placa}: {resultado.get('message', 'Error desconocido')}")
+                        
+                except Exception as e:
+                    errores.append(f"Error en {recordatorio.vehiculo.placa}: {str(e)}")
+            
+            return JsonResponse({
+                'success': True,
+                'message': f'Proceso completado: {enviados} recordatorios enviados',
+                'enviados': enviados,
+                'errores': errores
+            })
+            
+        except Exception as e:
+            return JsonResponse({
+                'success': False,
+                'message': f'Error interno: {str(e)}'
+            })
+    
+    return JsonResponse({'success': False, 'message': 'Método no permitido'}, status=405)
+
+
+@login_required
+def api_exportar_reporte_recordatorios(request):
+    """API para exportar reporte de recordatorios"""
+    if request.method == 'GET':
+        try:
+            cliente, error_msg = get_user_cliente_or_error(request)
+            if not cliente:
+                return JsonResponse({
+                    'success': False,
+                    'message': error_msg
+                })
+            
+            # Obtener todos los recordatorios del cliente
+            recordatorios = RecordatorioMantenimiento.objects.filter(
+                vehiculo__cliente=cliente
+            ).select_related('vehiculo', 'vehiculo__conductor')
+            
+            # Preparar datos para el reporte
+            reporte_data = []
+            for recordatorio in recordatorios:
+                reporte_data.append({
+                    'vehiculo_placa': recordatorio.vehiculo.placa,
+                    'vehiculo_marca': recordatorio.vehiculo.marca,
+                    'vehiculo_modelo': recordatorio.vehiculo.modelo,
+                    'conductor_nombre': recordatorio.vehiculo.conductor.nombre,
+                    'conductor_telefono': recordatorio.vehiculo.conductor.telefono,
+                    'tipo_mantenimiento': recordatorio.tipo_mantenimiento,
+                    'fecha_programada': recordatorio.fecha_programada.strftime('%Y-%m-%d'),
+                    'kilometraje_programado': recordatorio.kilometraje_programado,
+                    'notificado': 'Sí' if recordatorio.notificado else 'No',
+                    'fecha_notificacion': recordatorio.fecha_notificacion.strftime('%Y-%m-%d %H:%M') if recordatorio.fecha_notificacion else 'N/A',
+                    'urgencia': recordatorio.get_urgencia_display(),
+                    'dias_restantes': recordatorio.dias_restantes
+                })
+            
+            return JsonResponse({
+                'success': True,
+                'data': reporte_data,
+                'total_recordatorios': len(reporte_data),
+                'fecha_generacion': timezone.now().strftime('%Y-%m-%d %H:%M:%S')
+            })
+            
+        except Exception as e:
+            return JsonResponse({
+                'success': False,
+                'message': f'Error interno: {str(e)}'
+            })
+    
+    return JsonResponse({'success': False, 'message': 'Método no permitido'}, status=405)
