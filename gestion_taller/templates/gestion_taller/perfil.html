@@ -1,14 +1,236 @@
 {% extends 'gestion_taller/base.html' %}
-{% block title %}Mi perfil{% endblock %}
+{% load static %}
+
+{% block title %}Mi Perfil{% endblock %}
+
+{% block extra_css %}
+<link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.8.1/font/bootstrap-icons.css" rel="stylesheet">
+<style>
+    .profile-header {
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        color: white;
+        border-radius: 15px 15px 0 0;
+    }
+    .profile-avatar {
+        width: 120px;
+        height: 120px;
+        border: 4px solid white;
+        box-shadow: 0 4px 15px rgba(0,0,0,0.2);
+    }
+    .profile-card {
+        border: none;
+        border-radius: 15px;
+        box-shadow: 0 10px 30px rgba(0,0,0,0.1);
+        overflow: hidden;
+    }
+    .info-item {
+        border-bottom: 1px solid #f0f0f0;
+        padding: 15px 0;
+    }
+    .info-item:last-child {
+        border-bottom: none;
+    }
+    .info-label {
+        font-weight: 600;
+        color: #495057;
+        font-size: 0.9rem;
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+    }
+    .info-value {
+        font-size: 1.1rem;
+        color: #212529;
+        margin-top: 5px;
+    }
+    .badge-role {
+        font-size: 0.9rem;
+        padding: 8px 15px;
+    }
+    .btn-edit {
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        border: none;
+        border-radius: 25px;
+        padding: 12px 30px;
+        font-weight: 600;
+        transition: all 0.3s ease;
+    }
+    .btn-edit:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 5px 15px rgba(102, 126, 234, 0.4);
+    }
+</style>
+{% endblock %}
+
 {% block content %}
-<div class="row justify-content-center mt-5">
-    <div class="col-md-6">
-        <h2>Mi perfil</h2>
-        <form method="post">
-            {% csrf_token %}
-            {{ form.as_p }}
-            <button type="submit" class="btn btn-success">Guardar cambios</button>
-        </form>
+<div class="container mt-4">
+    <div class="row justify-content-center">
+        <div class="col-lg-8 col-xl-6">
+            <div class="card profile-card">
+                <!-- Header del perfil -->
+                <div class="profile-header text-center py-5">
+                    <div class="position-relative d-inline-block">
+                        <img src="https://ui-avatars.com/api/?name={{ user.first_name|default:user.username }}&size=120&background=ffffff&color=667eea&bold=true" 
+                             alt="Avatar" class="rounded-circle profile-avatar">
+                        <div class="position-absolute bottom-0 end-0">
+                            <span class="badge bg-success rounded-pill p-2">
+                                <i class="bi bi-check-circle-fill"></i>
+                            </span>
+                        </div>
+                    </div>
+                    <h3 class="mt-3 mb-1">{{ user.get_full_name|default:user.username }}</h3>
+                    <p class="mb-0 opacity-75">
+                        <i class="bi bi-envelope me-2"></i>{{ user.email }}
+                    </p>
+                </div>
+
+                <!-- Información del perfil -->
+                <div class="card-body p-4">
+                    <!-- Información básica -->
+                    <div class="info-item">
+                        <div class="info-label">
+                            <i class="bi bi-person-badge me-2"></i>Nombre de Usuario
+                        </div>
+                        <div class="info-value">{{ user.username }}</div>
+                    </div>
+
+                    <div class="info-item">
+                        <div class="info-label">
+                            <i class="bi bi-person me-2"></i>Nombre Completo
+                        </div>
+                        <div class="info-value">
+                            {% if user.first_name or user.last_name %}
+                                {{ user.first_name }} {{ user.last_name }}
+                            {% else %}
+                                <span class="text-muted">No especificado</span>
+                            {% endif %}
+                        </div>
+                    </div>
+
+                    <div class="info-item">
+                        <div class="info-label">
+                            <i class="bi bi-envelope me-2"></i>Correo Electrónico
+                        </div>
+                        <div class="info-value">{{ user.email }}</div>
+                    </div>
+
+                    <!-- Información del perfil -->
+                    {% if perfil %}
+                        <div class="info-item">
+                            <div class="info-label">
+                                <i class="bi bi-shield-check me-2"></i>Rol en el Sistema
+                            </div>
+                            <div class="info-value">
+                                {% if perfil.rol == 'admin' %}
+                                    <span class="badge badge-role bg-danger">{{ perfil.get_rol_display }}</span>
+                                {% elif perfil.rol == 'empleado' %}
+                                    <span class="badge badge-role bg-primary">{{ perfil.get_rol_display }}</span>
+                                {% else %}
+                                    <span class="badge badge-role bg-info">{{ perfil.get_rol_display }}</span>
+                                {% endif %}
+                            </div>
+                        </div>
+
+                        <div class="info-item">
+                            <div class="info-label">
+                                <i class="bi bi-building me-2"></i>Cliente/Empresa
+                            </div>
+                            <div class="info-value">
+                                {% if perfil.cliente %}
+                                    <strong>{{ perfil.cliente.nombre }}</strong>
+                                    {% if perfil.cliente.telefono %}
+                                        <br><small class="text-muted">
+                                            <i class="bi bi-telephone me-1"></i>{{ perfil.cliente.telefono }}
+                                        </small>
+                                    {% endif %}
+                                    {% if perfil.cliente.direccion %}
+                                        <br><small class="text-muted">
+                                            <i class="bi bi-geo-alt me-1"></i>{{ perfil.cliente.direccion }}
+                                        </small>
+                                    {% endif %}
+                                {% else %}
+                                    <span class="text-muted">No asignado</span>
+                                {% endif %}
+                            </div>
+                        </div>
+
+                        <div class="info-item">
+                            <div class="info-label">
+                                <i class="bi bi-person-vcard me-2"></i>Conductor Asociado
+                            </div>
+                            <div class="info-value">
+                                {% if perfil.conductor %}
+                                    <strong>{{ perfil.conductor.nombre }}</strong>
+                                    {% if perfil.conductor.telefono %}
+                                        <br><small class="text-muted">
+                                            <i class="bi bi-telephone me-1"></i>{{ perfil.conductor.telefono }}
+                                        </small>
+                                    {% endif %}
+                                    {% if perfil.conductor.licencia %}
+                                        <br><small class="text-muted">
+                                            <i class="bi bi-credit-card me-1"></i>Licencia: {{ perfil.conductor.licencia }}
+                                        </small>
+                                    {% endif %}
+                                {% else %}
+                                    <span class="text-muted">Ninguno</span>
+                                {% endif %}
+                            </div>
+                        </div>
+
+                        {% if perfil.telegram_chat_id %}
+                            <div class="info-item">
+                                <div class="info-label">
+                                    <i class="bi bi-telegram me-2"></i>Telegram
+                                </div>
+                                <div class="info-value">
+                                    <span class="badge bg-success">
+                                        <i class="bi bi-check-circle me-1"></i>Conectado
+                                    </span>
+                                </div>
+                            </div>
+                        {% endif %}
+                    {% else %}
+                        <div class="alert alert-warning" role="alert">
+                            <i class="bi bi-exclamation-triangle me-2"></i>
+                            <strong>Perfil Incompleto</strong><br>
+                            Tu perfil de usuario no está configurado. Haz clic en "Editar Perfil" para completar tu información.
+                        </div>
+                    {% endif %}
+
+                    <!-- Información de cuenta -->
+                    <div class="info-item">
+                        <div class="info-label">
+                            <i class="bi bi-calendar-plus me-2"></i>Miembro desde
+                        </div>
+                        <div class="info-value">
+                            {{ user.date_joined|date:"d F Y" }}
+                        </div>
+                    </div>
+
+                    <div class="info-item">
+                        <div class="info-label">
+                            <i class="bi bi-clock-history me-2"></i>Último acceso
+                        </div>
+                        <div class="info-value">
+                            {% if user.last_login %}
+                                {{ user.last_login|date:"d F Y, H:i" }}
+                            {% else %}
+                                <span class="text-muted">Nunca</span>
+                            {% endif %}
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Botones de acción -->
+                <div class="card-footer bg-light text-center py-4">
+                    <a href="{% url 'editar_perfil_usuario' %}" class="btn btn-primary btn-lg me-3">
+                        <i class="fas fa-edit me-2"></i>Editar Perfil
+                    </a>
+                    <a href="{% url 'password_change' %}" class="btn btn-outline-secondary btn-lg">
+                        <i class="bi bi-key me-2"></i>Cambiar Contraseña
+                    </a>
+                </div>
+            </div>
+        </div>
     </div>
 </div>
 {% endblock %}

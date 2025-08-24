@@ -1644,6 +1644,19 @@ from .models import PerfilUsuario
 from .forms import PerfilUsuarioForm
 
 @login_required
+def mostrar_perfil_view(request):
+    """Vista para mostrar el perfil del usuario (solo lectura)"""
+    try:
+        perfil = request.user.perfilusuario
+    except PerfilUsuario.DoesNotExist:
+        perfil = None
+    
+    return render(request, 'gestion_taller/perfil.html', {
+        'user': request.user,
+        'perfil': perfil,
+    })
+
+@login_required
 def perfil_usuario_view(request):
     try:
         perfil = request.user.perfilusuario

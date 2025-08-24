@@ -19,8 +19,8 @@ urlpatterns = [
     path('telegram_webhook/', views.telegram_webhook, name='telegram_webhook'),
     # path('api/vincular-telegram/', views.vincular_telegram, name='vincular_telegram'),  # TODO: Implementar
     path('', views.home, name='home'),
-    # path('perfil/', PerfilUsuarioView.as_view(), name='perfil_usuario'),  # Comentada hasta implementar
-    path('mi-perfil/', views.perfil_usuario_view, name='mi_perfil_usuario'),
+    path('perfil/', views.mostrar_perfil_view, name='perfil_usuario'),
+    path('perfil/editar/', views.perfil_usuario_view, name='editar_perfil_usuario'),
     # Conductores
     path('conductores/', views.ConductorListView.as_view(), name='conductores'),
     path('conductores/nuevo/', views.ConductorCreateView.as_view(), name='conductor_nuevo'),
