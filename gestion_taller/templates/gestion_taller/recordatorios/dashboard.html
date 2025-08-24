@@ -443,13 +443,13 @@ new Chart(urgenciaCtx, {
 
 // Funciones de acciones rápidas
 function enviarRecordatoriosVencidos() {
-    if (confirm(`¿Estás seguro de enviar ${{{ stats.vencidos }}} recordatorios vencidos por WhatsApp?`)) {
+    if (confirm('¿Estás seguro de enviar {{ stats.vencidos }} recordatorios vencidos por WhatsApp?')) {
         enviarRecordatoriosMasivos('vencidos');
     }
 }
 
 function enviarRecordatoriosUrgentes() {
-    if (confirm(`¿Estás seguro de enviar ${{{ stats.urgentes }}} recordatorios urgentes por WhatsApp?`)) {
+    if (confirm('¿Estás seguro de enviar {{ stats.urgentes }} recordatorios urgentes por WhatsApp?')) {
         enviarRecordatoriosMasivos('urgentes');
     }
 }

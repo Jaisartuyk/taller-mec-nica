@@ -1,7 +1,6 @@
 from django.db import models
 from django.contrib.auth.models import User
 from django.utils import timezone
-from django.utils import timezone
 
 class Cliente(models.Model):
     user = models.OneToOneField(User, on_delete=models.CASCADE, null=True, blank=True, related_name='perfil_cliente')
@@ -253,33 +252,7 @@ class PreguntaFrecuente(models.Model):
     def __str__(self):
         return self.pregunta[:50] + "..."
 
-class InteraccionChat(models.Model):
-    TIPOS = (
-        ('consulta', 'Consulta'),
-        ('solicitud', 'Solicitud de Servicio'),
-        ('complaint', 'Queja'),
-        ('suggestion', 'Sugerencia'),
-    )
-    cliente = models.ForeignKey('Cliente', on_delete=models.CASCADE, related_name='interacciones')
-    vehiculo = models.ForeignKey('Vehiculo', on_delete=models.CASCADE, related_name='interacciones', null=True, blank=True)
-    conductor = models.ForeignKey('Conductor', on_delete=models.CASCADE, related_name='interacciones', null=True, blank=True)
-    tipo = models.CharField(max_length=20, choices=TIPOS, default='consulta')
-    mensaje = models.TextField()
-    fecha_creacion = models.DateTimeField(auto_now_add=True)
-    estado = models.CharField(max_length=20, choices=[
-        ('pendiente', 'Pendiente'),
-        ('en_progreso', 'En Progreso'),
-        ('completado', 'Completado'),
-        ('facturado', 'Facturado'),
-        ('anulada', 'Anulada')
-    ], default='pendiente')
-    total = models.DecimalField(max_digits=10, decimal_places=2, default=0)
-    metodo_pago = models.CharField(max_length=30, blank=True)
-    pagada = models.BooleanField(default=False)
-    respuesta_ia = models.TextField(blank=True, null=True, help_text="Respuesta generada por IA (si aplica)")
 
-    def __str__(self):
-        return f"Interacción {self.id} - {self.vehiculo} - {self.estado}"
 
 # --- MODELOS ESCALABLES AGREGADOS ---
 
@@ -558,6 +531,7 @@ class Cita(models.Model):
         ('completada', 'Completada')
     ], default='pendiente')
     notas = models.TextField(blank=True)
+    mensaje = models.TextField(blank=True, null=True)  # Campo temporal para compatibilidad
     fecha_creacion = models.DateTimeField(auto_now_add=True)
     
     class Meta:

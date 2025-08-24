@@ -365,5 +365,12 @@ class NotificationService:
             logger.error(f"Error en notify_orden_completada: {e}")
 
 
-# Instancia global del servicio de notificaciones
-notification_service = NotificationService()
+# Instancia global del servicio de notificaciones (lazy loading)
+notification_service = None
+
+def get_notification_service():
+    """Obtiene la instancia del servicio de notificaciones (lazy loading)"""
+    global notification_service
+    if notification_service is None:
+        notification_service = NotificationService()
+    return notification_service

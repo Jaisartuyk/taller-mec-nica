@@ -83,11 +83,9 @@ class MultiTallerMessagingService:
         
         # Si solo hay cliente (sin configuración), habilitar WhatsApp si hay token
         if self.cliente:
-            print(f"Usando cliente - resultado: {token_disponible}")
             return token_disponible
         
         # Si no hay ni cliente ni configuración, usar token si está disponible
-        print(f"Sin cliente ni config - resultado: {token_disponible}")
         return token_disponible
     
     def _is_telegram_enabled(self):

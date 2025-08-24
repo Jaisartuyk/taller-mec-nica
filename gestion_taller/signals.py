@@ -9,7 +9,7 @@ import requests
 import logging
 
 # Importar el servicio de notificaciones WhatsApp
-from .notification_service import notification_service
+from .notification_service import get_notification_service
 
 logger = logging.getLogger(__name__)
 
