@@ -83,7 +83,7 @@ class ChatbotService:
     
     def _identify_intent(self, message: str, context: Dict) -> Tuple[str, Dict]:
         """
-        Identifica la intención del mensaje usando patrones
+        Identifica la intención del mensaje usando patrones y contexto conversacional
         
         Returns:
             Tuple[intent, entities]
@@ -92,7 +92,45 @@ class ChatbotService:
             # Convertir a minúsculas para comparación
             message_lower = message.lower()
             
-            # Patrones de intenciones simplificados
+            # Verificar contexto conversacional primero
+            current_step = context.get('next_step', '')
+            
+            # Si estamos en proceso de agendamiento, detectar respuestas contextuales
+            if current_step == 'collect_appointment_details':
+                # Detectar fecha/hora en el mensaje
+                if self._contains_datetime_info(message_lower):
+                    return 'appointment_datetime', self._extract_datetime_entities(message)
+                # Detectar servicios mencionados
+                if self._contains_service_info(message_lower):
+                    return 'appointment_service', self._extract_service_entities(message)
+            
+            elif current_step == 'collect_new_customer_data':
+                # Detectar datos de registro de nuevo cliente
+                if self._contains_customer_data(message_lower):
+                    return 'customer_registration', self._extract_customer_entities(message)
+            
+            elif current_step == 'select_vehicle':
+                # Detectar selección de vehículo por número
+                vehicle_selection = self._extract_vehicle_selection(message)
+                if vehicle_selection:
+                    return 'vehicle_selection', vehicle_selection
+            
+            # Detectar solicitudes de cita con información de fecha/hora directamente
+            agendar_patterns = [
+                r'\b(agendar|reservar|programar|solicitar)\b.*\b(cita|turno|hora)\b',
+                r'\b(quiero|necesito|me gustaría)\b.*\b(cita|turno|hora)\b'
+            ]
+            
+            for pattern in agendar_patterns:
+                if re.search(pattern, message_lower, re.IGNORECASE):
+                    # Si también contiene información de fecha/hora, es appointment_datetime
+                    if self._contains_datetime_info(message_lower):
+                        return 'appointment_datetime', self._extract_datetime_entities(message)
+                    # Si solo es solicitud de cita, es agendar_cita
+                    else:
+                        return 'agendar_cita', {}
+            
+            # Patrones de intenciones principales
             intent_patterns = {
                 'saludo': [
                     r'\bhola\b',
@@ -115,12 +153,19 @@ class ChatbotService:
                     r'\breparación\b'
                 ],
                 'consulta_precio': [
+                    r'\bcuanto cuesta\b',
                     r'\bcuánto cuesta\b',
                     r'\bprecio\b',
+                    r'\bprecios\b',
                     r'\bcosto\b',
+                    r'\bcostos\b',
                     r'\bcotización\b',
+                    r'\bcotizacion\b',
                     r'\bpresupuesto\b',
-                    r'\btarifa\b'
+                    r'\btarifa\b',
+                    r'\bvalor\b',
+                    r'\bcuanto cobran\b',
+                    r'\bcuánto cobran\b'
                 ],
                 'agendar_cita': [
                     r'\bagendar\b',
@@ -128,7 +173,36 @@ class ChatbotService:
                     r'\bturno\b',
                     r'\breservar\b',
                     r'\bapartar\b',
-                    r'\bhorario\b'
+                    r'\bquiero.*cita\b',
+                    r'\bnecesito.*cita\b'
+                ],
+                'ubicacion_horario': [
+                    r'\bdonde estan\b',
+                    r'\bdónde están\b',
+                    r'\bdonde quedan\b',
+                    r'\bubicación\b',
+                    r'\bubicacion\b',
+                    r'\bdirección\b',
+                    r'\bdireccion\b',
+                    r'\bhorario\b',
+                    r'\bhorarios\b',
+                    r'\bque hora abren\b',
+                    r'\bqué hora abren\b'
+                ],
+                'estado_vehiculo': [
+                    r'\bcómo está\b',
+                    r'\bcomo esta\b',
+                    r'\bestado.*vehiculo\b',
+                    r'\bestado.*carro\b',
+                    r'\blisto\b',
+                    r'\bterminado\b'
+                ],
+                'emergencia': [
+                    r'\bemergencia\b',
+                    r'\burgente\b',
+                    r'\bayuda\b',
+                    r'\bse dañó\b',
+                    r'\bno arranca\b'
                 ],
                 'despedida': [
                     r'\bgracias\b',
@@ -206,9 +280,16 @@ class ChatbotService:
             'consulta_precio': self._handle_price_inquiry,
             'agendar_cita': self._handle_appointment_request,
             'consulta_estado': self._handle_status_inquiry,
-            'ubicacion_horario': self._handle_location_hours,
+            'ubicacion_horario': self._handle_location_inquiry,
+            'estado_vehiculo': self._handle_vehicle_status,
+            'emergencia': self._handle_emergency,
             'despedida': self._handle_farewell,
-            'consulta_general': self._handle_general_inquiry
+            'consulta_general': self._handle_general_inquiry,
+            # Nuevos intents contextuales
+            'appointment_datetime': self._handle_appointment_datetime,
+            'appointment_service': self._handle_appointment_service,
+            'customer_registration': self._handle_customer_registration,
+            'vehicle_selection': self._handle_vehicle_selection
         }
         
         handler = responses.get(intent, self._handle_general_inquiry)
@@ -264,6 +345,64 @@ class ChatbotService:
             'type': 'service_info'
         }
     
+    def _get_specific_service_info(self, servicio: str) -> Dict:
+        """Obtiene información específica de un servicio"""
+        servicios_info = {
+            'aceite': {
+                'titulo': '🛢️ CAMBIO DE ACEITE',
+                'descripcion': 'Cambio completo de aceite y filtro',
+                'incluye': ['Aceite motor', 'Filtro de aceite', 'Revisión de niveles'],
+                'precio': '$25 - $45',
+                'tiempo': '30-45 minutos'
+            },
+            'frenos': {
+                'titulo': '🔩 SISTEMA DE FRENOS',
+                'descripcion': 'Revisión y reparación completa de frenos',
+                'incluye': ['Pastillas', 'Discos', 'Líquido de frenos', 'Revisión completa'],
+                'precio': '$35 - $85',
+                'tiempo': '1-2 horas'
+            },
+            'motor': {
+                'titulo': '⚙️ REPARACIÓN DE MOTOR',
+                'descripcion': 'Diagnóstico y reparación de motor',
+                'incluye': ['Diagnóstico', 'Bujías', 'Filtros', 'Afinación'],
+                'precio': '$45 - $150',
+                'tiempo': '2-4 horas'
+            },
+            'transmision': {
+                'titulo': '🔧 TRANSMISIÓN',
+                'descripcion': 'Servicio de caja y embrague',
+                'incluye': ['Revisión completa', 'Aceite de caja', 'Ajustes'],
+                'precio': '$60 - $200',
+                'tiempo': '2-6 horas'
+            },
+            'suspension': {
+                'titulo': '🚗 SUSPENSIÓN',
+                'descripcion': 'Reparación de suspensión y amortiguadores',
+                'incluye': ['Amortiguadores', 'Muelles', 'Revisión completa'],
+                'precio': '$80 - $250',
+                'tiempo': '2-4 horas'
+            }
+        }
+        
+        info = servicios_info.get(servicio)
+        if not info:
+            return self._handle_general_inquiry({}, {}, '')
+        
+        message = f"{info['titulo']}\n\n"
+        message += f"📋 **Descripción:** {info['descripcion']}\n\n"
+        message += "✅ **Incluye:**\n"
+        for item in info['incluye']:
+            message += f"• {item}\n"
+        message += f"\n💰 **Precio:** {info['precio']}\n"
+        message += f"⏱️ **Tiempo:** {info['tiempo']}\n\n"
+        message += "¿Te gustaría agendar una cita para este servicio?"
+        
+        return {
+            'message': message,
+            'type': 'specific_service_info'
+        }
+    
     def _handle_price_inquiry(self, entities: Dict, context: Dict, phone_number: str) -> Dict:
         """Maneja consultas de precios"""
         servicio = entities.get('servicio')
@@ -287,24 +426,81 @@ class ChatbotService:
             'type': 'price_info'
         }
     
-    def _handle_appointment_request(self, entities: Dict, context: Dict, phone_number: str) -> Dict:
-        """Maneja solicitudes de citas"""
-        message = "📅 **AGENDAR CITA**\n\n"
-        message += "¡Perfecto! Te ayudo a agendar tu cita.\n\n"
-        message += "**Horarios disponibles:**\n"
-        message += "🕐 Lunes a Viernes: 8:00 AM - 6:00 PM\n"
-        message += "🕐 Sábados: 8:00 AM - 4:00 PM\n\n"
-        message += "Para agendar necesito:\n"
-        message += "• Día y hora preferida\n"
-        message += "• Datos del vehículo (marca, modelo, año)\n"
-        message += "• Servicio que necesitas\n\n"
-        message += "¿Qué día te conviene más?"
+    def _get_service_price(self, servicio: str) -> Dict:
+        """Obtiene precio específico de un servicio"""
+        precios = {
+            'aceite': {'precio': '$25 - $45', 'descripcion': 'Cambio completo de aceite y filtro'},
+            'frenos': {'precio': '$35 - $85', 'descripcion': 'Pastillas, discos y revisión completa'},
+            'motor': {'precio': '$45 - $150', 'descripcion': 'Diagnóstico, bujías y afinación'},
+            'transmision': {'precio': '$60 - $200', 'descripcion': 'Servicio de caja y embrague'},
+            'suspension': {'precio': '$80 - $250', 'descripcion': 'Amortiguadores y suspensión completa'}
+        }
+        
+        info = precios.get(servicio)
+        if not info:
+            return self._handle_general_inquiry({}, {}, '')
+        
+        message = f"💰 **PRECIO - {servicio.upper()}**\n\n"
+        message += f"📋 {info['descripcion']}\n\n"
+        message += f"💵 **Precio:** {info['precio']}\n\n"
+        message += "💡 *Los precios pueden variar según el vehículo*\n\n"
+        message += "¿Te gustaría una cotización exacta? Compárteme:\n"
+        message += "• Marca y modelo\n"
+        message += "• Año del vehículo"
         
         return {
             'message': message,
-            'type': 'appointment_request',
-            'next_step': 'collect_appointment_details'
+            'type': 'specific_price'
         }
+    
+    def _handle_location_inquiry(self, entities: Dict, context: Dict, phone_number: str) -> Dict:
+        """Maneja consultas de ubicación y horarios"""
+        message = f"📍 **UBICACIÓN DE {self.cliente.nombre.upper()}**\n\n"
+        
+        if self.cliente.direccion:
+            message += f"🏢 **Dirección:** {self.cliente.direccion}\n"
+        
+        if self.cliente.telefono:
+            message += f"📞 **Teléfono:** {self.cliente.telefono}\n"
+        
+        message += "\n🕒 **HORARIOS DE ATENCIÓN:**\n"
+        message += "• Lunes a Viernes: 8:00 AM - 6:00 PM\n"
+        message += "• Sábados: 8:00 AM - 4:00 PM\n"
+        message += "• Domingos: Cerrado\n\n"
+        message += "📱 También puedes llamarnos para confirmar disponibilidad"
+        
+        return {
+            'message': message,
+            'type': 'location_info'
+        }
+    
+    def _handle_appointment_request(self, entities: Dict, context: Dict, phone_number: str) -> Dict:
+        """Maneja solicitudes de citas de forma inteligente"""
+        try:
+            # 1. Identificar conductor por teléfono
+            conductor = self._find_conductor_by_phone(phone_number)
+            
+            if not conductor:
+                return self._handle_new_customer_registration(phone_number)
+            
+            # 2. Obtener vehículos del conductor
+            vehiculos = self._get_vehiculos_conductor(conductor)
+            
+            if not vehiculos:
+                return self._handle_no_vehicles(conductor)
+            
+            # 3. Gestión inteligente de vehículos
+            if len(vehiculos) == 1:
+                vehiculo = vehiculos[0]
+                return self._handle_single_vehicle_appointment(conductor, vehiculo, entities, context)
+            else:
+                return self._handle_multiple_vehicles_selection(conductor, vehiculos)
+                
+        except Exception as e:
+            import logging
+            logger = logging.getLogger(__name__)
+            logger.error(f"Error en _handle_appointment_request: {str(e)}", exc_info=True)
+            return self._get_error_response("Disculpa, hubo un problema al procesar tu solicitud de cita.")
     
     def _handle_status_inquiry(self, entities: Dict, context: Dict, phone_number: str) -> Dict:
         """Maneja consultas de estado de vehículo"""
@@ -419,14 +615,328 @@ class ChatbotService:
         # Mantener solo últimos 10 mensajes
         context['messages'] = context['messages'][-10:]
     
-    def _get_error_response(self) -> Dict:
+    def _get_error_response(self, custom_message: str = None) -> Dict:
         """Respuesta de error genérica"""
+        message = custom_message or "Lo siento, no pude procesar tu mensaje en este momento. ¿Podrías intentar de nuevo o contactar directamente con el taller?"
+        
         return {
-            'message': "😅 Disculpa, tuve un pequeño problema.\n\n"
-                      "Por favor, intenta de nuevo o contacta directamente "
-                      f"al {self.cliente.telefono if self.cliente.telefono else 'taller'}.",
-            'type': 'error'
+            'message': message,
+            'type': 'error',
+            'escalate_to_human': True
         }
+    
+    # ============= MÉTODOS PARA AGENTE INTELIGENTE DE CITAS =============
+    
+    def _get_conductor_by_phone(self, phone_number: str):
+        """Busca conductor por número de teléfono en el taller actual"""
+        try:
+            from ..models import Conductor
+            # Normalizar número de teléfono
+            phone_clean = self._normalize_phone_number(phone_number)
+            
+            conductor = Conductor.objects.filter(
+                cliente=self.cliente,
+                telefono__icontains=phone_clean[-8:]  # Últimos 8 dígitos
+            ).first()
+            
+            return conductor
+        except Exception as e:
+            import logging
+            logger = logging.getLogger(__name__)
+            logger.error(f"Error buscando conductor: {str(e)}")
+            return None
+    
+    def _normalize_phone_number(self, phone_number: str) -> str:
+        """Normaliza número de teléfono eliminando caracteres especiales"""
+        import re
+        return re.sub(r'[^0-9]', '', phone_number)
+    
+    def _get_vehiculos_conductor(self, conductor):
+        """Obtiene vehículos activos del conductor"""
+        try:
+            return conductor.vehiculos.filter(activo=True).order_by('-fecha_creacion')
+        except Exception as e:
+            import logging
+            logger = logging.getLogger(__name__)
+            logger.error(f"Error obteniendo vehículos: {str(e)}")
+            return []
+    
+    def _get_vehiculo_for_conductor(self, conductor):
+        """Obtiene el vehículo principal del conductor (el más reciente)"""
+        try:
+            vehiculos = self._get_vehiculos_conductor(conductor)
+            return vehiculos.first() if vehiculos else None
+        except Exception as e:
+            import logging
+            logger = logging.getLogger(__name__)
+            logger.error(f"Error obteniendo vehículo principal: {str(e)}")
+            return None
+    
+    def _get_available_slots(self) -> str:
+        """Genera lista de horarios disponibles"""
+        try:
+            from datetime import datetime, timedelta
+            
+            # Obtener fecha actual
+            today = datetime.now()
+            slots = []
+            
+            # Generar próximos 5 días laborables
+            for i in range(1, 8):  # Próximos 7 días
+                date = today + timedelta(days=i)
+                
+                # Saltar domingos (weekday 6)
+                if date.weekday() == 6:
+                    continue
+                    
+                day_name = ['Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes', 'Sábado'][date.weekday()]
+                date_str = date.strftime('%d/%m')
+                
+                if date.weekday() < 5:  # Lunes a Viernes
+                    slots.append(f"   • {day_name} {date_str}: 8:00 AM - 6:00 PM")
+                else:  # Sábado
+                    slots.append(f"   • {day_name} {date_str}: 8:00 AM - 4:00 PM")
+                    
+                if len(slots) >= 5:
+                    break
+            
+            return "\n".join(slots)
+            
+        except Exception as e:
+            import logging
+            logger = logging.getLogger(__name__)
+            logger.error(f"Error generando horarios: {str(e)}")
+            return "   • Lunes a Viernes: 8:00 AM - 6:00 PM\n   • Sábados: 8:00 AM - 4:00 PM"
+    
+    def _handle_new_customer_registration(self, phone_number: str) -> Dict:
+        """Maneja el registro de un nuevo cliente"""
+        taller_name = self.cliente.nombre
+        
+        message = f"¡Hola! Bienvenido a **{taller_name}**.\n\n"
+        message += "Veo que es la primera vez que nos contactas por WhatsApp. "
+        message += "Para poder ayudarte mejor y agendar tu cita, necesito algunos datos:\n\n"
+        message += " **Tu nombre completo**\n"
+        message += " **Datos de tu vehículo:**\n"
+        message += "   • Marca (ej: Toyota)\n"
+        message += "   • Modelo (ej: Corolla)\n"
+        message += "   • Año (ej: 2018)\n"
+        message += "   • Placa\n\n"
+        message += "Puedes enviarme toda la información en un solo mensaje.\n\n"
+        message += "**Ejemplo:** Juan Pérez, Toyota Corolla 2018, ABC-1234"
+        
+        return {
+            'message': message,
+            'type': 'new_customer_registration',
+            'next_step': 'collect_customer_data'
+        }
+    
+    def _handle_new_customer_flow(self, entities: Dict, context: Dict, phone_number: str) -> Dict:
+        """Maneja el flujo de registro de nuevo cliente cuando no se encuentra en la base de datos"""
+        return self._handle_new_customer_registration(phone_number)
+    
+    def _handle_no_vehicles(self, conductor) -> Dict:
+        """Maneja el caso cuando un conductor no tiene vehículos registrados"""
+        message = f"Hola **{conductor.nombre}**!\n\n"
+        message += "Veo que aún no tienes vehículos registrados en nuestro sistema. "
+        message += "Para agendar tu cita, necesito los datos de tu vehículo:\n\n"
+        message += " **Datos del vehículo:**\n"
+        message += "   • Marca (ej: Toyota)\n"
+        message += "   • Modelo (ej: Corolla)\n"
+        message += "   • Año (ej: 2018)\n"
+        message += "   • Placa\n\n"
+        message += "Envíame los datos en un solo mensaje.\n\n"
+        message += "**Ejemplo:** Toyota Corolla 2018, ABC-1234"
+        
+        return {
+            'message': message,
+            'type': 'vehicle_registration',
+            'next_step': 'collect_vehicle_data',
+            'conductor_id': conductor.id
+        }
+    
+    def _handle_multiple_vehicles_selection(self, conductor, vehiculos) -> Dict:
+        """Maneja la selección cuando el conductor tiene múltiples vehículos"""
+        message = f"Hola **{conductor.nombre}**!\n\n"
+        message += "Veo que tienes varios vehículos registrados. ¿Para cuál quieres agendar la cita?\n\n"
+        
+        for i, vehiculo in enumerate(vehiculos, 1):
+            message += f"**{i}.** {vehiculo.marca} {vehiculo.modelo} {vehiculo.anio} - {vehiculo.placa}\n"
+            
+            # Agregar info del último servicio si existe
+            if vehiculo.fecha_ultimo_servicio:
+                dias_desde_servicio = (timezone.now().date() - vehiculo.fecha_ultimo_servicio).days
+                message += f"   Último servicio: hace {dias_desde_servicio} días\n"
+            
+            message += f"   Kilometraje: {vehiculo.kilometraje:,} km\n\n"
+        
+        message += "Responde con el **número** del vehículo (ej: 1, 2, 3...)"
+        
+        return {
+            'message': message,
+            'type': 'vehicle_selection',
+            'next_step': 'select_vehicle',
+            'conductor_id': conductor.id,
+            'vehiculos_ids': [v.id for v in vehiculos]
+        }
+    
+    def _handle_single_vehicle_appointment(self, conductor, vehiculo, entities: Dict, context: Dict) -> Dict:
+        """Maneja cita cuando el conductor tiene un solo vehículo"""
+        message = f"Hola **{conductor.nombre}**!\n\n"
+        message += f"Perfecto, veo que quieres agendar una cita para tu **{vehiculo.marca} {vehiculo.modelo} {vehiculo.anio}** (Placa: {vehiculo.placa}).\n\n"
+        
+        # Mostrar información del vehículo
+        message += " **Estado del vehículo:**\n"
+        message += f"   • Kilometraje actual: {vehiculo.kilometraje:,} km\n"
+        
+        if vehiculo.fecha_ultimo_servicio:
+            dias_desde_servicio = (timezone.now().date() - vehiculo.fecha_ultimo_servicio).days
+            message += f"   • Último servicio: hace {dias_desde_servicio} días\n\n"
+            
+            # Sugerencias inteligentes basadas en historial
+            sugerencias = self._get_service_suggestions(vehiculo)
+            if sugerencias:
+                message += " **Servicios recomendados:**\n"
+                message += sugerencias + "\n"
+        else:
+            message += "   • Sin historial de servicios\n\n"
+        
+        # Detectar servicio mencionado en el mensaje original
+        servicio_detectado = self._detect_service_from_entities(entities)
+        if servicio_detectado:
+            message += f" **Entiendo que necesitas:** **{servicio_detectado}**\n\n"
+        
+        # Mostrar horarios disponibles
+        horarios_disponibles = self._get_available_slots()
+        message += " **Horarios disponibles:**\n"
+        message += horarios_disponibles + "\n"
+        message += "¿Qué día y hora te conviene más?"
+        
+        return {
+            'message': message,
+            'type': 'appointment_scheduling',
+            'next_step': 'select_datetime',
+            'conductor_id': conductor.id,
+            'vehiculo_id': vehiculo.id,
+            'servicio_sugerido': servicio_detectado
+        }
+    
+    def _get_service_suggestions(self, vehiculo) -> str:
+        """Genera sugerencias de servicio basadas en el historial del vehículo"""
+        try:
+            from ..models import OrdenServicio
+            from django.utils import timezone
+            from datetime import timedelta
+            
+            sugerencias = []
+            
+            # Obtener últimas órdenes de servicio
+            ordenes_recientes = OrdenServicio.objects.filter(
+                vehiculo=vehiculo,
+                estado='completada'
+            ).order_by('-fecha_creacion')[:3]
+            
+            # Sugerencias basadas en kilometraje
+            km_actual = vehiculo.kilometraje
+            if km_actual > 0:
+                # Cada 5000 km - cambio de aceite
+                km_desde_aceite = km_actual % 5000
+                if km_desde_aceite > 4000:
+                    sugerencias.append(" **Cambio de aceite (próximo por kilometraje)**")
+                
+                # Cada 10000 km - revisión general
+                if km_actual % 10000 > 8000:
+                    sugerencias.append(" **Revisión general recomendada**")
+            
+            # Sugerencias basadas en tiempo
+            if vehiculo.fecha_ultimo_servicio:
+                dias_desde_servicio = (timezone.now().date() - vehiculo.fecha_ultimo_servicio).days
+                if dias_desde_servicio > 90:  # 3 meses
+                    sugerencias.append(" **Mantenimiento preventivo (por tiempo)**")
+            
+            return "\n".join([f"   • {s}" for s in sugerencias[:3]]) if sugerencias else ""
+            
+        except Exception as e:
+            import logging
+            logger = logging.getLogger(__name__)
+            logger.error(f"Error generando sugerencias: {str(e)}")
+            return ""
+    
+    def _detect_service_from_entities(self, entities: Dict) -> str:
+        """Detecta el servicio mencionado en las entidades extraídas"""
+        servicio = entities.get('servicio', '')
+        if servicio:
+            # Mapear servicios comunes
+            servicios_map = {
+                'aceite': 'Cambio de aceite',
+                'frenos': 'Revisión de frenos',
+                'pastillas': 'Cambio de pastillas de freno',
+                'motor': 'Revisión de motor',
+                'transmision': 'Revisión de transmisión',
+                'suspension': 'Revisión de suspensión',
+                'llantas': 'Revisión de llantas',
+                'bateria': 'Revisión de batería'
+            }
+            
+            for key, value in servicios_map.items():
+                if key in servicio.lower():
+                    return value
+        
+        return servicio
+    
+    def _get_available_slots(self) -> str:
+        """Obtiene horarios disponibles dinámicamente"""
+        try:
+            from datetime import datetime, timedelta
+            
+            # Obtener configuración del taller
+            if self.taller_config:
+                horarios = self.taller_config.horarios
+            else:
+                horarios = "Lun-Vie 8AM-6PM, Sáb 8AM-2PM"
+            
+            # Generar próximos días disponibles
+            hoy = datetime.now().date()
+            slots = []
+            
+            for i in range(1, 8):  # Próximos 7 días
+                fecha = hoy + timedelta(days=i)
+                dia_semana = fecha.strftime('%A')
+                
+                # Saltar domingos
+                if dia_semana == 'Sunday':
+                    continue
+                
+                dia_es = self._translate_day(dia_semana)
+                fecha_str = fecha.strftime('%d/%m')
+                
+                if dia_semana == 'Saturday':
+                    slots.append(f"   • {dia_es} {fecha_str}: 8:00 AM - 2:00 PM")
+                else:
+                    slots.append(f"   • {dia_es} {fecha_str}: 8:00 AM - 6:00 PM")
+                
+                if len(slots) >= 5:  # Mostrar máximo 5 días
+                    break
+            
+            return "\n".join(slots)
+            
+        except Exception as e:
+            import logging
+            logger = logging.getLogger(__name__)
+            logger.error(f"Error obteniendo horarios: {str(e)}")
+            return "   • Lunes a Viernes: 8:00 AM - 6:00 PM\n   • Sábados: 8:00 AM - 2:00 PM"
+    
+    def _translate_day(self, day_english: str) -> str:
+        """Traduce días de la semana al español"""
+        days_map = {
+            'Monday': 'Lunes',
+            'Tuesday': 'Martes', 
+            'Wednesday': 'Miércoles',
+            'Thursday': 'Jueves',
+            'Friday': 'Viernes',
+            'Saturday': 'Sábado',
+            'Sunday': 'Domingo'
+        }
+        return days_map.get(day_english, day_english)
     
     def _load_response_patterns(self) -> Dict:
         """Carga patrones de respuesta (expandible)"""
@@ -436,3 +946,514 @@ class ChatbotService:
             'prices': ['precio', 'costo', 'cuánto', 'cotización'],
             'appointments': ['cita', 'turno', 'agendar', 'reservar']
         }
+    
+    # ===============================
+    # MÉTODOS PARA CONTEXTO CONVERSACIONAL
+    # ===============================
+    
+    def _contains_datetime_info(self, message: str) -> bool:
+        """Detecta si el mensaje contiene información de fecha/hora"""
+        datetime_patterns = [
+            r'\b(lunes|martes|miércoles|jueves|viernes|sábado)\b',
+            r'\b(mañana|tarde|noche)\b',
+            r'\b([0-9]{1,2}:[0-9]{2})\b',  # Hora formato HH:MM
+            r'\b([0-9]{1,2}\s*(am|pm))\b',  # Hora formato 12h
+            r'\b(hoy|mañana|pasado mañana)\b',
+            r'\b([0-9]{1,2}\s*de\s*(enero|febrero|marzo|abril|mayo|junio|julio|agosto|septiembre|octubre|noviembre|diciembre))\b'
+        ]
+        
+        for pattern in datetime_patterns:
+            if re.search(pattern, message, re.IGNORECASE):
+                return True
+        return False
+    
+    def _contains_service_info(self, message: str) -> bool:
+        """Detecta si el mensaje menciona servicios específicos"""
+        service_patterns = [
+            r'\b(aceite|cambio.*aceite)\b',
+            r'\b(frenos|pastillas)\b',
+            r'\b(motor|reparación.*motor)\b',
+            r'\b(transmisión|caja)\b',
+            r'\b(suspensión|amortiguadores)\b',
+            r'\b(revisión|chequeo|inspección)\b',
+            r'\b(mantenimiento|servicio)\b'
+        ]
+        
+        for pattern in service_patterns:
+            if re.search(pattern, message, re.IGNORECASE):
+                return True
+        return False
+    
+    def _contains_customer_data(self, message: str) -> bool:
+        """Detecta si el mensaje contiene datos de cliente (nombre, vehículo, etc.)"""
+        # Buscar patrones de datos personales
+        data_patterns = [
+            r'\b[A-Z][a-z]+\s+[A-Z][a-z]+\b',  # Nombre y apellido
+            r'\b[A-Z]{3}-\d{3,4}\b',  # Placa formato ABC-123
+            r'\b(toyota|chevrolet|ford|nissan|hyundai|kia|mazda|honda)\b',  # Marcas
+            r'\b\d{4}\b'  # Año
+        ]
+        
+        matches = 0
+        for pattern in data_patterns:
+            if re.search(pattern, message, re.IGNORECASE):
+                matches += 1
+        
+        return matches >= 2  # Al menos 2 patrones para considerar datos completos
+    
+    def _extract_datetime_entities(self, message: str) -> Dict:
+        """Extrae entidades de fecha y hora del mensaje"""
+        entities = {}
+        
+        # Detectar días de la semana
+        days_pattern = r'\b(lunes|martes|miércoles|jueves|viernes|sábado|domingo)\b'
+        day_match = re.search(days_pattern, message, re.IGNORECASE)
+        if day_match:
+            entities['day'] = day_match.group(1).lower()
+        
+        # Detectar horas
+        time_patterns = [
+            r'\b([0-9]{1,2}:[0-9]{2})\b',  # HH:MM
+            r'\b([0-9]{1,2})\s*(am|pm)\b'   # 12h format
+        ]
+        
+        for pattern in time_patterns:
+            time_match = re.search(pattern, message, re.IGNORECASE)
+            if time_match:
+                entities['time'] = time_match.group(0)
+                break
+        
+        # Detectar referencias temporales
+        temporal_patterns = {
+            r'\bmañana\b': 'morning',
+            r'\btarde\b': 'afternoon',
+            r'\bnoche\b': 'evening',
+            r'\bhoy\b': 'today',
+            r'\bmañana\b': 'tomorrow'
+        }
+        
+        for pattern, value in temporal_patterns.items():
+            if re.search(pattern, message, re.IGNORECASE):
+                entities['time_reference'] = value
+                break
+        
+        return entities
+    
+    def _extract_service_entities(self, message: str) -> Dict:
+        """Extrae servicios mencionados en el mensaje"""
+        entities = {'services': []}
+        
+        service_mapping = {
+            r'\b(aceite|cambio.*aceite)\b': 'aceite',
+            r'\b(frenos|pastillas)\b': 'frenos',
+            r'\b(motor|reparación.*motor)\b': 'motor',
+            r'\b(transmisión|caja)\b': 'transmision',
+            r'\b(suspensión|amortiguadores)\b': 'suspension',
+            r'\b(revisión|chequeo|inspección)\b': 'revision',
+            r'\b(mantenimiento|servicio)\b': 'mantenimiento'
+        }
+        
+        for pattern, service in service_mapping.items():
+            if re.search(pattern, message, re.IGNORECASE):
+                entities['services'].append(service)
+        
+        return entities
+    
+    def _extract_customer_entities(self, message: str) -> Dict:
+        """Extrae datos de cliente del mensaje de registro"""
+        entities = {}
+        
+        # Extraer nombre (primeras dos palabras capitalizadas)
+        name_pattern = r'\b([A-Z][a-z]+\s+[A-Z][a-z]+)\b'
+        name_match = re.search(name_pattern, message)
+        if name_match:
+            entities['name'] = name_match.group(1)
+        
+        # Extraer placa
+        plate_pattern = r'\b([A-Z]{3}-\d{3,4})\b'
+        plate_match = re.search(plate_pattern, message, re.IGNORECASE)
+        if plate_match:
+            entities['plate'] = plate_match.group(1).upper()
+        
+        # Extraer marca
+        brands = ['toyota', 'chevrolet', 'ford', 'nissan', 'hyundai', 'kia', 'mazda', 'honda']
+        for brand in brands:
+            if re.search(rf'\b{brand}\b', message, re.IGNORECASE):
+                entities['brand'] = brand.title()
+                break
+        
+        # Extraer modelo (palabra después de la marca)
+        if 'brand' in entities:
+            model_pattern = rf'\b{entities["brand"]}\s+([A-Za-z0-9]+)\b'
+            model_match = re.search(model_pattern, message, re.IGNORECASE)
+            if model_match:
+                entities['model'] = model_match.group(1).title()
+        
+        # Extraer año
+        year_pattern = r'\b(19|20)\d{2}\b'
+        year_match = re.search(year_pattern, message)
+        if year_match:
+            entities['year'] = int(year_match.group(0))
+        
+        return entities
+    
+    def _extract_vehicle_selection(self, message: str) -> Dict:
+        """Extrae selección de vehículo por número"""
+        # Buscar números en el mensaje
+        number_pattern = r'\b([1-9])\b'
+        number_match = re.search(number_pattern, message)
+        
+        if number_match:
+            return {'vehicle_number': int(number_match.group(1))}
+        
+        return {}
+    
+    # ===============================
+    # NUEVOS HANDLERS CONTEXTUALES
+    # ===============================
+    
+    def _handle_appointment_datetime(self, entities: Dict, context: Dict, phone_number: str) -> Dict:
+        """Maneja selección de fecha/hora para cita"""
+        try:
+            conductor = self._find_conductor_by_phone(phone_number)
+            if not conductor:
+                return self._handle_new_customer_flow(entities, context, phone_number)
+            
+            # Extraer información de fecha/hora
+            day = entities.get('day', '')
+            time = entities.get('time', '')
+            time_reference = entities.get('time_reference', '')
+            
+            message = f"Perfecto **{conductor.nombre}**! \n\n"
+            
+            if day and time:
+                message += f"📅 Has seleccionado: **{day.title()} a las {time}**\n\n"
+            elif day:
+                message += f"📅 Has seleccionado: **{day.title()}**\n\n"
+                message += "¿A qué hora prefieres? Ejemplo: 9:00 AM, 2:00 PM\n\n"
+            
+            # Preguntar por servicio si no se ha especificado
+            if not context.get('selected_service'):
+                vehiculo = self._get_vehiculo_for_conductor(conductor)
+                if vehiculo:
+                    suggestions = self._get_service_suggestions(vehiculo)
+                    message += f"**¿Qué servicio necesitas para tu {vehiculo.marca} {vehiculo.modelo}?**\n\n"
+                    message += suggestions
+                else:
+                    message += "**¿Qué servicio necesitas?**\n"
+                    message += "• Cambio de aceite\n"
+                    message += "• Revisión de frenos\n"
+                    message += "• Mantenimiento general\n"
+                    message += "• Otro (especifica cuál)\n"
+            
+            return {
+                'message': message,
+                'type': 'appointment_datetime_selected',
+                'next_step': 'collect_service_details' if not context.get('selected_service') else 'confirm_appointment'
+            }
+            
+        except Exception as e:
+            import logging
+            logger = logging.getLogger(__name__)
+            logger.error(f"Error en _handle_appointment_datetime: {str(e)}")
+            return self._get_error_response()
+    
+    def _handle_appointment_service(self, entities: Dict, context: Dict, phone_number: str) -> Dict:
+        """Maneja selección de servicio para cita"""
+        try:
+            conductor = self._find_conductor_by_phone(phone_number)
+            if not conductor:
+                return self._handle_new_customer_flow(entities, context, phone_number)
+            
+            services = entities.get('services', [])
+            
+            message = f"Excelente **{conductor.nombre}**! \n\n"
+            
+            if services:
+                message += "🔧 **Servicios seleccionados:**\n"
+                for service in services:
+                    service_info = self._get_specific_service_info(service)
+                    message += f"• {service_info}\n"
+                
+                message += "\n📅 **Ahora necesito confirmar los detalles:**\n"
+                
+                # Si ya tiene fecha/hora, confirmar
+                if context.get('selected_datetime'):
+                    message += f"• Fecha y hora: {context['selected_datetime']}\n"
+                    message += "\n✅ **¿Confirmas la cita con estos detalles?**\n"
+                    message += "Responde 'Sí' para confirmar o 'No' para cambiar algo."
+                    
+                    return {
+                        'message': message,
+                        'type': 'appointment_confirmation_needed',
+                        'next_step': 'confirm_appointment'
+                    }
+                else:
+                    # Pedir fecha/hora
+                    message += "\n¿Qué día y hora te conviene?\n"
+                    message += self._get_available_slots()
+                    
+                    return {
+                        'message': message,
+                        'type': 'appointment_service_selected',
+                        'next_step': 'collect_appointment_details'
+                    }
+            else:
+                message += "No pude identificar el servicio específico.\n\n"
+                message += "Por favor, especifica qué servicio necesitas:\n"
+                message += "• Cambio de aceite\n"
+                message += "• Revisión de frenos\n"
+                message += "• Reparación de motor\n"
+                message += "• Mantenimiento general\n"
+                message += "• Otro (especifica cuál)\n"
+                
+                return {
+                    'message': message,
+                    'type': 'service_clarification_needed',
+                    'next_step': 'collect_service_details'
+                }
+            
+        except Exception as e:
+            import logging
+            logger = logging.getLogger(__name__)
+            logger.error(f"Error en _handle_appointment_service: {str(e)}")
+            return self._get_error_response()
+    
+    def _handle_customer_registration(self, entities: Dict, context: Dict, phone_number: str) -> Dict:
+        """Maneja registro de nuevo cliente"""
+        try:
+            from ..models import Conductor, Vehiculo
+            
+            # Extraer datos del mensaje
+            name = entities.get('name', '')
+            brand = entities.get('brand', '')
+            model = entities.get('model', '')
+            year = entities.get('year', '')
+            plate = entities.get('plate', '')
+            
+            # Verificar que tengamos datos suficientes
+            missing_data = []
+            if not name:
+                missing_data.append('nombre completo')
+            if not brand:
+                missing_data.append('marca del vehículo')
+            if not model:
+                missing_data.append('modelo del vehículo')
+            if not year:
+                missing_data.append('año del vehículo')
+            if not plate:
+                missing_data.append('placa del vehículo')
+            
+            if missing_data:
+                message = f"📝 Necesito algunos datos adicionales:\n\n"
+                message += "**Faltan:**\n"
+                for item in missing_data:
+                    message += f"• {item}\n"
+                message += "\n**Ejemplo completo:**\n"
+                message += "Juan Pérez, Toyota Corolla 2018, ABC-1234\n\n"
+                message += "Por favor, envíame la información completa."
+                
+                return {
+                    'message': message,
+                    'type': 'registration_incomplete',
+                    'next_step': 'collect_new_customer_data'
+                }
+            
+            # Crear conductor y vehículo
+            try:
+                # Crear conductor
+                conductor = Conductor.objects.create(
+                    cliente=self.cliente,
+                    nombre=name,
+                    telefono=self._normalize_phone_number(phone_number),
+                    email=f"{name.lower().replace(' ', '.')}@temp.com"  # Email temporal
+                )
+                
+                # Crear vehículo
+                vehiculo = Vehiculo.objects.create(
+                    conductor=conductor,
+                    marca=brand,
+                    modelo=model,
+                    anio=year,
+                    placa=plate.upper(),
+                    kilometraje=0  # Se actualizará después
+                )
+                
+                message = f"🎉 ¡Bienvenido **{name}**!\n\n"
+                message += f"✅ **Registro exitoso:**\n"
+                message += f"• Cliente: {name}\n"
+                message += f"• Vehículo: {brand} {model} {year}\n"
+                message += f"• Placa: {plate.upper()}\n\n"
+                message += f"📅 **Ahora podemos agendar tu cita:**\n"
+                message += self._get_available_slots()
+                message += "\n¿Qué día y hora te conviene?"
+                
+                return {
+                    'message': message,
+                    'type': 'registration_complete',
+                    'next_step': 'collect_appointment_details',
+                    'conductor_id': conductor.id,
+                    'vehiculo_id': vehiculo.id
+                }
+                
+            except Exception as db_error:
+                import logging
+                logger = logging.getLogger(__name__)
+                logger.error(f"Error creando conductor/vehículo: {str(db_error)}")
+                
+                message = "😔 Hubo un problema al registrar tus datos.\n\n"
+                message += "Por favor, inténtalo nuevamente o contáctanos directamente:\n"
+                message += f"📞 {self.cliente.telefono}\n"
+                message += f"📍 {self.cliente.direccion}"
+                
+                return {
+                    'message': message,
+                    'type': 'registration_error',
+                    'escalate_to_human': True
+                }
+            
+        except Exception as e:
+            import logging
+            logger = logging.getLogger(__name__)
+            logger.error(f"Error en _handle_customer_registration: {str(e)}")
+            return self._get_error_response()
+    
+    def _handle_vehicle_selection(self, entities: Dict, context: Dict, phone_number: str) -> Dict:
+        """Maneja selección de vehículo cuando el conductor tiene múltiples vehículos"""
+        try:
+            conductor = self._find_conductor_by_phone(phone_number)
+            if not conductor:
+                return self._handle_new_customer_flow(entities, context, phone_number)
+            
+            vehicle_number = entities.get('vehicle_number', 0)
+            vehiculos = list(conductor.vehiculos.all())
+            
+            if vehicle_number < 1 or vehicle_number > len(vehiculos):
+                message = f"**{conductor.nombre}**, por favor selecciona un número válido:\n\n"
+                for i, vehiculo in enumerate(vehiculos, 1):
+                    message += f"{i}. **{vehiculo.marca} {vehiculo.modelo} {vehiculo.anio}** (Placa: {vehiculo.placa})\n"
+                message += "\nEjemplo: Escribe '1' para el primer vehículo."
+                
+                return {
+                    'message': message,
+                    'type': 'vehicle_selection_invalid',
+                    'next_step': 'select_vehicle'
+                }
+            
+            # Vehículo seleccionado
+            vehiculo_seleccionado = vehiculos[vehicle_number - 1]
+            
+            message = f"Perfecto **{conductor.nombre}**! \n\n"
+            message += f"🚗 **Vehículo seleccionado:**\n"
+            message += f"• {vehiculo_seleccionado.marca} {vehiculo_seleccionado.modelo} {vehiculo_seleccionado.anio}\n"
+            message += f"• Placa: {vehiculo_seleccionado.placa}\n"
+            message += f"• Kilometraje: {vehiculo_seleccionado.kilometraje:,} km\n\n"
+            
+            # Sugerencias de servicio
+            suggestions = self._get_service_suggestions(vehiculo_seleccionado)
+            message += suggestions
+            message += "\n📅 **Horarios disponibles:**\n"
+            message += self._get_available_slots()
+            message += "\n¿Qué día, hora y servicio prefieres?"
+            
+            return {
+                'message': message,
+                'type': 'vehicle_selected',
+                'next_step': 'collect_appointment_details',
+                'selected_vehicle_id': vehiculo_seleccionado.id
+            }
+            
+        except Exception as e:
+            import logging
+            logger = logging.getLogger(__name__)
+            logger.error(f"Error en _handle_vehicle_selection: {str(e)}")
+            return self._get_error_response()
+    
+    def _handle_vehicle_status(self, entities: Dict, context: Dict, phone_number: str) -> Dict:
+        """Maneja consultas sobre el estado del vehículo"""
+        try:
+            conductor = self._find_conductor_by_phone(phone_number)
+            if not conductor:
+                return {
+                    'message': "Para consultar el estado de tu vehículo, necesito que te registres primero. ¿Cómo te llamas y cuál es tu vehículo?",
+                    'type': 'registration_required',
+                    'next_step': 'collect_new_customer_data'
+                }
+            
+            from ..models import OrdenServicio
+            
+            # Buscar órdenes de servicio activas
+            ordenes_activas = OrdenServicio.objects.filter(
+                vehiculo__conductor=conductor,
+                estado__in=['pendiente', 'en_proceso']
+            ).order_by('-fecha_creacion')
+            
+            message = f"Hola **{conductor.nombre}**! \n\n"
+            
+            if ordenes_activas.exists():
+                message += "🔧 **Estado de tus servicios:**\n\n"
+                for orden in ordenes_activas[:3]:  # Máximo 3 órdenes
+                    vehiculo = orden.vehiculo
+                    message += f"🚗 **{vehiculo.marca} {vehiculo.modelo}** (Placa: {vehiculo.placa})\n"
+                    message += f"• Estado: **{orden.get_estado_display()}**\n"
+                    message += f"• Servicio: {orden.descripcion_trabajo}\n"
+                    message += f"• Fecha: {orden.fecha_creacion.strftime('%d/%m/%Y')}\n\n"
+                
+                message += "Para más detalles, puedes llamarnos:\n"
+                message += f"📞 {self.cliente.telefono}"
+            else:
+                message += "No tienes servicios activos en este momento.\n\n"
+                message += "🚗 **Tus vehículos registrados:**\n"
+                for vehiculo in conductor.vehiculos.all():
+                    message += f"• {vehiculo.marca} {vehiculo.modelo} {vehiculo.anio} (Placa: {vehiculo.placa})\n"
+                
+                message += "\n¿Necesitas agendar un nuevo servicio?"
+            
+            return {
+                'message': message,
+                'type': 'vehicle_status_info',
+                'next_step': 'general_conversation'
+            }
+            
+        except Exception as e:
+            import logging
+            logger = logging.getLogger(__name__)
+            logger.error(f"Error en _handle_vehicle_status: {str(e)}")
+            return self._get_error_response()
+    
+    def _handle_emergency(self, entities: Dict, context: Dict, phone_number: str) -> Dict:
+        """Maneja situaciones de emergencia"""
+        try:
+            conductor = self._find_conductor_by_phone(phone_number)
+            nombre = conductor.nombre if conductor else "Cliente"
+            
+            message = f"🆘 **EMERGENCIA - {nombre}**\n\n"
+            message += "🚑 **Atención inmediata:**\n"
+            message += f"• Llámanos AHORA: **{self.cliente.telefono}**\n"
+            message += f"• Ubicación: {self.cliente.direccion}\n\n"
+            
+            if self.taller_config and hasattr(self.taller_config, 'telefono_emergencia'):
+                message += f"• Emergencias 24h: **{self.taller_config.telefono_emergencia}**\n\n"
+            
+            message += "📍 **Si estás en carretera:**\n"
+            message += "• Enciende las luces de emergencia\n"
+            message += "• Colócate en un lugar seguro\n"
+            message += "• Llámanos para asistencia\n\n"
+            message += "Un técnico te contactará en breve."
+            
+            return {
+                'message': message,
+                'type': 'emergency_response',
+                'escalate_to_human': True,
+                'priority': 'high'
+            }
+            
+        except Exception as e:
+            import logging
+            logger = logging.getLogger(__name__)
+            logger.error(f"Error en _handle_emergency: {str(e)}")
+            return {
+                'message': "🆘 **EMERGENCIA**\n\nLlámanos inmediatamente:\n📞 " + str(self.cliente.telefono),
+                'type': 'emergency_fallback',
+                'escalate_to_human': True
+            }

@@ -559,9 +559,30 @@ class Cita(models.Model):
     ], default='pendiente')
     notas = models.TextField(blank=True)
     fecha_creacion = models.DateTimeField(auto_now_add=True)
+    
+    class Meta:
+        ordering = ['-fecha_cita']
+        verbose_name = 'Cita'
+        verbose_name_plural = 'Citas'
 
     def __str__(self):
-        return f"Cita {self.fecha_cita} - {self.vehiculo}"
+        return f"Cita {self.fecha_cita.strftime('%d/%m/%Y %H:%M')} - {self.vehiculo}"
+    
+    def get_servicios_display(self):
+        """Retorna los servicios como string separado por comas"""
+        return ", ".join([s.nombre for s in self.servicios.all()])
+    
+    def get_duracion_estimada(self):
+        """Calcula la duración estimada total de todos los servicios"""
+        total_minutos = sum([s.duracion_estimada for s in self.servicios.all()])
+        return total_minutos
+    
+    def get_precio_estimado(self):
+        """Calcula el precio estimado total de todos los servicios"""
+        total_precio = sum([s.precio for s in self.servicios.all()])
+        return total_precio
+
+class InteraccionChat(models.Model):
     TIPOS = (
         ('consulta', 'Consulta'),
         ('solicitud', 'Solicitud de Servicio'),
@@ -570,6 +591,8 @@ class Cita(models.Model):
     )
     
     cliente = models.ForeignKey(Cliente, on_delete=models.CASCADE, related_name='interacciones_chat')
+    conductor = models.ForeignKey('Conductor', on_delete=models.CASCADE, null=True, blank=True, related_name='interacciones_chat')
+    telefono = models.CharField(max_length=20, help_text="Número de teléfono del contacto")
     mensaje = models.TextField()
     respuesta = models.TextField(blank=True)
     tipo = models.CharField(max_length=20, choices=TIPOS, default='consulta')
@@ -583,10 +606,12 @@ class Cita(models.Model):
     
     class Meta:
         ordering = ['-fecha_creacion']
+        verbose_name = "Interacción de chat"
         verbose_name_plural = "Interacciones de chat"
     
     def __str__(self):
-        return f"Interacción de {self.cliente} - {self.get_tipo_display()}"
+        conductor_name = self.conductor.nombre if self.conductor else "Desconocido"
+        return f"Chat {conductor_name} - {self.get_tipo_display()} - {self.fecha_creacion.strftime('%d/%m/%Y %H:%M')}"
 
 
 class ConfiguracionTaller(models.Model):

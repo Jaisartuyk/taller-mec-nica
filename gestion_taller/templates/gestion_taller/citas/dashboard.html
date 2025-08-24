@@ -1,0 +1,420 @@
+{% extends 'gestion_taller/base.html' %}
+{% load static %}
+
+{% block title %}{{ title }}{% endblock %}
+
+{% block extra_css %}
+<link href="https://cdn.jsdelivr.net/npm/fullcalendar@6.1.8/index.global.min.css" rel="stylesheet">
+<style>
+    .stats-card {
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        color: white;
+        border-radius: 15px;
+        padding: 20px;
+        margin-bottom: 20px;
+        box-shadow: 0 4px 15px rgba(0,0,0,0.1);
+    }
+    
+    .stats-card.pendientes {
+        background: linear-gradient(135deg, #ffc107 0%, #ff8f00 100%);
+    }
+    
+    .stats-card.confirmadas {
+        background: linear-gradient(135deg, #28a745 0%, #20c997 100%);
+    }
+    
+    .stats-card.completadas {
+        background: linear-gradient(135deg, #6c757d 0%, #495057 100%);
+    }
+    
+    .stats-card.canceladas {
+        background: linear-gradient(135deg, #dc3545 0%, #c82333 100%);
+    }
+    
+    .calendar-container {
+        background: white;
+        border-radius: 15px;
+        padding: 20px;
+        box-shadow: 0 4px 15px rgba(0,0,0,0.1);
+        margin-bottom: 20px;
+    }
+    
+    .proximas-citas {
+        background: white;
+        border-radius: 15px;
+        padding: 20px;
+        box-shadow: 0 4px 15px rgba(0,0,0,0.1);
+        max-height: 500px;
+        overflow-y: auto;
+    }
+    
+    .cita-item {
+        border-left: 4px solid #007bff;
+        padding: 15px;
+        margin-bottom: 15px;
+        background: #f8f9fa;
+        border-radius: 0 10px 10px 0;
+        transition: all 0.3s ease;
+    }
+    
+    .cita-item:hover {
+        box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        transform: translateX(5px);
+    }
+    
+    .cita-item.pendiente {
+        border-left-color: #ffc107;
+    }
+    
+    .cita-item.confirmada {
+        border-left-color: #28a745;
+    }
+    
+    .cita-item.cancelada {
+        border-left-color: #dc3545;
+    }
+    
+    .cita-item.completada {
+        border-left-color: #6c757d;
+    }
+    
+    .estado-badge {
+        font-size: 0.8em;
+        padding: 4px 8px;
+        border-radius: 20px;
+    }
+    
+    .estado-pendiente {
+        background-color: #ffc107;
+        color: #000;
+    }
+    
+    .estado-confirmada {
+        background-color: #28a745;
+        color: white;
+    }
+    
+    .estado-cancelada {
+        background-color: #dc3545;
+        color: white;
+    }
+    
+    .estado-completada {
+        background-color: #6c757d;
+        color: white;
+    }
+    
+    .fc-event {
+        cursor: pointer;
+    }
+    
+    .fc-event:hover {
+        opacity: 0.8;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <div class="row mb-4">
+        <div class="col-12">
+            <div class="d-flex justify-content-between align-items-center">
+                <h2><i class="fas fa-calendar-alt"></i> {{ title }}</h2>
+                <div class="btn-group">
+                    <a href="{% url 'citas_list' %}" class="btn btn-outline-primary">
+                        <i class="fas fa-list"></i> Ver Lista
+                    </a>
+                    <button type="button" class="btn btn-primary" onclick="actualizarCalendario()">
+                        <i class="fas fa-sync-alt"></i> Actualizar
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Estadísticas -->
+    <div class="row mb-4">
+        <div class="col-md-3">
+            <div class="stats-card">
+                <div class="d-flex justify-content-between align-items-center">
+                    <div>
+                        <h3 class="mb-0">{{ total_citas }}</h3>
+                        <p class="mb-0">Total Citas</p>
+                    </div>
+                    <i class="fas fa-calendar-check fa-2x opacity-75"></i>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="stats-card pendientes">
+                <div class="d-flex justify-content-between align-items-center">
+                    <div>
+                        <h3 class="mb-0">{{ citas_pendientes }}</h3>
+                        <p class="mb-0">Pendientes</p>
+                    </div>
+                    <i class="fas fa-clock fa-2x opacity-75"></i>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="stats-card confirmadas">
+                <div class="d-flex justify-content-between align-items-center">
+                    <div>
+                        <h3 class="mb-0">{{ citas_confirmadas }}</h3>
+                        <p class="mb-0">Confirmadas</p>
+                    </div>
+                    <i class="fas fa-check-circle fa-2x opacity-75"></i>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="stats-card completadas">
+                <div class="d-flex justify-content-between align-items-center">
+                    <div>
+                        <h3 class="mb-0">{{ citas_completadas }}</h3>
+                        <p class="mb-0">Completadas</p>
+                    </div>
+                    <i class="fas fa-check-double fa-2x opacity-75"></i>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="row">
+        <!-- Calendario -->
+        <div class="col-lg-8">
+            <div class="calendar-container">
+                <div id="calendar"></div>
+            </div>
+        </div>
+
+        <!-- Próximas Citas -->
+        <div class="col-lg-4">
+            <div class="proximas-citas">
+                <h5 class="mb-3">
+                    <i class="fas fa-clock text-primary"></i> 
+                    Próximas Citas (7 días)
+                </h5>
+                
+                {% if proximas_citas %}
+                    {% for cita in proximas_citas %}
+                    <div class="cita-item {{ cita.estado }}" onclick="verDetalleCita('{{ cita.id }}')">
+                        <div class="d-flex justify-content-between align-items-start mb-2">
+                            <strong>{{ cita.conductor.nombre }}</strong>
+                            <span class="estado-badge estado-{{ cita.estado }}">
+                                {{ cita.get_estado_display }}
+                            </span>
+                        </div>
+                        <div class="text-muted small mb-1">
+                            <i class="fas fa-calendar"></i> 
+                            {{ cita.fecha_cita|date:"d/m/Y H:i" }}
+                        </div>
+                        <div class="text-muted small mb-1">
+                            <i class="fas fa-car"></i> 
+                            {{ cita.vehiculo }}
+                        </div>
+                        <div class="text-muted small">
+                            <i class="fas fa-tools"></i> 
+                            {{ cita.get_servicios_display }}
+                        </div>
+                    </div>
+                    {% endfor %}
+                {% else %}
+                    <div class="text-center text-muted py-4">
+                        <i class="fas fa-calendar-times fa-3x mb-3"></i>
+                        <p>No hay citas próximas</p>
+                    </div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Modal para detalles de cita -->
+<div class="modal fade" id="citaModal" tabindex="-1" aria-labelledby="citaModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="citaModalLabel">
+                    <i class="fas fa-calendar-alt"></i> Detalles de la Cita
+                </h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body" id="citaModalBody">
+                <!-- Contenido cargado dinámicamente -->
+            </div>
+            <div class="modal-footer">
+                <div class="btn-group me-auto" id="estadoButtons">
+                    <!-- Botones de cambio de estado -->
+                </div>
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cerrar</button>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script src="https://cdn.jsdelivr.net/npm/fullcalendar@6.1.8/index.global.min.js"></script>
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    var calendarEl = document.getElementById('calendar');
+    var calendar = new FullCalendar.Calendar(calendarEl, {
+        initialView: 'dayGridMonth',
+        locale: 'es',
+        headerToolbar: {
+            left: 'prev,next today',
+            center: 'title',
+            right: 'dayGridMonth,timeGridWeek,timeGridDay'
+        },
+        buttonText: {
+            today: 'Hoy',
+            month: 'Mes',
+            week: 'Semana',
+            day: 'Día'
+        },
+        events: {
+            url: '{% url "citas_calendario_api" %}',
+            failure: function() {
+                alert('Error al cargar las citas');
+            }
+        },
+        eventClick: function(info) {
+            verDetalleCita(info.event.id);
+        },
+        eventDidMount: function(info) {
+            // Tooltip con información básica
+            info.el.setAttribute('title', 
+                info.event.extendedProps.conductor + ' - ' + 
+                info.event.extendedProps.vehiculo + '\n' +
+                info.event.extendedProps.servicios
+            );
+        }
+    });
+    
+    calendar.render();
+    
+    // Función global para actualizar calendario
+    window.actualizarCalendario = function() {
+        calendar.refetchEvents();
+    };
+});
+
+function verDetalleCita(citaId) {
+    fetch(`/api/citas/${citaId}/detalle/`)
+        .then(response => response.json())
+        .then(data => {
+            if (data.error) {
+                alert('Error: ' + data.error);
+                return;
+            }
+            
+            // Construir contenido del modal
+            const modalBody = document.getElementById('citaModalBody');
+            modalBody.innerHTML = `
+                <div class="row">
+                    <div class="col-md-6">
+                        <h6><i class="fas fa-user"></i> Conductor</h6>
+                        <p>${data.conductor}<br>
+                        <small class="text-muted"><i class="fas fa-phone"></i> ${data.conductor_telefono}</small></p>
+                        
+                        <h6><i class="fas fa-car"></i> Vehículo</h6>
+                        <p>${data.vehiculo}<br>
+                        <small class="text-muted"><i class="fas fa-id-card"></i> ${data.vehiculo_placa}</small></p>
+                    </div>
+                    <div class="col-md-6">
+                        <h6><i class="fas fa-calendar"></i> Fecha y Hora</h6>
+                        <p>${data.fecha_cita}</p>
+                        
+                        <h6><i class="fas fa-info-circle"></i> Estado</h6>
+                        <p><span class="badge bg-primary">${data.estado_display}</span></p>
+                        
+                        <h6><i class="fas fa-dollar-sign"></i> Precio Estimado</h6>
+                        <p>$${data.precio_estimado}</p>
+                        
+                        <h6><i class="fas fa-clock"></i> Duración Estimada</h6>
+                        <p>${data.duracion_estimada} minutos</p>
+                    </div>
+                </div>
+                
+                <h6><i class="fas fa-tools"></i> Servicios</h6>
+                <div class="row">
+                    ${data.servicios.map(s => `
+                        <div class="col-md-6">
+                            <div class="card card-body mb-2">
+                                <strong>${s.nombre}</strong>
+                                <small class="text-muted">$${s.precio}</small>
+                            </div>
+                        </div>
+                    `).join('')}
+                </div>
+                
+                ${data.notas ? `
+                    <h6><i class="fas fa-sticky-note"></i> Notas</h6>
+                    <p class="text-muted">${data.notas}</p>
+                ` : ''}
+                
+                <small class="text-muted">
+                    <i class="fas fa-calendar-plus"></i> Creada: ${data.fecha_creacion}
+                </small>
+            `;
+            
+            // Botones de cambio de estado
+            const estadoButtons = document.getElementById('estadoButtons');
+            const estados = [
+                {key: 'pendiente', label: 'Pendiente', class: 'warning'},
+                {key: 'confirmada', label: 'Confirmada', class: 'success'},
+                {key: 'completada', label: 'Completada', class: 'secondary'},
+                {key: 'cancelada', label: 'Cancelada', class: 'danger'}
+            ];
+            
+            estadoButtons.innerHTML = estados
+                .filter(e => e.key !== data.estado)
+                .map(e => `
+                    <button type="button" class="btn btn-${e.class} btn-sm" 
+                            onclick="cambiarEstadoCita(${data.id}, '${e.key}')">
+                        ${e.label}
+                    </button>
+                `).join('');
+            
+            // Mostrar modal
+            new bootstrap.Modal(document.getElementById('citaModal')).show();
+        })
+        .catch(error => {
+            console.error('Error:', error);
+            alert('Error al cargar los detalles de la cita');
+        });
+}
+
+function cambiarEstadoCita(citaId, nuevoEstado) {
+    if (!confirm('¿Está seguro de cambiar el estado de esta cita?')) {
+        return;
+    }
+    
+    const formData = new FormData();
+    formData.append('estado', nuevoEstado);
+    formData.append('csrfmiddlewaretoken', document.querySelector('[name=csrfmiddlewaretoken]').value);
+    
+    fetch(`/api/citas/${citaId}/cambiar-estado/`, {
+        method: 'POST',
+        body: formData
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            alert(data.mensaje);
+            // Cerrar modal y actualizar calendario
+            bootstrap.Modal.getInstance(document.getElementById('citaModal')).hide();
+            actualizarCalendario();
+            location.reload(); // Actualizar estadísticas
+        } else {
+            alert('Error: ' + data.error);
+        }
+    })
+    .catch(error => {
+        console.error('Error:', error);
+        alert('Error al cambiar el estado de la cita');
+    });
+}
+</script>
+{% endblock %}

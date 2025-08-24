@@ -2626,6 +2626,270 @@ def servicio_catalogo_create(request):
     }
     return render(request, 'gestion_taller/servicio_catalogo_form.html', context)
 
+# ===== VISTAS DEL DASHBOARD DE CITAS =====
+
+from django.db.models import Count, Q
+from django.utils import timezone
+from datetime import datetime, timedelta
+import json
+from calendar import monthrange
+
+@login_required
+def dashboard_citas(request):
+    """Dashboard principal de citas con calendario interactivo"""
+    try:
+        cliente = request.user.perfilusuario.cliente
+    except:
+        messages.error(request, 'No tienes permisos para acceder a esta sección.')
+        return redirect('home')
+    
+    # Obtener parámetros de fecha
+    today = timezone.now().date()
+    year = int(request.GET.get('year', today.year))
+    month = int(request.GET.get('month', today.month))
+    
+    # Calcular rango de fechas del mes
+    first_day = datetime(year, month, 1).date()
+    last_day = datetime(year, month, monthrange(year, month)[1]).date()
+    
+    # Obtener citas del mes
+    from .models import Cita
+    citas_mes = Cita.objects.filter(
+        cliente=cliente,
+        fecha_cita__date__gte=first_day,
+        fecha_cita__date__lte=last_day
+    ).select_related('conductor', 'vehiculo').prefetch_related('servicios')
+    
+    # Estadísticas rápidas
+    total_citas = citas_mes.count()
+    citas_pendientes = citas_mes.filter(estado='pendiente').count()
+    citas_confirmadas = citas_mes.filter(estado='confirmada').count()
+    citas_completadas = citas_mes.filter(estado='completada').count()
+    citas_canceladas = citas_mes.filter(estado='cancelada').count()
+    
+    # Citas por día para el calendario
+    citas_por_dia = {}
+    for cita in citas_mes:
+        dia = cita.fecha_cita.day
+        if dia not in citas_por_dia:
+            citas_por_dia[dia] = []
+        citas_por_dia[dia].append({
+            'id': cita.id,
+            'hora': cita.fecha_cita.strftime('%H:%M'),
+            'conductor': cita.conductor.nombre,
+            'vehiculo': str(cita.vehiculo),
+            'servicios': cita.get_servicios_display(),
+            'estado': cita.estado,
+            'estado_display': cita.get_estado_display()
+        })
+    
+    # Próximas citas (siguientes 7 días)
+    proximas_citas = Cita.objects.filter(
+        cliente=cliente,
+        fecha_cita__gte=timezone.now(),
+        fecha_cita__date__lte=today + timedelta(days=7),
+        estado__in=['pendiente', 'confirmada']
+    ).select_related('conductor', 'vehiculo').prefetch_related('servicios').order_by('fecha_cita')[:10]
+    
+    context = {
+        'title': 'Dashboard de Citas',
+        'year': year,
+        'month': month,
+        'month_name': datetime(year, month, 1).strftime('%B'),
+        'total_citas': total_citas,
+        'citas_pendientes': citas_pendientes,
+        'citas_confirmadas': citas_confirmadas,
+        'citas_completadas': citas_completadas,
+        'citas_canceladas': citas_canceladas,
+        'citas_por_dia': json.dumps(citas_por_dia),
+        'proximas_citas': proximas_citas,
+        'today': today,
+    }
+    
+    return render(request, 'gestion_taller/citas/dashboard.html', context)
+
+@login_required
+def citas_calendario_api(request):
+    """API para obtener citas en formato JSON para el calendario"""
+    try:
+        cliente = request.user.perfilusuario.cliente
+    except:
+        return JsonResponse({'error': 'Sin permisos'}, status=403)
+    
+    # Parámetros de fecha
+    start = request.GET.get('start')
+    end = request.GET.get('end')
+    
+    if not start or not end:
+        return JsonResponse({'error': 'Fechas requeridas'}, status=400)
+    
+    try:
+        start_date = datetime.fromisoformat(start.replace('Z', '+00:00'))
+        end_date = datetime.fromisoformat(end.replace('Z', '+00:00'))
+    except ValueError:
+        return JsonResponse({'error': 'Formato de fecha inválido'}, status=400)
+    
+    # Obtener citas en el rango
+    from .models import Cita
+    citas = Cita.objects.filter(
+        cliente=cliente,
+        fecha_cita__gte=start_date,
+        fecha_cita__lte=end_date
+    ).select_related('conductor', 'vehiculo').prefetch_related('servicios')
+    
+    # Formatear para FullCalendar
+    events = []
+    for cita in citas:
+        color = {
+            'pendiente': '#ffc107',  # amarillo
+            'confirmada': '#28a745',  # verde
+            'cancelada': '#dc3545',   # rojo
+            'completada': '#6c757d'   # gris
+        }.get(cita.estado, '#007bff')
+        
+        events.append({
+            'id': cita.id,
+            'title': f"{cita.conductor.nombre} - {cita.vehiculo}",
+            'start': cita.fecha_cita.isoformat(),
+            'backgroundColor': color,
+            'borderColor': color,
+            'extendedProps': {
+                'conductor': cita.conductor.nombre,
+                'vehiculo': str(cita.vehiculo),
+                'servicios': cita.get_servicios_display(),
+                'estado': cita.estado,
+                'estado_display': cita.get_estado_display(),
+                'notas': cita.notas
+            }
+        })
+    
+    return JsonResponse(events, safe=False)
+
+@login_required
+def cita_detail_modal(request, pk):
+    """Vista modal para ver detalles de una cita"""
+    try:
+        cliente = request.user.perfilusuario.cliente
+        from .models import Cita
+        cita = get_object_or_404(Cita, pk=pk, cliente=cliente)
+    except:
+        return JsonResponse({'error': 'Cita no encontrada'}, status=404)
+    
+    data = {
+        'id': cita.id,
+        'fecha_cita': cita.fecha_cita.strftime('%d/%m/%Y %H:%M'),
+        'conductor': cita.conductor.nombre,
+        'conductor_telefono': cita.conductor.telefono,
+        'vehiculo': str(cita.vehiculo),
+        'vehiculo_placa': cita.vehiculo.placa,
+        'servicios': [{'nombre': s.nombre, 'precio': float(s.precio)} for s in cita.servicios.all()],
+        'servicios_display': cita.get_servicios_display(),
+        'precio_estimado': float(cita.get_precio_estimado()),
+        'duracion_estimada': cita.get_duracion_estimada(),
+        'estado': cita.estado,
+        'estado_display': cita.get_estado_display(),
+        'notas': cita.notas,
+        'fecha_creacion': cita.fecha_creacion.strftime('%d/%m/%Y %H:%M')
+    }
+    
+    return JsonResponse(data)
+
+@login_required
+def cita_cambiar_estado(request, pk):
+    """Cambiar estado de una cita via AJAX"""
+    if request.method != 'POST':
+        return JsonResponse({'error': 'Método no permitido'}, status=405)
+    
+    try:
+        cliente = request.user.perfilusuario.cliente
+        from .models import Cita
+        cita = get_object_or_404(Cita, pk=pk, cliente=cliente)
+        
+        nuevo_estado = request.POST.get('estado')
+        estados_validos = ['pendiente', 'confirmada', 'cancelada', 'completada']
+        
+        if nuevo_estado not in estados_validos:
+            return JsonResponse({'error': 'Estado inválido'}, status=400)
+        
+        estado_anterior = cita.estado
+        cita.estado = nuevo_estado
+        cita.save()
+        
+        # Crear notificación
+        Notificacion.objects.create(
+            cliente=cliente,
+            mensaje=f"Cita de {cita.conductor.nombre} cambió de {estado_anterior} a {nuevo_estado}",
+            tipo='general'
+        )
+        
+        return JsonResponse({
+            'success': True,
+            'mensaje': f'Estado cambiado a {cita.get_estado_display()}',
+            'nuevo_estado': nuevo_estado,
+            'nuevo_estado_display': cita.get_estado_display()
+        })
+        
+    except Exception as e:
+        return JsonResponse({'error': str(e)}, status=500)
+
+@login_required
+def citas_list(request):
+    """Lista de citas con filtros"""
+    try:
+        cliente = request.user.perfilusuario.cliente
+    except:
+        messages.error(request, 'No tienes permisos para acceder a esta sección.')
+        return redirect('home')
+    
+    from .models import Cita
+    citas = Cita.objects.filter(cliente=cliente).select_related(
+        'conductor', 'vehiculo'
+    ).prefetch_related('servicios').order_by('-fecha_cita')
+    
+    # Filtros
+    estado_filtro = request.GET.get('estado')
+    if estado_filtro:
+        citas = citas.filter(estado=estado_filtro)
+    
+    conductor_filtro = request.GET.get('conductor')
+    if conductor_filtro:
+        citas = citas.filter(conductor__nombre__icontains=conductor_filtro)
+    
+    fecha_desde = request.GET.get('fecha_desde')
+    if fecha_desde:
+        try:
+            fecha_desde = datetime.strptime(fecha_desde, '%Y-%m-%d').date()
+            citas = citas.filter(fecha_cita__date__gte=fecha_desde)
+        except ValueError:
+            pass
+    
+    fecha_hasta = request.GET.get('fecha_hasta')
+    if fecha_hasta:
+        try:
+            fecha_hasta = datetime.strptime(fecha_hasta, '%Y-%m-%d').date()
+            citas = citas.filter(fecha_cita__date__lte=fecha_hasta)
+        except ValueError:
+            pass
+    
+    # Paginación
+    from django.core.paginator import Paginator
+    paginator = Paginator(citas, 20)
+    page_number = request.GET.get('page')
+    page_obj = paginator.get_page(page_number)
+    
+    context = {
+        'title': 'Lista de Citas',
+        'page_obj': page_obj,
+        'citas': page_obj,
+        'estado_filtro': estado_filtro,
+        'conductor_filtro': conductor_filtro,
+        'fecha_desde': fecha_desde,
+        'fecha_hasta': fecha_hasta,
+        'estados_choices': [('pendiente', 'Pendiente'), ('confirmada', 'Confirmada'), ('cancelada', 'Cancelada'), ('completada', 'Completada')]
+    }
+    
+    return render(request, 'gestion_taller/citas/list.html', context)
+
 @login_required
 def servicio_catalogo_edit(request, pk):
     """Vista para editar un servicio del catálogo"""

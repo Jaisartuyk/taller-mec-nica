@@ -107,4 +107,11 @@ urlpatterns += [
     path('api/generar-recordatorios-automaticos/', api_views.api_generar_recordatorios_automaticos, name='api_generar_recordatorios_automaticos'),
     path('api/enviar-recordatorios-masivos/', api_views.api_enviar_recordatorios_masivos, name='api_enviar_recordatorios_masivos'),
     path('api/exportar-reporte-recordatorios/', api_views.api_exportar_reporte_recordatorios, name='api_exportar_reporte_recordatorios'),
+    
+    # ===== URLS DEL DASHBOARD DE CITAS =====
+    path('citas/dashboard/', views.dashboard_citas, name='dashboard_citas'),
+    path('citas/', views.citas_list, name='citas_list'),
+    path('api/citas/calendario/', views.citas_calendario_api, name='citas_calendario_api'),
+    path('api/citas/<int:pk>/detalle/', views.cita_detail_modal, name='cita_detail_modal'),
+    path('api/citas/<int:pk>/cambiar-estado/', views.cita_cambiar_estado, name='cita_cambiar_estado'),
 ]
