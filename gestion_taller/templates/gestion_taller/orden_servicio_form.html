@@ -221,27 +221,116 @@ $(document).ready(function() {
             success: function(response) {
                 if (response.success) {
                     $('#id_total').val(response.total_general.toFixed(2));
+                    
                     let desglose = '';
+                    const ivaInfo = response.iva_info || {};
+                    
+                    // Mostrar desglose básico
                     if (response.total_servicios > 0) {
-                        desglose += `Servicios: $${response.total_servicios.toFixed(2)}<br>`;
+                        desglose += `<div class="d-flex justify-content-between"><span>Servicios:</span><span>$${response.total_servicios.toFixed(2)}</span></div>`;
                     }
                     if (response.total_productos > 0) {
-                        desglose += `Productos: $${response.total_productos.toFixed(2)}<br>`;
+                        desglose += `<div class="d-flex justify-content-between"><span>Productos:</span><span>$${response.total_productos.toFixed(2)}</span></div>`;
                     }
+                    
+                    // Mostrar desglose de IVA si está habilitado
+                    if (ivaInfo.mostrar_desglose && ivaInfo.total_iva > 0) {
+                        desglose += `<hr class="my-2">`;
+                        desglose += `<div class="d-flex justify-content-between text-muted"><span>Subtotal (sin IVA):</span><span>$${ivaInfo.total_sin_iva.toFixed(2)}</span></div>`;
+                        desglose += `<div class="d-flex justify-content-between text-muted"><span>IVA (${ivaInfo.porcentaje_iva}%):</span><span>$${ivaInfo.total_iva.toFixed(2)}</span></div>`;
+                    }
+                    
+                    // Total final
                     if (desglose) {
-                        desglose += `<strong>Total: $${response.total_general.toFixed(2)}</strong>`;
+                        desglose += `<hr class="my-2">`;
+                        desglose += `<div class="d-flex justify-content-between fw-bold text-success"><span>Total:</span><span>$${response.total_general.toFixed(2)}</span></div>`;
                     }
+                    
                     $('#desglose-precios').html(desglose);
                 }
+            },
+            error: function(xhr, status, error) {
+                console.error('Error al calcular precios:', error);
+                $('#desglose-precios').html('<div class="text-danger"><i class="bi bi-exclamation-triangle"></i> Error al calcular precios</div>');
             }
         });
     }
 
-    // Recalcular cuando cambien servicios o productos
-    $(document).on('change', '#id_servicios', calcularPrecios);
+    // Función para filtrar productos según servicios catálogo seleccionados
+    function filtrarProductosPorServicios() {
+        const serviciosIds = $('#id_servicios').val() || [];
+        
+        if (serviciosIds.length === 0) {
+            // Si no hay servicios seleccionados, limpiar productos sugeridos
+            $('#productos-por-servicio').html('');
+            return;
+        }
+        
+        // Obtener productos asociados a los servicios seleccionados
+        $.ajax({
+            url: '{% url "productos_por_servicios_ajax" %}',
+            method: 'GET',
+            data: {
+                'servicios': serviciosIds
+            },
+            success: function(response) {
+                if (response.success) {
+                    // Mostrar productos sugeridos (sin modificar el select original)
+                    mostrarProductosSugeridos(response.productos);
+                }
+            },
+            error: function() {
+                console.log('Error al obtener productos por servicios');
+                $('#productos-por-servicio').html('<div class="text-danger small"><i class="bi bi-exclamation-triangle"></i> Error al cargar productos sugeridos</div>');
+            }
+        });
+    }
+    
+    // Función para mostrar productos sugeridos
+    function mostrarProductosSugeridos(productos) {
+        let html = '';
+        if (productos && productos.length > 0) {
+            html = '<div class="mt-2"><small class="text-muted"><i class="bi bi-lightbulb"></i> Productos sugeridos para los servicios seleccionados:</small>';
+            html += '<div class="mt-1">';
+            productos.forEach(function(producto) {
+                const isSelected = $('#id_productos').val() && $('#id_productos').val().includes(producto.id.toString());
+                const badgeClass = isSelected ? 'bg-success' : 'bg-secondary';
+                const icon = isSelected ? 'bi-check-circle' : 'bi-plus-circle';
+                html += `<span class="badge ${badgeClass} me-1 mb-1 producto-sugerido" data-producto-id="${producto.id}" style="cursor: pointer;">`;
+                html += `<i class="bi ${icon}"></i> ${producto.nombre} - $${parseFloat(producto.precio).toFixed(2)}`;
+                html += '</span>';
+            });
+            html += '</div></div>';
+        }
+        $('#productos-por-servicio').html(html);
+        
+        // Event listener para agregar/quitar productos sugeridos
+        $('.producto-sugerido').off('click').on('click', function() {
+            const productoId = $(this).data('producto-id').toString();
+            const productosSeleccionados = $('#id_productos').val() || [];
+            
+            if (productosSeleccionados.includes(productoId)) {
+                // Quitar producto
+                const nuevaSeleccion = productosSeleccionados.filter(id => id !== productoId);
+                $('#id_productos').val(nuevaSeleccion).trigger('change');
+            } else {
+                // Agregar producto
+                productosSeleccionados.push(productoId);
+                $('#id_productos').val(productosSeleccionados).trigger('change');
+            }
+        });
+    }
+    
+    // Recalcular cuando cambien servicios catálogo o productos
+    $(document).on('change', '#id_servicios', function() {
+        filtrarProductosPorServicios();
+        calcularPrecios();
+    });
     $(document).on('change', '#id_productos', calcularPrecios);
 
+    // Inicializar
     calcularPrecios();
+    filtrarProductosPorServicios();
 });
 </script>
 {% endblock %}

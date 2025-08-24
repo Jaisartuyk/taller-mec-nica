@@ -90,18 +90,38 @@ def productos_por_servicios_ajax(request):
     """
     Vista AJAX: recibe IDs de servicios y devuelve los productos sugeridos para esos servicios.
     """
-    servicios_ids = request.GET.getlist('servicios[]')
+    # Manejar tanto 'servicios[]' como 'servicios'
+    servicios_ids = request.GET.getlist('servicios[]') or request.GET.getlist('servicios')
+    
+    # Verificar que el usuario tenga un cliente asociado
+    if not (hasattr(request.user, 'perfilusuario') and request.user.perfilusuario.cliente):
+        return JsonResponse({'success': False, 'error': 'Usuario no tiene cliente asociado'})
+    
+    cliente = request.user.perfilusuario.cliente
     from .models import ServicioCatalogo, Repuesto
     productos_set = set()
+    
     for sid in servicios_ids:
         try:
-            servicio = ServicioCatalogo.objects.get(pk=sid)
+            # Filtrar por cliente para seguridad
+            servicio = ServicioCatalogo.objects.get(pk=sid, cliente=cliente)
             productos_set.update(servicio.productos_requeridos.all())
         except ServicioCatalogo.DoesNotExist:
             pass
-    productos = [
-        {'id': p.id, 'nombre': str(p)} for p in productos_set
-    ]
+    
+    # Construir respuesta con información completa del producto
+    productos = []
+    for p in productos_set:
+        productos.append({
+            'id': p.id, 
+            'nombre': p.nombre,
+            'precio': float(p.get_precio_con_iva()),
+            'precio_sin_iva': float(p.get_precio_sin_iva()),
+            'valor_iva': float(p.get_valor_iva()),
+            'aplica_iva': p.get_aplicar_iva(),
+            'porcentaje_iva': float(p.get_porcentaje_iva())
+        })
+    
     return JsonResponse({'success': True, 'productos': productos})
 
 

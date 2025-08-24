@@ -120,21 +120,48 @@ document.addEventListener('DOMContentLoaded', function() {
     // Función para validar kilometraje ingresado
     function validarKilometraje() {
       // Remover comas del valor ingresado para comparación
-      const valorLimpio = kilometrajeInput.value.replace(/,/g, '');
-      const kilometrajeIngresado = parseInt(valorLimpio) || 0;
+      const valorLimpio = kilometrajeInput.value.replace(/,/g, '').trim();
+      const kilometrajeIngresado = parseFloat(valorLimpio) || 0;
       
-      if (vehiculoKilometraje > 0 && kilometrajeIngresado < vehiculoKilometraje) {
-        kilometrajeWarning.innerHTML = `
-          <i class="fas fa-exclamation-triangle"></i> 
-          <strong>Advertencia:</strong> El kilometraje ingresado (${kilometrajeIngresado.toLocaleString()} km) 
-          es menor al último registrado (${vehiculoKilometraje.toLocaleString()} km). 
-          ¿Estás seguro de que es correcto?
-        `;
-        kilometrajeWarning.style.display = 'block';
-        kilometrajeInput.classList.add('is-invalid');
+      console.log('Validando kilometraje:', {
+        valorIngresado: kilometrajeInput.value,
+        valorLimpio: valorLimpio,
+        kilometrajeIngresado: kilometrajeIngresado,
+        vehiculoKilometraje: vehiculoKilometraje
+      });
+      
+      if (vehiculoKilometraje > 0 && kilometrajeIngresado > 0) {
+        if (kilometrajeIngresado < vehiculoKilometraje) {
+          // Kilometraje menor al registrado - mostrar advertencia
+          kilometrajeWarning.innerHTML = `
+            <i class="fas fa-exclamation-triangle"></i> 
+            <strong>Advertencia:</strong> El kilometraje ingresado (${kilometrajeIngresado.toLocaleString()} km) 
+            es menor al último registrado (${vehiculoKilometraje.toLocaleString()} km). 
+            ¿Estás seguro de que es correcto?
+          `;
+          kilometrajeWarning.style.display = 'block';
+          kilometrajeWarning.className = 'alert alert-warning mt-2';
+          kilometrajeInput.classList.add('is-invalid');
+        } else if (kilometrajeIngresado > vehiculoKilometraje) {
+          // Kilometraje mayor al registrado - mostrar información
+          kilometrajeWarning.innerHTML = `
+            <i class="fas fa-info-circle"></i> 
+            <strong>Información:</strong> El kilometraje ingresado (${kilometrajeIngresado.toLocaleString()} km) 
+            es mayor al último registrado (${vehiculoKilometraje.toLocaleString()} km). 
+            El kilometraje del vehículo se actualizará.
+          `;
+          kilometrajeWarning.style.display = 'block';
+          kilometrajeWarning.className = 'alert alert-info mt-2';
+          kilometrajeInput.classList.remove('is-invalid');
+          kilometrajeInput.classList.add('is-valid');
+        } else {
+          // Kilometraje igual - sin advertencia
+          kilometrajeWarning.style.display = 'none';
+          kilometrajeInput.classList.remove('is-invalid', 'is-valid');
+        }
       } else {
         kilometrajeWarning.style.display = 'none';
-        kilometrajeInput.classList.remove('is-invalid');
+        kilometrajeInput.classList.remove('is-invalid', 'is-valid');
       }
     }
     

@@ -70,6 +70,7 @@
                 {% if form.productos.errors %}
                     <div class="text-danger small">{{ form.productos.errors }}</div>
                 {% endif %}
+                <div id="productos-por-servicio" class="mt-2"></div>
             </div>
 
             <!-- Campo Método de Pago -->
@@ -145,5 +146,77 @@ $(document).ready(function() {
     if (vehiculoInicial) {
         actualizarConductorPorVehiculo(vehiculoInicial);
     }
+    
+    // Función para filtrar productos según servicios catálogo seleccionados
+    function filtrarProductosPorServicios() {
+        const serviciosIds = $('#id_servicios').val() || [];
+        
+        if (serviciosIds.length === 0) {
+            // Si no hay servicios seleccionados, limpiar productos sugeridos
+            $('#productos-por-servicio').html('');
+            return;
+        }
+        
+        // Obtener productos asociados a los servicios seleccionados
+        $.ajax({
+            url: '/api/productos-por-servicios/',
+            method: 'GET',
+            data: {
+                'servicios': serviciosIds
+            },
+            success: function(response) {
+                if (response.success) {
+                    // Mostrar productos sugeridos
+                    mostrarProductosSugeridos(response.productos);
+                }
+            },
+            error: function() {
+                console.log('Error al obtener productos por servicios');
+            }
+        });
+    }
+    
+    // Función para mostrar productos sugeridos
+    function mostrarProductosSugeridos(productos) {
+        let html = '';
+        if (productos && productos.length > 0) {
+            html = '<div class="mt-2"><small class="text-muted"><i class="bi bi-lightbulb"></i> Productos sugeridos:</small>';
+            html += '<div class="mt-1">';
+            productos.forEach(function(producto) {
+                const isSelected = $('#id_productos').val() && $('#id_productos').val().includes(producto.id.toString());
+                const badgeClass = isSelected ? 'bg-success' : 'bg-secondary';
+                const icon = isSelected ? 'bi-check-circle' : 'bi-plus-circle';
+                html += `<span class="badge ${badgeClass} me-1 mb-1 producto-sugerido" data-producto-id="${producto.id}" style="cursor: pointer;">`;
+                html += `<i class="bi ${icon}"></i> ${producto.nombre} - $${parseFloat(producto.precio).toFixed(2)}`;
+                html += '</span>';
+            });
+            html += '</div></div>';
+        }
+        $('#productos-por-servicio').html(html);
+        
+        // Event listener para agregar/quitar productos sugeridos
+        $('.producto-sugerido').off('click').on('click', function() {
+            const productoId = $(this).data('producto-id').toString();
+            const productosSeleccionados = $('#id_productos').val() || [];
+            
+            if (productosSeleccionados.includes(productoId)) {
+                // Quitar producto
+                const nuevaSeleccion = productosSeleccionados.filter(id => id !== productoId);
+                $('#id_productos').val(nuevaSeleccion).trigger('change');
+            } else {
+                // Agregar producto
+                productosSeleccionados.push(productoId);
+                $('#id_productos').val(productosSeleccionados).trigger('change');
+            }
+        });
+    }
+    
+    // Event listener para cambio de servicios catálogo
+    $('#id_servicios').on('change', function() {
+        filtrarProductosPorServicios();
+    });
+    
+    // Inicializar filtrado de productos
+    filtrarProductosPorServicios();
 });
 </script>
