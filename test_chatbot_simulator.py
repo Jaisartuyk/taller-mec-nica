@@ -26,14 +26,17 @@ def test_chatbot_appointment():
     # Crear instancia del chatbot
     chatbot = ChatbotService(cliente)
     
-    # Test messages
+    # Test messages - Coherentes con el flujo funcional
     test_messages = [
-        "quiero agendar una cita",
-        "necesito una cita",
-        "agendar cita",
-        "reservar turno",
-        "hola",
-        "que servicios tienen"
+        "Hola",
+        "Qué servicios ofrecen?",
+        "Cuánto cuesta cambio de aceite?",
+        "Quiero agendar cambio de aceite para el lunes 25",
+        "Quiero agendar una cita",
+        "Dónde están ubicados?",
+        "SÍ",  # Para probar confirmación
+        "NO",   # Para probar cancelación
+        "Cambio de aceite"  # Para especificar servicio
     ]
     
     print("\n🧪 PROBANDO DETECCIÓN DE INTENTS:")

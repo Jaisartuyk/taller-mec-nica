@@ -146,20 +146,43 @@ class ChatbotService:
                 if vehicle_selection:
                     return 'vehicle_selection', vehicle_selection
             
-            # Detectar solicitudes de cita con información de fecha/hora directamente
+            # PRIORIDAD ALTA: Detectar solicitudes de cita con información de fecha/hora directamente
             agendar_patterns = [
                 r'\b(agendar|reservar|programar|solicitar)\b.*\b(cita|turno|hora)\b',
-                r'\b(quiero|necesito|me gustaría)\b.*\b(cita|turno|hora)\b'
+                r'\b(quiero|necesito|me gustaría)\b.*\b(cita|turno|hora)\b',
+                r'\b(quiero|necesito)\b.*\b(agendar|reservar|programar)\b',
+                r'\b(agendar|reservar|programar)\b.*\b(para|el|la)\b'
             ]
             
             for pattern in agendar_patterns:
                 if re.search(pattern, message_lower, re.IGNORECASE):
                     # Si también contiene información de fecha/hora, es appointment_datetime
                     if self._contains_datetime_info(message_lower):
-                        return 'appointment_datetime', self._extract_datetime_entities(message)
+                        # Extraer tanto entidades de fecha/hora como de servicio
+                        datetime_entities = self._extract_datetime_entities(message)
+                        service_entities = self._extract_service_entities(message)
+                        # Combinar entidades
+                        combined_entities = {**datetime_entities, **service_entities}
+                        return 'appointment_datetime', combined_entities
                     # Si solo es solicitud de cita, es agendar_cita
                     else:
                         return 'agendar_cita', {}
+            
+            # PRIORIDAD ALTA: Detectar mensajes que contienen fecha/hora en contexto de agendamiento
+            if self._contains_datetime_info(message_lower):
+                # Verificar si también menciona servicios o agendamiento
+                agendar_keywords = ['agendar', 'reservar', 'programar', 'cita', 'turno', 'quiero', 'necesito']
+                servicio_keywords = ['aceite', 'frenos', 'motor', 'mantenimiento', 'servicio', 'cambio', 'revisión']
+                
+                has_agendar = any(keyword in message_lower for keyword in agendar_keywords)
+                has_servicio = any(keyword in message_lower for keyword in servicio_keywords)
+                
+                if has_agendar or has_servicio:
+                    # Es claramente una solicitud de cita con fecha/hora
+                    datetime_entities = self._extract_datetime_entities(message)
+                    service_entities = self._extract_service_entities(message)
+                    combined_entities = {**datetime_entities, **service_entities}
+                    return 'appointment_datetime', combined_entities
             
             # Patrones de intenciones principales
             intent_patterns = {
@@ -925,25 +948,73 @@ class ChatbotService:
     
     def _detect_service_from_entities(self, entities: Dict) -> str:
         """Detecta el servicio mencionado en las entidades extraídas"""
-        servicio = entities.get('servicio', '')
+        # Buscar en múltiples claves posibles
+        servicio_keys = ['servicio', 'service_name', 'service_type']
+        servicio = ''
+        
+        for key in servicio_keys:
+            if entities.get(key):
+                servicio = entities.get(key)
+                break
+        
         if servicio:
             # Mapear servicios comunes
             servicios_map = {
                 'aceite': 'Cambio de aceite',
+                'cambio_aceite': 'Cambio de aceite',
                 'frenos': 'Revisión de frenos',
                 'pastillas': 'Cambio de pastillas de freno',
                 'motor': 'Revisión de motor',
                 'transmision': 'Revisión de transmisión',
                 'suspension': 'Revisión de suspensión',
                 'llantas': 'Revisión de llantas',
-                'bateria': 'Revisión de batería'
+                'bateria': 'Revisión de batería',
+                'mantenimiento': 'Mantenimiento general'
             }
             
+            servicio_lower = servicio.lower()
             for key, value in servicios_map.items():
-                if key in servicio.lower():
+                if key in servicio_lower:
                     return value
         
         return servicio
+    
+    def _detect_service_from_conversation_context(self, phone_number: str) -> str:
+        """Detecta servicios mencionados en el contexto conversacional"""
+        try:
+            context = self.conversation_context.get(phone_number, {})
+            messages = context.get('messages', [])
+            
+            if not messages:
+                return ''
+            
+            # Analizar el último mensaje para detectar servicios
+            last_message = messages[-1].get('message', '').lower()
+            
+            # Patrones de servicios con sus nombres formales
+            service_patterns = {
+                r'\b(aceite|cambio.*aceite)\b': 'Cambio de aceite',
+                r'\b(frenos|pastillas.*freno)\b': 'Revisión de frenos', 
+                r'\b(motor|reparación.*motor|revisión.*motor)\b': 'Revisión de motor',
+                r'\b(transmisión|caja.*cambios)\b': 'Revisión de transmisión',
+                r'\b(suspensión|amortiguadores)\b': 'Revisión de suspensión',
+                r'\b(llantas|neumáticos|neumaticos)\b': 'Revisión de llantas',
+                r'\b(batería|bateria)\b': 'Revisión de batería',
+                r'\b(mantenimiento.*general|servicio.*general)\b': 'Mantenimiento general',
+                r'\b(diagnóstico|diagnostico)\b': 'Diagnóstico general'
+            }
+            
+            for pattern, service_name in service_patterns.items():
+                if re.search(pattern, last_message, re.IGNORECASE):
+                    return service_name
+            
+            return ''
+            
+        except Exception as e:
+            import logging
+            logger = logging.getLogger(__name__)
+            logger.error(f"Error detectando servicio del contexto: {str(e)}")
+            return ''
     
     def _get_available_slots(self) -> str:
         """Obtiene horarios disponibles dinámicamente"""
@@ -1245,26 +1316,66 @@ class ChatbotService:
             # Obtener vehículo del conductor
             vehiculo = self._get_vehiculo_for_conductor(conductor)
             
-            # Preguntar por servicio si no se ha especificado
+            # NUEVA FUNCIONALIDAD: Detectar servicio del mensaje original
+            servicio_detectado = ''
             if not context.get('selected_service'):
+                # Primero intentar detectar desde las entidades del mensaje actual
+                servicio_detectado = self._detect_service_from_entities(entities)
+                
+                # Si no se encuentra, intentar detectar del contexto conversacional
+                if not servicio_detectado:
+                    servicio_detectado = self._detect_service_from_conversation_context(phone_number)
+            
+            # Determinar siguiente paso basado en si tenemos servicio
+            if servicio_detectado or context.get('selected_service'):
+                # Ya tenemos servicio, ir a confirmación
+                servicio_final = servicio_detectado or context.get('selected_service')
+                message += f"🔧 **Servicio detectado:** {servicio_final}\n\n"
+                message += "¿Confirmas tu cita con estos datos?\n\n"
+                message += "📅 **Fecha/Hora:** "
+                if day and time:
+                    message += f"{day.title()} a las {time}\n"
+                elif day:
+                    message += f"{day.title()} (hora por confirmar)\n"
+                message += f"🔧 **Servicio:** {servicio_final}\n"
+                if vehiculo:
+                    message += f"🚗 **Vehículo:** {vehiculo.marca} {vehiculo.modelo} {vehiculo.anio}\n\n"
+                message += "Responde **SÍ** para confirmar o **NO** para cancelar."
+                
+                next_step = 'confirm_appointment'
+            else:
+                # No tenemos servicio, solicitarlo
                 if vehiculo:
                     suggestions = self._get_service_suggestions(vehiculo)
                     message += f"**¿Qué servicio necesitas para tu {vehiculo.marca} {vehiculo.modelo}?**\n\n"
-                    message += suggestions
+                    if suggestions:
+                        message += "**Servicios sugeridos:**\n"
+                        message += suggestions + "\n\n"
+                    message += "**Otros servicios disponibles:**\n"
+                    message += "• Cambio de aceite\n"
+                    message += "• Revisión de frenos\n"
+                    message += "• Mantenimiento general\n"
+                    message += "• Otro (especifica cuál)\n"
                 else:
                     message += "**¿Qué servicio necesitas?**\n"
                     message += "• Cambio de aceite\n"
                     message += "• Revisión de frenos\n"
                     message += "• Mantenimiento general\n"
                     message += "• Otro (especifica cuál)\n"
+                
+                next_step = 'collect_service_details'
             
             response = {
                 'message': message,
                 'type': 'appointment_datetime_selected',
-                'next_step': 'collect_service_details' if not context.get('selected_service') else 'confirm_appointment',
+                'next_step': next_step,
                 'conductor_id': conductor.id,
                 'fecha_hora_info': fecha_hora_info
             }
+            
+            # Agregar servicio detectado al contexto si existe
+            if servicio_detectado:
+                response['servicio'] = servicio_detectado
             
             # Agregar vehiculo_id si existe
             if vehiculo:

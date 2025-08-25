@@ -332,15 +332,47 @@
                                 onclick="sendQuickMessage('Cuánto cuesta cambio de aceite?')">
                             💰 Precios
                         </button>
-                        <button class="btn btn-outline-primary btn-sm" 
+                        <button class="btn btn-outline-success btn-sm" 
+                                onclick="sendQuickMessage('Quiero agendar cambio de aceite para el lunes 25')">
+                            📅 Cita Completa
+                        </button>
+                        <button class="btn btn-outline-info btn-sm" 
                                 onclick="sendQuickMessage('Quiero agendar una cita')">
-                            📅 Cita
+                            📅 Cita Simple
                         </button>
                         <button class="btn btn-outline-primary btn-sm" 
                                 onclick="sendQuickMessage('Dónde están ubicados?')">
                             📍 Ubicación
                         </button>
                     </div>
+                    
+                    <hr class="my-3">
+                    
+                    <!-- Pruebas de Flujo de Confirmación -->
+                    <div class="mb-3">
+                        <h6 class="text-muted mb-2">
+                            <i class="fas fa-check-circle"></i> Pruebas de Confirmación
+                        </h6>
+                        <div class="d-grid gap-2">
+                            <button class="btn btn-outline-success btn-sm" 
+                                    onclick="sendQuickMessage('SÍ')">
+                                ✅ Confirmar (SÍ)
+                            </button>
+                            <button class="btn btn-outline-danger btn-sm" 
+                                    onclick="sendQuickMessage('NO')">
+                                ❌ Cancelar (NO)
+                            </button>
+                            <button class="btn btn-outline-warning btn-sm" 
+                                    onclick="sendQuickMessage('Cambio de aceite')">
+                                🔧 Especificar Servicio
+                            </button>
+                        </div>
+                    </div>
+                    
+                    <small class="text-muted">
+                        <i class="fas fa-info-circle"></i> 
+                        Las pruebas de confirmación funcionan solo después de iniciar un flujo de cita.
+                    </small>
                 </div>
             </div>
 
@@ -354,16 +386,16 @@
                 <div class="card-body">
                     <div class="mb-2">
                         <div class="d-flex justify-content-between">
-                            <span>Consulta Servicios</span>
-                            <span class="text-primary">35%</span>
+                            <span>Agendamiento de Citas</span>
+                            <span class="text-success">42%</span>
                         </div>
                         <div class="progress" style="height: 5px;">
-                            <div class="progress-bar" style="width: 35%"></div>
+                            <div class="progress-bar bg-success" style="width: 42%"></div>
                         </div>
                     </div>
                     <div class="mb-2">
                         <div class="d-flex justify-content-between">
-                            <span>Consulta Precios</span>
+                            <span>Consulta Servicios</span>
                             <span class="text-primary">28%</span>
                         </div>
                         <div class="progress" style="height: 5px;">
@@ -372,20 +404,20 @@
                     </div>
                     <div class="mb-2">
                         <div class="d-flex justify-content-between">
-                            <span>Agendar Citas</span>
-                            <span class="text-primary">22%</span>
+                            <span>Consulta Precios</span>
+                            <span class="text-info">18%</span>
                         </div>
                         <div class="progress" style="height: 5px;">
-                            <div class="progress-bar" style="width: 22%"></div>
+                            <div class="progress-bar bg-info" style="width: 18%"></div>
                         </div>
                     </div>
                     <div class="mb-2">
                         <div class="d-flex justify-content-between">
-                            <span>Ubicación</span>
-                            <span class="text-primary">15%</span>
+                            <span>Ubicación y Horarios</span>
+                            <span class="text-warning">12%</span>
                         </div>
                         <div class="progress" style="height: 5px;">
-                            <div class="progress-bar" style="width: 15%"></div>
+                            <div class="progress-bar bg-warning" style="width: 12%"></div>
                         </div>
                     </div>
                 </div>
