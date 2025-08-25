@@ -91,6 +91,7 @@ urlpatterns += [
     path('webhook/whatsapp/test/', whatsapp_webhook_test, name='whatsapp_webhook_test'),
     path('chatbot/test/', chatbot_test, name='chatbot_test'),
     path('chatbot/stats/', ChatbotStatsView.as_view(), name='chatbot_stats'),
+    path('api/chatbot/stats/', ChatbotStatsView.as_view(), name='api_chatbot_stats'),  # URL para peticiones AJAX
     path('chatbot/config/', chatbot_config, name='chatbot_config'),
 ]
 
