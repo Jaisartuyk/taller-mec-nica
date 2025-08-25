@@ -344,7 +344,7 @@ def send_chatbot_response(cliente, phone_number, response_data):
         return {'success': False, 'error': str(e)}
 
 
-@csrf_exempt
+@login_required
 @require_http_methods(["POST"])
 def chatbot_test(request):
     """Endpoint para probar el chatbot manualmente"""
@@ -352,23 +352,26 @@ def chatbot_test(request):
         data = json.loads(request.body)
         phone_number = data.get('phone_number')
         message = data.get('message')
-        cliente_id = data.get('cliente_id')
         
         if not all([phone_number, message]):
             return JsonResponse({
                 'error': 'phone_number y message son requeridos'
             }, status=400)
         
-        # Obtener cliente
-        if cliente_id:
-            cliente = Cliente.objects.get(id=cliente_id)
-        else:
-            cliente = Cliente.objects.first()
-        
-        if not cliente:
+        # Obtener cliente del usuario autenticado de forma segura
+        try:
+            perfil = request.user.perfilusuario
+            cliente = perfil.cliente
+            
+            if not cliente:
+                return JsonResponse({
+                    'error': 'No tienes un taller asociado. Contacta al administrador.'
+                }, status=403)
+                
+        except Exception as e:
             return JsonResponse({
-                'error': 'Cliente no encontrado'
-            }, status=404)
+                'error': 'No tienes un perfil de usuario válido. Contacta al administrador.'
+            }, status=403)
         
         # Procesar con chatbot
         chatbot = ChatbotService(cliente)
@@ -389,6 +392,8 @@ def chatbot_test(request):
             })
         
     except Exception as e:
+        import traceback
+        traceback.print_exc()
         return JsonResponse({
             'error': str(e)
         }, status=500)
