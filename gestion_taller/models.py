@@ -548,12 +548,14 @@ class Cita(models.Model):
     
     def get_duracion_estimada(self):
         """Calcula la duración estimada total de todos los servicios"""
-        total_minutos = sum([s.duracion_estimada for s in self.servicios.all()])
-        return total_minutos
+        # Como no hay campo duracion_estimada, retornamos un valor por defecto
+        # o calculamos basado en el número de servicios
+        num_servicios = self.servicios.count()
+        return num_servicios * 60  # 60 minutos por servicio por defecto
     
     def get_precio_estimado(self):
         """Calcula el precio estimado total de todos los servicios"""
-        total_precio = sum([s.precio for s in self.servicios.all()])
+        total_precio = sum([s.get_precio_con_iva() for s in self.servicios.all()])
         return total_precio
 
 class InteraccionChat(models.Model):
