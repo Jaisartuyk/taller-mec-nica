@@ -7,6 +7,7 @@ import logging
 from django.http import JsonResponse, HttpResponse
 from django.views.decorators.csrf import csrf_exempt
 from django.views.decorators.http import require_http_methods
+from django.contrib.auth.decorators import login_required
 from django.utils.decorators import method_decorator
 from django.views import View
 from django.utils import timezone

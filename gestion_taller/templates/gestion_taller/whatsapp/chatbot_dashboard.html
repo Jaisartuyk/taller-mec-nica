@@ -480,8 +480,16 @@
             hideTypingIndicator();
             
             if (data.success) {
-                const response = data.response;
-                addMessage(response.message, 'bot', data.intent);
+                // data.response puede ser un string o un objeto con message
+                let responseMessage;
+                if (typeof data.response === 'string') {
+                    responseMessage = data.response;
+                } else if (data.response && data.response.message) {
+                    responseMessage = data.response.message;
+                } else {
+                    responseMessage = 'Respuesta recibida del chatbot';
+                }
+                addMessage(responseMessage, 'bot', data.intent);
             } else {
                 addMessage('Lo siento, tuve un problema procesando tu mensaje. 😅', 'bot', 'error');
                 showAlert('Error procesando mensaje: ' + data.error, 'danger', 'exclamation-triangle');
