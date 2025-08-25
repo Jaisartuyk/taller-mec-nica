@@ -96,20 +96,24 @@ class ChatbotService:
             # Verificar contexto conversacional primero
             current_step = context.get('next_step', '')
             
-            # Detectar confirmación de cita
-            confirmation_patterns = [
-                r'\b(sí|si|confirmo|confirmar|está bien|ok|vale|perfecto)\b.*\b(cita|turno)\b',
-                r'\b(confirmo|confirmar|sí|si|ok|vale)\b',
-                r'\bestá bien\b',
-                r'\bperfecto\b'
-            ]
-            
-            for pattern in confirmation_patterns:
-                if re.search(pattern, message_lower, re.IGNORECASE):
-                    # Solo detectar confirmación si tenemos todos los datos necesarios para crear la cita
-                    if (current_step in ['confirm_appointment', 'awaiting_confirmation'] and 
-                        all(key in context for key in ['conductor_id', 'vehiculo_id', 'servicio', 'fecha_hora'])):
+            # Si estamos esperando confirmación de cita, priorizar detección de confirmación
+            if current_step in ['confirm_appointment', 'awaiting_confirmation']:
+                confirmation_patterns = [
+                    r'\b(sí|si|confirmo|confirmar|está bien|ok|vale|perfecto|agendar|proceder|acepto|de acuerdo)\b'
+                ]
+                
+                for pattern in confirmation_patterns:
+                    if re.search(pattern, message_lower, re.IGNORECASE):
                         return 'appointment_confirmation', {}
+                
+                # Detectar negación
+                negation_patterns = [
+                    r'\b(no|nope|mejor no|cancelar|no gracias)\b'
+                ]
+                
+                for pattern in negation_patterns:
+                    if re.search(pattern, message_lower, re.IGNORECASE):
+                        return 'appointment_cancellation', {}
             
             # Si estamos en proceso de agendamiento, detectar respuestas contextuales
             if current_step in ['select_datetime', 'collect_appointment_details', 'collect_service_details']:
@@ -317,7 +321,8 @@ class ChatbotService:
             'appointment_service': self._handle_appointment_service,
             'customer_registration': self._handle_customer_registration,
             'vehicle_selection': self._handle_vehicle_selection,
-            'appointment_confirmation': self._handle_appointment_confirmation
+            'appointment_confirmation': self._handle_appointment_confirmation,
+            'appointment_cancellation': self._handle_appointment_cancellation
         }
         
         handler = responses.get(intent, self._handle_general_inquiry)
@@ -1885,6 +1890,23 @@ class ChatbotService:
                 'message': "❌ Ocurrió un error al crear tu cita. Por favor, inténtalo nuevamente o contáctanos directamente.",
                 'type': 'error'
             }
+    
+    def _handle_appointment_cancellation(self, entities: Dict, context: Dict, phone_number: str) -> Dict:
+        """Maneja la cancelación de citas"""
+        # Limpiar contexto
+        if phone_number in self.conversation_context:
+            self.conversation_context[phone_number] = {
+                'messages': [],
+                'last_intent': 'appointment_cancelled',
+                'entities': {}
+            }
+        
+        return {
+            'message': "❌ **Proceso de cita cancelado**\n\n" +
+                      "No hay problema, puedes agendar cuando gustes.\n\n" +
+                      "¿En qué más puedo ayudarte?",
+            'type': 'appointment_cancelled'
+        }
     
     def _convert_fecha_hora_info_to_datetime(self, fecha_hora_info: Dict) -> datetime:
         """Convierte la información de fecha/hora del contexto en un objeto datetime"""
