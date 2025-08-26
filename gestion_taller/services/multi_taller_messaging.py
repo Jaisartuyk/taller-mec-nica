@@ -171,7 +171,10 @@ class MultiTallerMessagingService:
         taller_info = self.get_taller_info()
         usar_emojis = self.taller_config.usar_emojis if self.taller_config else True
         
-        if tipo_mensaje == 'bienvenida':
+        if tipo_mensaje == 'personalizado':
+            # Para mensajes personalizados, usar el mensaje tal como viene
+            return datos.get('mensaje_personalizado', 'Mensaje personalizado')
+        elif tipo_mensaje == 'bienvenida':
             return self._crear_mensaje_bienvenida(taller_info, datos, usar_emojis)
         elif tipo_mensaje == 'recordatorio':
             return self._crear_mensaje_recordatorio(taller_info, datos, usar_emojis)
@@ -203,7 +206,9 @@ class MultiTallerMessagingService:
         }
         
         # Crear el mensaje personalizado
-        if tipo_mensaje == 'generico' and datos and 'mensaje' in datos:
+        if tipo_mensaje == 'personalizado' and datos and 'mensaje_personalizado' in datos:
+            mensaje = datos['mensaje_personalizado']
+        elif tipo_mensaje == 'generico' and datos and 'mensaje' in datos:
             mensaje = datos['mensaje']
         else:
             mensaje = self.crear_mensaje_personalizado(tipo_mensaje, datos)
@@ -422,7 +427,8 @@ class MultiTallerMessagingService:
     
     def _crear_mensaje_generico(self, taller_info, datos, usar_emojis):
         """Crea mensaje genérico"""
-        mensaje = datos.get('mensaje', 'Mensaje del taller')
+        # Buscar mensaje en diferentes claves posibles
+        mensaje = datos.get('mensaje') or datos.get('mensaje_personalizado', 'Mensaje del taller')
         
         if self.taller_config and self.taller_config.incluir_firma:
             mensaje += self.taller_config.get_firma_mensaje()
