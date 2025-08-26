@@ -1915,12 +1915,12 @@ class OrdenServicioListView(ListView):
         # Calcular estadísticas
         total_ordenes = todas_ordenes.count()
         ordenes_pendientes = todas_ordenes.filter(estado='pendiente').count()
-        ordenes_completadas = todas_ordenes.filter(estado='completado').count()
+        ordenes_completadas = todas_ordenes.filter(estado='completada').count()
         
-        # Calcular total facturado (solo órdenes completadas)
+        # Calcular total facturado (solo órdenes facturadas)
         from django.db.models import Sum
         total_facturado = todas_ordenes.filter(
-            estado='completado'
+            estado='facturada'
         ).aggregate(total=Sum('total'))['total'] or 0
         
         # Agregar estadísticas al contexto
