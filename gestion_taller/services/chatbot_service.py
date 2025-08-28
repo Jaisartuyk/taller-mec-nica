@@ -7,6 +7,7 @@ import json
 from datetime import datetime, timedelta
 from typing import Dict, List, Tuple, Optional
 from django.utils import timezone
+from django.core.cache import cache
 from ..models import Cliente, Conductor, Vehiculo, ConfiguracionTaller, Cita, ServicioCatalogo
 
 
@@ -16,9 +17,6 @@ class ChatbotService:
     def __init__(self, cliente: Cliente):
         self.cliente = cliente
         self.taller_config = getattr(cliente, 'configuracion', None)
-        
-        # Contexto de conversación (en producción usar Redis/Cache)
-        self.conversation_context = {}
         
         # Patrones de respuesta
         self.patterns = self._load_response_patterns()
@@ -646,20 +644,20 @@ class ChatbotService:
             return None
     
     def _get_conversation_context(self, phone_number: str) -> Dict:
-        """Obtiene contexto de conversación"""
-        return self.conversation_context.get(phone_number, {})
+        """Obtiene contexto de conversación desde cache"""
+        cache_key = f"chatbot_context_{self.cliente.id}_{phone_number}"
+        return cache.get(cache_key, {})
     
     def _update_conversation_context(self, phone_number: str, intent: str, entities: Dict, message: str):
-        """Actualiza contexto de conversación"""
-        if phone_number not in self.conversation_context:
-            self.conversation_context[phone_number] = {
-                'messages': [],
-                'last_intent': None,
-                'entities': {},
-                'created_at': timezone.now()
-            }
+        """Actualiza contexto de conversación en cache"""
+        cache_key = f"chatbot_context_{self.cliente.id}_{phone_number}"
+        context = cache.get(cache_key, {
+            'messages': [],
+            'last_intent': None,
+            'entities': {},
+            'created_at': timezone.now()
+        })
         
-        context = self.conversation_context[phone_number]
         context['messages'].append({
             'message': message,
             'intent': intent,
@@ -670,13 +668,14 @@ class ChatbotService:
         
         # Mantener solo últimos 10 mensajes
         context['messages'] = context['messages'][-10:]
+        
+        # Guardar en cache por 24 horas
+        cache.set(cache_key, context, 86400)
     
     def _save_response_context(self, phone_number: str, response: Dict):
-        """Guarda información de la respuesta en el contexto"""
-        if phone_number not in self.conversation_context:
-            self.conversation_context[phone_number] = {}
-        
-        context = self.conversation_context[phone_number]
+        """Guarda información de la respuesta en el contexto usando cache"""
+        cache_key = f"chatbot_context_{self.cliente.id}_{phone_number}"
+        context = cache.get(cache_key, {})
         
         # Guardar información importante de la respuesta
         if 'next_step' in response:
@@ -699,6 +698,9 @@ class ChatbotService:
         
         if 'type' in response:
             context['last_response_type'] = response['type']
+        
+        # Guardar en cache por 24 horas
+        cache.set(cache_key, context, 86400)
     
     def _get_error_response(self, custom_message: str = None) -> Dict:
         """Respuesta de error genérica"""
@@ -982,7 +984,9 @@ class ChatbotService:
     def _detect_service_from_conversation_context(self, phone_number: str) -> str:
         """Detecta servicios mencionados en el contexto conversacional"""
         try:
-            context = self.conversation_context.get(phone_number, {})
+            # Obtener contexto desde cache
+            cache_key = f"chatbot_context_{self.cliente.id}_{phone_number}"
+            context = cache.get(cache_key, {})
             messages = context.get('messages', [])
             
             if not messages:
@@ -1968,12 +1972,12 @@ class ChatbotService:
                 cita.servicios.add(servicio_catalogo)
             
             # Limpiar contexto después de crear la cita
-            if phone_number in self.conversation_context:
-                self.conversation_context[phone_number] = {
-                    'messages': [],
-                    'last_intent': 'appointment_confirmed',
-                    'entities': {}
-                }
+            cache_key = f"chatbot_context_{self.cliente.id}_{phone_number}"
+            cache.set(cache_key, {
+                'messages': [],
+                'last_intent': 'appointment_confirmed',
+                'entities': {}
+            }, 86400)
             
             # Generar mensaje de confirmación
             message = "✅ **¡CITA CONFIRMADA!**\n\n"
@@ -2005,12 +2009,12 @@ class ChatbotService:
     def _handle_appointment_cancellation(self, entities: Dict, context: Dict, phone_number: str) -> Dict:
         """Maneja la cancelación de citas"""
         # Limpiar contexto
-        if phone_number in self.conversation_context:
-            self.conversation_context[phone_number] = {
-                'messages': [],
-                'last_intent': 'appointment_cancelled',
-                'entities': {}
-            }
+        cache_key = f"chatbot_context_{self.cliente.id}_{phone_number}"
+        cache.set(cache_key, {
+            'messages': [],
+            'last_intent': 'appointment_cancelled',
+            'entities': {}
+        }, 86400)
         
         return {
             'message': "❌ **Proceso de cita cancelado**\n\n" +
