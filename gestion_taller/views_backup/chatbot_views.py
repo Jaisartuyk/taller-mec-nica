@@ -309,10 +309,12 @@ def send_chatbot_response(cliente, phone_number, response_data):
         messaging_service = MultiTallerMessagingService(cliente=cliente)
         
         # Preparar datos del mensaje
-        # El ChatbotService retorna 'response', no 'message'
-        response_text = response_data.get('response', '')
-        if isinstance(response_text, dict):
-            response_text = response_text.get('text', str(response_text))
+        # El ChatbotService retorna 'response' que es un diccionario con 'message'
+        response_dict = response_data.get('response', {})
+        if isinstance(response_dict, dict):
+            response_text = response_dict.get('message', str(response_dict))
+        else:
+            response_text = str(response_dict)
         
         print(f"DEBUG send_chatbot_response - Response text: {response_text}")
         
