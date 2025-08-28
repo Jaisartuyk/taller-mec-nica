@@ -317,7 +317,7 @@ def send_chatbot_response(cliente, phone_number, response_data):
         print(f"DEBUG send_chatbot_response - Response text: {response_text}")
         
         datos = {
-            'mensaje': response_text
+            'mensaje_personalizado': response_text
         }
         
         print(f"DEBUG send_chatbot_response - Datos: {datos}")
