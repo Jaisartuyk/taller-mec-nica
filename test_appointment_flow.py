@@ -229,6 +229,13 @@ def test_complete_appointment_flow():
             print(f"   Fecha: {cita.fecha_cita}")
             print(f"   Estado: {cita.estado}")
             print(f"   Servicios: {cita.get_servicios_display()}")
+            
+            # Verificar si la hora es correcta (debería ser 10:00 para 10:00 AM)
+            if cita.fecha_cita.hour == 10:
+                print(f"\n✅ HORA CORRECTA: 10:00 AM guardada como {cita.fecha_cita.hour}:00")
+            else:
+                print(f"\n❌ HORA INCORRECTA: Se esperaba 10:00 (10:00 AM) pero se guardó {cita.fecha_cita.hour}:{cita.fecha_cita.minute:02d}")
+            
             return True
         except Cita.DoesNotExist:
             print(f"❌ Error: Cita con ID {cita_id} no encontrada en la base de datos")

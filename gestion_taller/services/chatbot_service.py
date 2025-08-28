@@ -2120,9 +2120,16 @@ class ChatbotService:
             elif ref == 'evening':
                 hora = 17
         
-        # Crear datetime
+        # Crear datetime en zona horaria local
         try:
-            fecha_hora = datetime.combine(fecha_base, datetime.min.time().replace(hour=hora, minute=minuto))
-            return timezone.make_aware(fecha_hora)
+            import pytz
+            # Crear datetime naive
+            fecha_hora_naive = datetime.combine(fecha_base, datetime.min.time().replace(hour=hora, minute=minuto))
+            
+            # Aplicar zona horaria local (Ecuador)
+            tz_local = pytz.timezone('America/Guayaquil')
+            fecha_hora_local = tz_local.localize(fecha_hora_naive)
+            
+            return fecha_hora_local
         except ValueError as e:
             raise ValueError(f"No se pudo crear fecha válida: {str(e)}")

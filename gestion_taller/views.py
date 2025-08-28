@@ -2769,30 +2769,68 @@ def citas_calendario_api(request):
 def cita_detail_modal(request, pk):
     """Vista modal para ver detalles de una cita"""
     try:
+        # Verificar autenticación
+        if not request.user.is_authenticated:
+            return JsonResponse({'error': 'Usuario no autenticado'}, status=401)
+        
+        # Verificar perfil de usuario
+        if not hasattr(request.user, 'perfilusuario'):
+            return JsonResponse({'error': 'Perfil de usuario no encontrado'}, status=404)
+        
         cliente = request.user.perfilusuario.cliente
         from .models import Cita
         cita = get_object_or_404(Cita, pk=pk, cliente=cliente)
-    except:
-        return JsonResponse({'error': 'Cita no encontrada'}, status=404)
-    
-    data = {
-        'id': cita.id,
-        'fecha_cita': cita.fecha_cita.strftime('%d/%m/%Y %H:%M'),
-        'conductor': cita.conductor.nombre,
-        'conductor_telefono': cita.conductor.telefono,
-        'vehiculo': str(cita.vehiculo),
-        'vehiculo_placa': cita.vehiculo.placa,
-        'servicios': [{'nombre': s.nombre, 'precio': float(s.precio)} for s in cita.servicios.all()],
-        'servicios_display': cita.get_servicios_display(),
-        'precio_estimado': float(cita.get_precio_estimado()),
-        'duracion_estimada': cita.get_duracion_estimada(),
-        'estado': cita.estado,
-        'estado_display': cita.get_estado_display(),
-        'notas': cita.notas,
-        'fecha_creacion': cita.fecha_creacion.strftime('%d/%m/%Y %H:%M')
-    }
-    
-    return JsonResponse(data)
+        
+        # Construir datos paso a paso para identificar errores
+        data = {
+            'id': cita.id,
+            'fecha_cita': cita.fecha_cita.strftime('%d/%m/%Y %H:%M'),
+            'conductor': cita.conductor.nombre if cita.conductor else 'N/A',
+            'conductor_telefono': cita.conductor.telefono if cita.conductor else 'N/A',
+            'vehiculo': str(cita.vehiculo) if cita.vehiculo else 'N/A',
+            'vehiculo_placa': cita.vehiculo.placa if cita.vehiculo else 'N/A',
+            'estado': cita.estado,
+            'estado_display': cita.get_estado_display(),
+            'notas': cita.notas or '',
+            'fecha_creacion': cita.fecha_creacion.strftime('%d/%m/%Y %H:%M')
+        }
+        
+        # Agregar servicios con manejo de errores
+        try:
+            servicios = []
+            for s in cita.servicios.all():
+                servicios.append({
+                    'nombre': s.nombre,
+                    'precio': float(s.precio_base) if s.precio_base else 0.0
+                })
+            data['servicios'] = servicios
+            data['servicios_display'] = cita.get_servicios_display()
+        except Exception as e:
+            data['servicios'] = []
+            data['servicios_display'] = 'Error al cargar servicios'
+            print(f"Error al cargar servicios: {e}")
+        
+        # Agregar precio estimado con manejo de errores
+        try:
+            data['precio_estimado'] = float(cita.get_precio_estimado())
+        except Exception as e:
+            data['precio_estimado'] = 0.0
+            print(f"Error al calcular precio estimado: {e}")
+        
+        # Agregar duración estimada con manejo de errores
+        try:
+            data['duracion_estimada'] = cita.get_duracion_estimada()
+        except Exception as e:
+            data['duracion_estimada'] = 'N/A'
+            print(f"Error al calcular duración estimada: {e}")
+        
+        return JsonResponse(data)
+        
+    except Exception as e:
+        import traceback
+        error_msg = f"Error al cargar detalles de la cita: {str(e)}"
+        print(f"Error completo: {traceback.format_exc()}")
+        return JsonResponse({'error': error_msg}, status=500)
 
 @login_required
 def cita_cambiar_estado(request, pk):
