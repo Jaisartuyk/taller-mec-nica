@@ -31,8 +31,25 @@ function attachRepuestoFormHandler() {
       }
       if (isJson && data.success) {
         var modal = bootstrap.Modal.getInstance(document.getElementById('modalRepuesto'));
+        const modalElement = document.getElementById('modalRepuesto');
+        
+        // Cerrar el modal correctamente
         modal.hide();
-        setTimeout(() => location.reload(), 400);
+        
+        // Esperar a que el modal se cierre completamente antes de recargar
+        modalElement.addEventListener('hidden.bs.modal', function() {
+          // Limpiar cualquier backdrop residual
+          const backdrops = document.querySelectorAll('.modal-backdrop');
+          backdrops.forEach(backdrop => backdrop.remove());
+          
+          // Restaurar el scroll del body
+          document.body.classList.remove('modal-open');
+          document.body.style.overflow = '';
+          document.body.style.paddingRight = '';
+          
+          // Recargar la página
+          location.reload();
+        }, { once: true }); // Solo ejecutar una vez
       } else {
         document.getElementById('modalRepuestoBody').innerHTML = data;
         attachRepuestoFormHandler();

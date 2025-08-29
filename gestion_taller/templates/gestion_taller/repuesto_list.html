@@ -210,12 +210,28 @@
         });
 
         htmx.on('repuestoActualizado', function() {
-            // Cerrar el modal
+            // Cerrar el modal correctamente
             if (myModal) {
                 myModal.hide();
+                
+                // Esperar a que el modal se cierre completamente antes de recargar
+                modalElement.addEventListener('hidden.bs.modal', function() {
+                    // Limpiar cualquier backdrop residual
+                    const backdrops = document.querySelectorAll('.modal-backdrop');
+                    backdrops.forEach(backdrop => backdrop.remove());
+                    
+                    // Restaurar el scroll del body
+                    document.body.classList.remove('modal-open');
+                    document.body.style.overflow = '';
+                    document.body.style.paddingRight = '';
+                    
+                    // Recargar la página
+                    window.location.reload();
+                }, { once: true }); // Solo ejecutar una vez
+            } else {
+                // Si no hay modal, recargar directamente
+                window.location.reload();
             }
-            // Recargar la página para mostrar los cambios
-            window.location.reload();
         });
 
         modalElement.addEventListener('hidden.bs.modal', function() {
@@ -223,6 +239,15 @@
             if (modalContent) {
                 modalContent.innerHTML = '';
             }
+            
+            // Limpiar cualquier backdrop residual
+            const backdrops = document.querySelectorAll('.modal-backdrop');
+            backdrops.forEach(backdrop => backdrop.remove());
+            
+            // Restaurar el scroll del body
+            document.body.classList.remove('modal-open');
+            document.body.style.overflow = '';
+            document.body.style.paddingRight = '';
         });
         
         // Event listener para botones de eliminar
