@@ -2670,12 +2670,14 @@ def dashboard_citas(request):
     # Citas por día para el calendario
     citas_por_dia = {}
     for cita in citas_mes:
-        dia = cita.fecha_cita.day
+        # Convertir a la zona horaria local para mostrar correctamente
+        fecha_local = timezone.localtime(cita.fecha_cita)
+        dia = fecha_local.day
         if dia not in citas_por_dia:
             citas_por_dia[dia] = []
         citas_por_dia[dia].append({
             'id': cita.id,
-            'hora': cita.fecha_cita.strftime('%H:%M'),
+            'hora': fecha_local.strftime('%H:%M'),
             'conductor': cita.conductor.nombre,
             'vehiculo': str(cita.vehiculo),
             'servicios': cita.get_servicios_display(),
@@ -2782,9 +2784,13 @@ def cita_detail_modal(request, pk):
         cita = get_object_or_404(Cita, pk=pk, cliente=cliente)
         
         # Construir datos paso a paso para identificar errores
+        # Convertir a la zona horaria local para mostrar correctamente
+        fecha_local = timezone.localtime(cita.fecha_cita)
+        fecha_creacion_local = timezone.localtime(cita.fecha_creacion)
+
         data = {
             'id': cita.id,
-            'fecha_cita': cita.fecha_cita.strftime('%d/%m/%Y %H:%M'),
+            'fecha_cita': fecha_local.strftime('%d/%m/%Y %H:%M'),
             'conductor': cita.conductor.nombre if cita.conductor else 'N/A',
             'conductor_telefono': cita.conductor.telefono if cita.conductor else 'N/A',
             'vehiculo': str(cita.vehiculo) if cita.vehiculo else 'N/A',
@@ -2792,7 +2798,7 @@ def cita_detail_modal(request, pk):
             'estado': cita.estado,
             'estado_display': cita.get_estado_display(),
             'notas': cita.notas or '',
-            'fecha_creacion': cita.fecha_creacion.strftime('%d/%m/%Y %H:%M')
+            'fecha_creacion': fecha_creacion_local.strftime('%d/%m/%Y %H:%M')
         }
         
         # Agregar servicios con manejo de errores
