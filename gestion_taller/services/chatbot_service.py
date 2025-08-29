@@ -1148,55 +1148,59 @@ class ChatbotService:
         return matches >= 2  # Al menos 2 patrones para considerar datos completos
     
     def _extract_datetime_entities(self, message: str) -> Dict:
-        """Extrae entidades de fecha y hora del mensaje"""
+        """Extrae entidades de fecha y hora del mensaje de forma más precisa."""
         entities = {}
         message_lower = message.lower()
-        
-        # Detectar días de la semana
-        days_pattern = r'\b(lunes|martes|miércoles|miercoles|jueves|viernes|sábado|sabado|domingo)\b'
-        day_match = re.search(days_pattern, message_lower, re.IGNORECASE)
-        if day_match:
-            entities['day'] = day_match.group(1).lower()
-        
-        # Detectar horas - orden de prioridad importante
-        time_patterns = [
-            r'\b([0-9]{1,2}:[0-9]{2}\s*(am|pm))\b',  # HH:MM AM/PM (más específico primero)
-            r'\b(a\s+las|las)\s+([0-9]{1,2}:[0-9]{2})\s*(am|pm)?\b',  # "a las 10:00 AM"
-            r'\b(a\s+las|las)\s+([0-9]{1,2})\s*(am|pm)\b',  # "a las 10 AM"
-            r'\b([0-9]{1,2})\s*(am|pm)\b',   # 12h format simple
-            r'\b([0-9]{1,2}:[0-9]{2})\b'  # HH:MM (24h)
-        ]
-        
-        for pattern in time_patterns:
-            time_match = re.search(pattern, message_lower, re.IGNORECASE)
-            if time_match:
-                # Extraer la parte de la hora del match
-                full_match = time_match.group(0)
-                if 'las' in full_match or 'a las' in full_match:
-                    # Extraer solo la parte de la hora
-                    hour_part = re.search(r'([0-9]{1,2}(:[0-9]{2})?\s*(am|pm)?)', full_match, re.IGNORECASE)
-                    if hour_part:
-                        entities['time'] = hour_part.group(1).strip()
-                else:
-                    entities['time'] = full_match.strip()
-                break
 
-        # Detectar números de día (solo si está junto a un día de la semana)
-        day_number_patterns = [
-            r'\b(lunes|martes|miércoles|miercoles|jueves|viernes|sábado|sabado|domingo)\s+([0-9]{1,2})\b',
-            r'\b([0-9]{1,2})\s+(de\s+)?(enero|febrero|marzo|abril|mayo|junio|julio|agosto|septiembre|octubre|noviembre|diciembre)\b'
-        ]
-        
-        for pattern in day_number_patterns:
-            day_number_match = re.search(pattern, message_lower, re.IGNORECASE)
+        # Patrón unificado para capturar día, número y hora juntos
+        full_pattern = r'\b(lunes|martes|miércoles|miercoles|jueves|viernes|sábado|sabado|domingo)?\s*([0-9]{1,2})?\s*(?:de\s+)?(enero|febrero|marzo|abril|mayo|junio|julio|agosto|septiembre|octubre|noviembre|diciembre)?\s*(?:a\s+las|las|al)?\s*([0-9]{1,2}(?::[0-9]{2})?)\s*(am|pm)?\b'
+        full_match = re.search(full_pattern, message_lower, re.IGNORECASE)
+
+        if full_match:
+            day, day_number, month, time_val, am_pm = full_match.groups()
+            if day:
+                entities['day'] = day.lower()
+            if day_number:
+                entities['day_number'] = day_number
+            if time_val:
+                time_str = time_val
+                if am_pm:
+                    time_str += f" {am_pm}"
+                entities['time'] = time_str.strip()
+            # Si se encuentra una coincidencia completa, a menudo es suficiente
+            # y podemos evitar las extracciones parciales de abajo si ya tenemos la hora.
+            if entities.get('time'):
+                pass # Continuar para referencias como 'mañana'
+
+        # --- Búsquedas parciales si el patrón completo no capturó todo ---
+        if 'day' not in entities:
+            days_pattern = r'\b(lunes|martes|miércoles|miercoles|jueves|viernes|sábado|sabado|domingo)\b'
+            day_match = re.search(days_pattern, message_lower, re.IGNORECASE)
+            if day_match:
+                entities['day'] = day_match.group(1).lower()
+
+        if 'time' not in entities:
+            time_patterns = [
+                r'\b([0-9]{1,2}:[0-9]{2}\s*(?:am|pm))\b',      # 10:30 am
+                r'\b(a\s+las|las)\s+([0-9]{1,2}:[0-9]{2})\s*(am|pm)?\b', # a las 10:30
+                r'\b(a\s+las|las)\s+([0-9]{1,2})\s*(am|pm)?\b',    # a las 10 am / a las 10
+                r'\b([0-9]{1,2})\s*(am|pm)\b',                   # 10 am
+                r'\b([0-9]{1,2}:[0-9]{2})\b'                      # 10:30 (formato 24h)
+            ]
+            for pattern in time_patterns:
+                time_match = re.search(pattern, message_lower, re.IGNORECASE)
+                if time_match:
+                    # Extraer solo la parte numérica y am/pm
+                    raw_time = time_match.group(0).replace('a las', '').replace('las', '').strip()
+                    entities['time'] = raw_time
+                    break
+
+        if 'day_number' not in entities:
+            day_number_pattern = r'\b(lunes|martes|miércoles|miercoles|jueves|viernes|sábado|sabado|domingo)\s+([0-9]{1,2})\b'
+            day_number_match = re.search(day_number_pattern, message_lower, re.IGNORECASE)
             if day_number_match:
-                # Extraer el número del día
-                if pattern == day_number_patterns[0]:  # día de semana + número
-                    entities['day_number'] = day_number_match.group(2)
-                else:  # número + mes
-                    entities['day_number'] = day_number_match.group(1)
-                break
-        
+                entities['day_number'] = day_number_match.group(2)
+
         # Detectar referencias temporales
         temporal_patterns = {
             r'\btarde\b': 'afternoon',
@@ -1281,110 +1285,86 @@ class ChatbotService:
         
         return {}
     
-    # ===============================
-    # NUEVOS HANDLERS CONTEXTUALES
-    # ===============================
-    
     def _handle_appointment_datetime(self, entities: Dict, context: Dict, phone_number: str) -> Dict:
-        """Maneja selección de fecha/hora para cita"""
+        """Maneja selección de fecha/hora para cita de forma inteligente y contextual."""
         try:
             conductor = self._find_conductor_by_phone(phone_number)
             if not conductor:
                 return self._handle_new_customer_flow(entities, context, phone_number)
-            
-            # Extraer información de fecha/hora
-            day = entities.get('day', '')
-            time = entities.get('time', '')
-            time_reference = entities.get('time_reference', '')
-            day_number = entities.get('day_number', '')
+
+            # 1. Fusionar contexto anterior con nuevas entidades
+            fecha_hora_info = context.get('fecha_hora_info', {})
+            # Usar el mensaje actual para la extracción, no el del contexto anterior
+            current_message_entities = self._extract_datetime_entities(context.get('last_message', ''))
+            fecha_hora_info.update(current_message_entities)
+            fecha_hora_info.update(entities) # Las entidades del intent actual tienen prioridad
+
+            # Extraer información consolidada
+            day = fecha_hora_info.get('day')
+            time = fecha_hora_info.get('time')
+            day_number = fecha_hora_info.get('day_number')
             
             message = f"Perfecto **{conductor.nombre}**! \n\n"
-            
-            # Construir información de fecha/hora para guardar en contexto
-            fecha_hora_info = {}
-            if day:
-                fecha_hora_info['day'] = day
-            if day_number:
-                fecha_hora_info['day_number'] = day_number
-            if time:
-                fecha_hora_info['time'] = time
-            if time_reference:
-                fecha_hora_info['time_reference'] = time_reference
-            
+            next_step = context.get('next_step', 'collect_appointment_details')
+
+            # 2. Lógica de decisión mejorada
             if day and time:
-                message += f"📅 Has seleccionado: **{day.title()} a las {time}**\n\n"
-            elif day:
-                message += f"📅 Has seleccionado: **{day.title()}**\n\n"
-                message += "¿A qué hora prefieres? Ejemplo: 9:00 AM, 2:00 PM\n\n"
+                # Tenemos todo, avanzar al siguiente paso
+                fecha_str = self._format_datetime_info(fecha_hora_info)
+                message += f"📅 Fecha y hora seleccionada: **{fecha_str}**\n\n"
+            elif not day:
+                message += "¿Qué día te gustaría agendar la cita?\n\n"
+                message += self._get_available_slots()
+                next_step = 'collect_appointment_details'
+            elif not time:
+                fecha_str = self._format_datetime_info(fecha_hora_info)
+                message += f"📅 Has seleccionado: **{fecha_str}**\n\n"
+                message += "¿A qué hora prefieres? Ejemplo: 9:00 AM, 2:00 PM\n"
+                next_step = 'collect_appointment_details'
             
-            # Obtener vehículo del conductor
+            # 3. Determinar el siguiente paso (servicio o confirmación)
             vehiculo = self._get_vehiculo_for_conductor(conductor)
-            
-            # NUEVA FUNCIONALIDAD: Detectar servicio del mensaje original
-            servicio_detectado = ''
-            if not context.get('selected_service'):
-                # Primero intentar detectar desde las entidades del mensaje actual
-                servicio_detectado = self._detect_service_from_entities(entities)
-                
-                # Si no se encuentra, intentar detectar del contexto conversacional
-                if not servicio_detectado:
-                    servicio_detectado = self._detect_service_from_conversation_context(phone_number)
-            
-            # Determinar siguiente paso basado en si tenemos servicio
-            if servicio_detectado or context.get('selected_service'):
-                # Ya tenemos servicio, ir a confirmación
-                servicio_final = servicio_detectado or context.get('selected_service')
-                message += f"🔧 **Servicio detectado:** {servicio_final}\n\n"
-                message += "¿Confirmas tu cita con estos datos?\n\n"
-                message += "📅 **Fecha/Hora:** "
-                if day and time:
-                    message += f"{day.title()} a las {time}\n"
-                elif day:
-                    message += f"{day.title()} (hora por confirmar)\n"
-                message += f"🔧 **Servicio:** {servicio_final}\n"
-                if vehiculo:
-                    message += f"🚗 **Vehículo:** {vehiculo.marca} {vehiculo.modelo} {vehiculo.anio}\n\n"
-                message += "Responde **SÍ** para confirmar o **NO** para cancelar."
-                
+            servicio_detectado = self._detect_service_from_entities(entities) or self._detect_service_from_conversation_context(phone_number)
+            servicio_contexto = context.get('servicio')
+
+            servicio_final = servicio_detectado or servicio_contexto
+
+            if day and time and (servicio_final):
+                # Tenemos todo para confirmar
                 next_step = 'confirm_appointment'
-            else:
-                # No tenemos servicio, solicitarlo
-                if vehiculo:
-                    suggestions = self._get_service_suggestions(vehiculo)
-                    message += f"**¿Qué servicio necesitas para tu {vehiculo.marca} {vehiculo.modelo}?**\n\n"
-                    if suggestions:
-                        message += "**Servicios sugeridos:**\n"
-                        message += suggestions + "\n\n"
-                    message += "**Otros servicios disponibles:**\n"
-                    message += "• Cambio de aceite\n"
-                    message += "• Revisión de frenos\n"
-                    message += "• Mantenimiento general\n"
-                    message += "• Otro (especifica cuál)\n"
-                else:
-                    message += "**¿Qué servicio necesitas?**\n"
-                    message += "• Cambio de aceite\n"
-                    message += "• Revisión de frenos\n"
-                    message += "• Mantenimiento general\n"
-                    message += "• Otro (especifica cuál)\n"
+                fecha_str = self._format_datetime_info(fecha_hora_info)
                 
+                confirm_message = f"Excelente **{conductor.nombre}**! \n\n"
+                confirm_message += "Por favor, confirma los detalles de tu cita:\n\n"
+                confirm_message += f"📅 **Fecha y Hora:** {fecha_str}\n"
+                confirm_message += f"🔧 **Servicio:** {servicio_final.title()}\n"
+                if vehiculo:
+                    confirm_message += f"🚗 **Vehículo:** {vehiculo.marca} {vehiculo.modelo} ({vehiculo.placa})\n\n"
+                confirm_message += "✅ *¿Confirmas la cita con estos detalles?*\n"
+                confirm_message += "Responde 'Sí' para confirmar o 'No' para cambiar algo."
+                message = confirm_message
+            elif not servicio_final and (day and time):
+                # Falta el servicio, pero ya tenemos fecha y hora
                 next_step = 'collect_service_details'
-            
+                suggestions = self._get_service_suggestions(vehiculo)
+                message += f"**¿Qué servicio necesitas para tu {vehiculo.marca} {vehiculo.modelo}?**\n\n"
+                if suggestions:
+                    message += "**Servicios sugeridos:**\n" + suggestions + "\n\n"
+                message += "**Otros servicios disponibles:**\n"
+                message += "• Cambio de aceite\n• Revisión de frenos\n• Mantenimiento general\n• Otro (especifica cuál)"
+
             response = {
                 'message': message,
                 'type': 'appointment_datetime_selected',
                 'next_step': next_step,
                 'conductor_id': conductor.id,
-                'fecha_hora_info': fecha_hora_info
+                'fecha_hora_info': fecha_hora_info,
+                'servicio': servicio_final
             }
-            
-            # Agregar servicio detectado al contexto si existe
-            if servicio_detectado:
-                response['servicio'] = servicio_detectado
-            
-            # Agregar vehiculo_id si existe
+
             if vehiculo:
                 response['vehiculo_id'] = vehiculo.id
-            
+
             return response
             
         except Exception as e:
@@ -1392,6 +1372,34 @@ class ChatbotService:
             logger = logging.getLogger(__name__)
             logger.error(f"Error en _handle_appointment_datetime: {str(e)}")
             return self._get_error_response()
+
+    def _format_datetime_info(self, fecha_hora_info: Dict) -> str:
+        """Construye una cadena de texto descriptiva para la fecha y hora."""
+        day = fecha_hora_info.get('day', '')
+        day_number = fecha_hora_info.get('day_number', '')
+        time = fecha_hora_info.get('time', '')
+
+        if not day and not time:
+            return "(aún no especificada)"
+
+        parts = []
+        if day:
+            parts.append(day.title())
+        if day_number:
+            parts.append(str(day_number))
+        
+        # Unir día y número si ambos existen
+        date_part = " ".join(parts)
+        
+        if time:
+            if date_part:
+                return f"{date_part} a las {time}"
+            else:
+                return f"a las {time}"
+        else:
+            return date_part
+            
+
     
     def _handle_appointment_service(self, entities: Dict, context: Dict, phone_number: str) -> Dict:
         """Maneja selección de servicio para cita"""
