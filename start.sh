@@ -2,7 +2,9 @@
 set -e
 
 echo "==> Ejecutando migraciones de base de datos..."
-python manage.py migrate --noinput
+# --fake-initial permite que si una tabla ya existe en la base de datos (como gestion_taller_cita),
+# Django la marque como aplicada sin fallar.
+python manage.py migrate --fake-initial --noinput
 
 echo "==> Recopilando archivos estáticos..."
 python manage.py collectstatic --noinput
