@@ -10,6 +10,9 @@ python manage.py migrate --fake-initial --noinput || true
 echo "==> Creando superusuario administrador inicial..."
 python manage.py crear_superusuario_inicial || true
 
+echo "==> Cargando servicios de catalogo de lubricadora..."
+python manage.py cargar_servicios_lubricadora || true
+
 echo "==> Recopilando archivos estáticos..."
 python manage.py collectstatic --noinput
 
