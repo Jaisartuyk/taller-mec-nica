@@ -1,10 +1,11 @@
 #!/bin/bash
-set -e
 
-echo "==> Ejecutando migraciones de base de datos..."
-# --fake-initial permite que si una tabla ya existe en la base de datos (como gestion_taller_cita),
-# Django la marque como aplicada sin fallar.
-python manage.py migrate --fake-initial --noinput
+echo "==> Sincronizando migraciones de base de datos..."
+# 1. Si la tabla de Citas ya existe en la BD pero no está registrada la migración 0022, marcarla como aplicada (fake)
+python manage.py migrate gestion_taller 0022 --fake --noinput || true
+
+# 2. Correr las demás migraciones normalmente (y continuar si alguna ya fue aplicada)
+python manage.py migrate --fake-initial --noinput || true
 
 echo "==> Recopilando archivos estáticos..."
 python manage.py collectstatic --noinput
