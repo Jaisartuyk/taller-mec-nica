@@ -119,7 +119,7 @@
             <p><strong>Placa:</strong> {{ orden.vehiculo.placa }}</p>
             <p><strong>Marca:</strong> {{ orden.vehiculo.marca }}</p>
             <p><strong>Modelo:</strong> {{ orden.vehiculo.modelo }}</p>
-            <p><strong>Año:</strong> {{ orden.vehiculo.anio|default:orden.vehiculo.año|default:"No especificado" }}</p>
+            <p><strong>Año:</strong> {{ orden.vehiculo.anio|default:"No especificado" }}</p>
             <p><strong>Kilometraje:</strong> {{ orden.kilometraje|default:"No especificado" }} km</p>
         </div>
         
@@ -127,7 +127,7 @@
             <h3>👤 Información del Conductor</h3>
             <p><strong>Nombre:</strong> {{ orden.conductor.nombre|default:"No asignado" }}</p>
             <p><strong>Teléfono:</strong> {{ orden.conductor.telefono|default:"No especificado" }}</p>
-            <p><strong>Email:</strong> {{ orden.conductor.correo|default:orden.conductor.email|default:"No especificado" }}</p>
+            <p><strong>Email:</strong> {{ orden.conductor.correo|default:"No especificado" }}</p>
             <p><strong>Método de Pago:</strong> {{ orden.metodo_pago|default:"No especificado" }}</p>
         </div>
     </div>

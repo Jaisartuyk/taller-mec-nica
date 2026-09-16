@@ -98,6 +98,10 @@ class Vehiculo(models.Model):
         verbose_name_plural = "Vehículos"
         unique_together = ['cliente', 'placa']
     
+    @property
+    def año(self):
+        return self.anio
+
     def __str__(self):
         return f"{self.placa} - {self.marca} {self.modelo}"
 
