@@ -1,45 +1,142 @@
-{% extends 'gestion_taller/base.html' %}
+﻿{% extends 'gestion_taller/base.html' %}
 
-{% block title %}Lista de Vehículos{% endblock %}
+{% block title %}Flota de Vehículos{% endblock %}
 
 {% block content %}
-<div class="container mt-4">
-    <div class="card shadow-sm">
-        <div class="card-header bg-primary text-white d-flex justify-content-between align-items-center">
-            <h4 class="mb-0"><i class="bi bi-car-front-fill me-2"></i>Mis Vehículos</h4>
-            {% url 'vehiculo_nuevo' as vehiculo_nuevo_url %}
-            <button type="button" class="btn btn-light" 
-                    onclick="openModal('{{ vehiculo_nuevo_url }}', 'Nuevo Vehículo')">
-                <i class="bi bi-plus-circle me-1"></i> Agregar Vehículo
-            </button>
+<div class="container-fluid p-0">
+    <!-- Header Principal -->
+    <div class="card border-0 shadow-sm mb-4" style="border-radius: 1.25rem; background: linear-gradient(135deg, #ffffff 0%, #f8fafc 100%); border: 1px solid rgba(226, 232, 240, 0.8) !important;">
+        <div class="card-body p-4">
+            <div class="row align-items-center g-3">
+                <div class="col-md-6">
+                    <div class="d-flex align-items-center gap-3">
+                        <div class="rounded-4 p-3 d-flex align-items-center justify-content-center text-white shadow-sm" 
+                             style="background: linear-gradient(135deg, #0ea5e9 0%, #2563eb 100%); width: 56px; height: 56px;">
+                            <i class="fas fa-car-side fa-xl"></i>
+                        </div>
+                        <div>
+                            <h4 class="fw-bold mb-1 text-dark">Flota de Vehículos</h4>
+                            <p class="text-muted small mb-0">Control de automóviles, historial de mantenimiento y conductores asociados</p>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="col-md-6 d-flex flex-wrap justify-content-md-end align-items-center gap-2">
+                    <!-- Búsqueda en Vivo -->
+                    <div class="position-relative flex-grow-1 flex-md-grow-0" style="min-width: 250px;">
+                        <i class="fas fa-search position-absolute text-muted" style="left: 14px; top: 50%; transform: translateY(-50%); font-size: 0.85rem;"></i>
+                        <input type="text" 
+                               id="buscadorVehiculos" 
+                               class="form-control form-control-sm rounded-pill ps-5 py-2 border shadow-none" 
+                               placeholder="Buscar por placa, marca, conductor..." 
+                               style="font-size: 0.85rem; background-color: #ffffff;">
+                    </div>
+
+                    <!-- Botón Registrar Vehículo -->
+                    {% url 'vehiculo_nuevo' as vehiculo_nuevo_url %}
+                    <button type="button" class="btn btn-primary rounded-pill px-4 py-2 shadow-sm d-flex align-items-center gap-2" 
+                            style="background: #2563eb; border-color: #2563eb; font-weight: 500;"
+                            onclick="openModal('{{ vehiculo_nuevo_url }}', 'Nuevo Vehículo', 'modalVehiculo')">
+                        <i class="fas fa-plus-circle"></i> <span>Registrar Vehículo</span>
+                    </button>
+                </div>
+            </div>
+
+            <!-- Métricas Rápidas -->
+            <div class="row g-3 mt-2 pt-3 border-top">
+                <div class="col-6 col-md-3">
+                    <div class="d-flex align-items-center gap-2">
+                        <span class="badge bg-primary bg-opacity-10 text-primary rounded-circle p-2">
+                            <i class="fas fa-car"></i>
+                        </span>
+                        <div>
+                            <span class="text-muted small d-block" style="font-size: 0.72rem;">Total Vehículos</span>
+                            <span class="fw-bold text-dark" id="conteoVehiculos">{{ vehiculos|length }}</span>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-6 col-md-3">
+                    <div class="d-flex align-items-center gap-2">
+                        <span class="badge bg-success bg-opacity-10 text-success rounded-circle p-2">
+                            <i class="fas fa-check-circle"></i>
+                        </span>
+                        <div>
+                            <span class="text-muted small d-block" style="font-size: 0.72rem;">Estado Operativo</span>
+                            <span class="fw-bold text-dark">Activos</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
         </div>
-        <div class="card-body">
-            <p class="card-text text-muted">A continuación se muestra la lista de vehículos registrados a su nombre.</p>
-            <div class="table-responsive">
-                <table class="table table-hover table-striped">
-                    <thead class="table-dark">
-                        <tr>
-                            <th>Marca</th>
-                            <th>Modelo</th>
-                            <th>Año</th>
-                            <th>Placa</th>
-                            <th>Conductor Asignado</th>
-                            <th>Acciones</th>
-                        </tr>
-                    </thead>
-                    <tbody id="vehiculo-table-body">
-                        {% include 'gestion_taller/vehiculo_tabla.html' with vehiculos=vehiculos %}
-                    </tbody>
-                </table>
+    </div>
+
+    <!-- Contenedor Grid de Tarjetas de Vehículos -->
+    <div class="row g-3" id="contenedor-tabla-vehiculos">
+        {% include 'gestion_taller/vehiculo_tabla.html' %}
+    </div>
+</div>
+
+<!-- Modal Eliminar Vehículo (compatible con modal_ajax.js) -->
+<div class="modal fade" id="modalVehiculoEliminar" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content border-0 shadow-lg rounded-4 overflow-hidden">
+            <div class="modal-header px-4 py-3 border-0 bg-danger text-white">
+                <h5 class="modal-title fw-bold text-white d-flex align-items-center gap-2">
+                    <i class="fas fa-exclamation-triangle"></i> Confirmar Eliminación
+                </h5>
+                <button type="button" class="btn-close btn-close-white shadow-none" data-bs-dismiss="modal" aria-label="Cerrar"></button>
+            </div>
+            <div class="modal-body p-4 text-center">
+                <div class="spinner-border text-danger" role="status"></div>
+                <p class="mt-2 text-muted">Cargando...</p>
             </div>
         </div>
     </div>
 </div>
 
-{# Incluimos los modales base que nuestro JS va a poblar #}
+<!-- Script de Filtrado / Búsqueda en Vivo para Vehículos -->
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const buscador = document.getElementById('buscadorVehiculos');
+    if (buscador) {
+        buscador.addEventListener('input', function() {
+            const query = this.value.toLowerCase().trim();
+            const items = document.querySelectorAll('.vehiculo-item');
+            let visibles = 0;
 
-{% include 'gestion_taller/modal_form_base.html' %}
-{% include 'gestion_taller/modal_delete_base.html' %}
+            items.forEach(function(item) {
+                const placa = item.getAttribute('data-placa') || '';
+                const marca = item.getAttribute('data-marca') || '';
+                const modelo = item.getAttribute('data-modelo') || '';
+                const conductor = item.getAttribute('data-conductor') || '';
+                const anio = item.getAttribute('data-anio') || '';
+                const vin = item.getAttribute('data-vin') || '';
 
+                if (placa.includes(query) || marca.includes(query) || modelo.includes(query) || conductor.includes(query) || anio.includes(query) || vin.includes(query)) {
+                    item.style.display = '';
+                    visibles++;
+                } else {
+                    item.style.display = 'none';
+                }
+            });
 
+            const conteoEl = document.getElementById('conteoVehiculos');
+            if (conteoEl) {
+                conteoEl.textContent = visibles;
+            }
+        });
+    }
+});
+</script>
+
+<style>
+.hover-card {
+    transition: transform 0.2s ease, box-shadow 0.2s ease, border-color 0.2s ease;
+}
+.hover-card:hover {
+    transform: translateY(-3px);
+    box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.08), 0 8px 10px -6px rgba(0, 0, 0, 0.04) !important;
+    border-color: #cbd5e1 !important;
+}
+</style>
 {% endblock %}

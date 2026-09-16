@@ -112,6 +112,7 @@ urlpatterns += [
     # ===== URLS DEL DASHBOARD DE CITAS =====
     path('citas/dashboard/', views.dashboard_citas, name='dashboard_citas'),
     path('citas/', views.citas_list, name='citas_list'),
+    path('citas/crear/', views.cita_crear, name='cita_crear'),
     path('api/citas/calendario/', views.citas_calendario_api, name='citas_calendario_api'),
     path('api/citas/<int:pk>/detalle/', views.cita_detail_modal, name='cita_detail_modal'),
     path('api/citas/<int:pk>/cambiar-estado/', views.cita_cambiar_estado, name='cita_cambiar_estado'),

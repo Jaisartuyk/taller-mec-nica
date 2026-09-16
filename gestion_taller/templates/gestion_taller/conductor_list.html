@@ -1,25 +1,142 @@
-{% extends 'gestion_taller/base.html' %}
+﻿{% extends 'gestion_taller/base.html' %}
 
-{% block title %}Conductores{% endblock %}
+{% block title %}Conductores y Clientes{% endblock %}
 
 {% block content %}
-<div class="container mt-4">
-    <div class="card shadow-sm">
-        <div class="card-header bg-primary text-white d-flex justify-content-between align-items-center">
-            <h4 class="mb-0"><i class="bi bi-people-fill me-2"></i>Conductores</h4>
-            {% url 'conductor_nuevo' as conductor_nuevo_url %}
-            <button type="button" class="btn btn-light" 
-                    onclick="openModal('{{ conductor_nuevo_url }}', 'Nuevo Conductor', 'modalConductor')">
-                <i class="bi bi-plus-circle me-1"></i> Nuevo Conductor
-            </button>
+<div class="container-fluid p-0">
+    <!-- Header Principal -->
+    <div class="card border-0 shadow-sm mb-4" style="border-radius: 1.25rem; background: linear-gradient(135deg, #ffffff 0%, #f8fafc 100%); border: 1px solid rgba(226, 232, 240, 0.8) !important;">
+        <div class="card-body p-4">
+            <div class="row align-items-center g-3">
+                <div class="col-md-6">
+                    <div class="d-flex align-items-center gap-3">
+                        <div class="rounded-4 p-3 d-flex align-items-center justify-content-center text-white shadow-sm" 
+                             style="background: linear-gradient(135deg, #2563eb 0%, #1d4ed8 100%); width: 56px; height: 56px;">
+                            <i class="fas fa-users fa-xl"></i>
+                        </div>
+                        <div>
+                            <h4 class="fw-bold mb-1 text-dark">Directorio de Conductores y Clientes</h4>
+                            <p class="text-muted small mb-0">Gestión integral de clientes, datos de contacto y vehículos asociados</p>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="col-md-6 d-flex flex-wrap justify-content-md-end align-items-center gap-2">
+                    <!-- Búsqueda en Vivo -->
+                    <div class="position-relative flex-grow-1 flex-md-grow-0" style="min-width: 240px;">
+                        <i class="fas fa-search position-absolute text-muted" style="left: 14px; top: 50%; transform: translateY(-50%); font-size: 0.85rem;"></i>
+                        <input type="text" 
+                               id="buscadorConductores" 
+                               class="form-control form-control-sm rounded-pill ps-5 py-2 border shadow-none" 
+                               placeholder="Buscar por nombre, teléfono..." 
+                               style="font-size: 0.85rem; background-color: #ffffff;">
+                    </div>
+
+                    <!-- Botón Registrar Conductor -->
+                    {% url 'conductor_nuevo' as conductor_nuevo_url %}
+                    <button type="button" class="btn btn-primary rounded-pill px-4 py-2 shadow-sm d-flex align-items-center gap-2" 
+                            style="background: #2563eb; border-color: #2563eb; font-weight: 500;"
+                            onclick="openModal('{{ conductor_nuevo_url }}', 'Nuevo Conductor', 'modalConductor')">
+                        <i class="fas fa-plus-circle"></i> <span>Registrar Conductor</span>
+                    </button>
+                </div>
+            </div>
+
+            <!-- Métricas Rápidas -->
+            <div class="row g-3 mt-2 pt-3 border-top">
+                <div class="col-6 col-md-3">
+                    <div class="d-flex align-items-center gap-2">
+                        <span class="badge bg-primary bg-opacity-10 text-primary rounded-circle p-2">
+                            <i class="fas fa-user-check"></i>
+                        </span>
+                        <div>
+                            <span class="text-muted small d-block" style="font-size: 0.72rem;">Total Registrados</span>
+                            <span class="fw-bold text-dark" id="conteoConductores">{{ conductores|length }}</span>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-6 col-md-3">
+                    <div class="d-flex align-items-center gap-2">
+                        <span class="badge bg-success bg-opacity-10 text-success rounded-circle p-2">
+                            <i class="fab fa-whatsapp"></i>
+                        </span>
+                        <div>
+                            <span class="text-muted small d-block" style="font-size: 0.72rem;">Con Teléfono</span>
+                            <span class="fw-bold text-dark">
+                                {{ conductores|length }}
+                            </span>
+                        </div>
+                    </div>
+                </div>
+            </div>
         </div>
-        <div class="card-body">
-            <div class="table-responsive" id="contenedor-tabla-conductores">
-                {% include 'gestion_taller/conductor_tabla.html' %}
+    </div>
+
+    <!-- Contenedor Grid de Tarjetas -->
+    <div class="row g-3" id="contenedor-tabla-conductores">
+        {% include 'gestion_taller/conductor_tabla.html' %}
+    </div>
+</div>
+
+<!-- Modal Eliminar Conductor (estándar para modal_ajax.js) -->
+<div class="modal fade" id="modalConductorEliminar" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content border-0 shadow-lg rounded-4 overflow-hidden">
+            <div class="modal-header px-4 py-3 border-0 bg-danger text-white">
+                <h5 class="modal-title fw-bold text-white d-flex align-items-center gap-2">
+                    <i class="fas fa-exclamation-triangle"></i> Confirmar Eliminación
+                </h5>
+                <button type="button" class="btn-close btn-close-white shadow-none" data-bs-dismiss="modal" aria-label="Cerrar"></button>
+            </div>
+            <div class="modal-body p-4 text-center">
+                <div class="spinner-border text-danger" role="status"></div>
+                <p class="mt-2 text-muted">Cargando...</p>
             </div>
         </div>
     </div>
 </div>
 
-<!-- El modal se crea dinámicamente cuando se hace clic en el botón -->
+<!-- Script de Filtrado / Búsqueda en Vivo -->
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const buscador = document.getElementById('buscadorConductores');
+    if (buscador) {
+        buscador.addEventListener('input', function() {
+            const query = this.value.toLowerCase().trim();
+            const items = document.querySelectorAll('.conductor-item');
+            let visibles = 0;
+
+            items.forEach(function(item) {
+                const nombre = item.getAttribute('data-nombre') || '';
+                const telefono = item.getAttribute('data-telefono') || '';
+                const correo = item.getAttribute('data-correo') || '';
+                const direccion = item.getAttribute('data-direccion') || '';
+
+                if (nombre.includes(query) || telefono.includes(query) || correo.includes(query) || direccion.includes(query)) {
+                    item.style.display = '';
+                    visibles++;
+                } else {
+                    item.style.display = 'none';
+                }
+            });
+
+            const conteoEl = document.getElementById('conteoConductores');
+            if (conteoEl) {
+                conteoEl.textContent = visibles;
+            }
+        });
+    }
+});
+</script>
+
+<style>
+.hover-card {
+    transition: transform 0.2s ease, box-shadow 0.2s ease, border-color 0.2s ease;
+}
+.hover-card:hover {
+    transform: translateY(-3px);
+    box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.08), 0 8px 10px -6px rgba(0, 0, 0, 0.04) !important;
+    border-color: #cbd5e1 !important;
+}
+</style>
 {% endblock %}

@@ -14,15 +14,15 @@ from pathlib import Path
 import os
 import dj_database_url
 
+# Build paths inside the project like this: BASE_DIR / 'subdir'.
+BASE_DIR = Path(__file__).resolve().parent.parent
+
 # Cargar variables de entorno desde .env si está disponible
 try:
     from dotenv import load_dotenv
-    load_dotenv()
+    load_dotenv(BASE_DIR / '.env')
 except ImportError:
     pass
-
-# Build paths inside the project like this: BASE_DIR / 'subdir'.
-BASE_DIR = Path(__file__).resolve().parent.parent
 
 
 # Quick-start development settings - unsuitable for production
@@ -106,10 +106,19 @@ WSGI_APPLICATION = 'taller_mecanica.wsgi.application'
 # Database
 # https://docs.djangoproject.com/en/5.2/ref/settings/#databases
 
-# Configuración de base de datos - Solo PostgreSQL (Railway)
-DATABASES = {
-    'default': dj_database_url.config(default=os.environ.get('DATABASE_URL'))
-}
+# Configuración de base de datos
+database_url = os.environ.get('DATABASE_URL')
+if database_url:
+    DATABASES = {
+        'default': dj_database_url.parse(database_url)
+    }
+else:
+    DATABASES = {
+        'default': {
+            'ENGINE': 'django.db.backends.sqlite3',
+            'NAME': BASE_DIR / 'db.sqlite3',
+        }
+    }
 
 
 # Configuración de correo para desarrollo
@@ -173,7 +182,7 @@ STATICFILES_DIRS = [os.path.join(BASE_DIR, 'static')]
 
 # Archivos de medios
 MEDIA_URL = '/media/'
-MEDIA_ROOT = '/data/media'
+MEDIA_ROOT = os.environ.get('MEDIA_ROOT', os.path.join(BASE_DIR, 'media'))
 
 # WhiteNoise para producción
 if not DEBUG:

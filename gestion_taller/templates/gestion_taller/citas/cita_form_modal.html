@@ -1,0 +1,103 @@
+<div class="modal-header border-0 pb-0" style="background: linear-gradient(135deg, #1e293b 0%, #0f172a 100%); color: white; padding: 1.5rem 1.75rem;">
+    <div class="d-flex align-items-center gap-3">
+        <div style="width: 46px; height: 46px; border-radius: 12px; background: rgba(59, 130, 246, 0.2); display: flex; align-items: center; justify-content: center; border: 1px solid rgba(59, 130, 246, 0.4);">
+            <i class="fas fa-calendar-plus text-primary fs-5"></i>
+        </div>
+        <div>
+            <h5 class="modal-title fw-bold mb-0 text-white" id="crearCitaModalLabel">Agendar Nueva Cita</h5>
+            <small class="text-white-50">Programa la recepcion y servicios de un vehiculo en el taller</small>
+        </div>
+    </div>
+    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+</div>
+
+<form id="formCrearCita" method="post" action="{% url 'cita_crear' %}" class="p-0 m-0">
+    {% csrf_token %}
+    <div class="modal-body p-4" style="background-color: #f8fafc;">
+        <div id="citaFormErrors" class="alert alert-danger d-none mb-3 py-2 px-3 small rounded-3">
+            <i class="fas fa-exclamation-triangle me-2"></i><span id="citaFormErrorsText">Por favor revise los campos requeridos.</span>
+        </div>
+
+        <div class="row g-3">
+            <!-- Conductor / Propietario -->
+            <div class="col-md-6">
+                <label for="id_cita_conductor" class="form-label fw-semibold text-secondary small mb-1">
+                    <i class="fas fa-user text-primary me-1"></i> Conductor / Propietario <span class="text-danger">*</span>
+                </label>
+                {{ form.conductor }}
+                {% if form.conductor.errors %}
+                    <div class="text-danger small mt-1">{{ form.conductor.errors.0 }}</div>
+                {% endif %}
+            </div>
+
+            <!-- Vehiculo -->
+            <div class="col-md-6">
+                <label for="id_cita_vehiculo" class="form-label fw-semibold text-secondary small mb-1">
+                    <i class="fas fa-car text-primary me-1"></i> Vehiculo <span class="text-danger">*</span>
+                </label>
+                {{ form.vehiculo }}
+                {% if form.vehiculo.errors %}
+                    <div class="text-danger small mt-1">{{ form.vehiculo.errors.0 }}</div>
+                {% endif %}
+            </div>
+
+            <!-- Fecha y Hora -->
+            <div class="col-md-6">
+                <label for="id_cita_fecha" class="form-label fw-semibold text-secondary small mb-1">
+                    <i class="fas fa-clock text-primary me-1"></i> Fecha y Hora de Llegada <span class="text-danger">*</span>
+                </label>
+                {{ form.fecha_cita }}
+                {% if form.fecha_cita.errors %}
+                    <div class="text-danger small mt-1">{{ form.fecha_cita.errors.0 }}</div>
+                {% endif %}
+            </div>
+
+            <!-- Estado Inicial -->
+            <div class="col-md-6">
+                <label for="id_cita_estado" class="form-label fw-semibold text-secondary small mb-1">
+                    <i class="fas fa-info-circle text-primary me-1"></i> Estado Inicial
+                </label>
+                {{ form.estado }}
+                {% if form.estado.errors %}
+                    <div class="text-danger small mt-1">{{ form.estado.errors.0 }}</div>
+                {% endif %}
+            </div>
+
+            <!-- Servicios del Catalogo -->
+            <div class="col-12">
+                <div class="p-3 bg-white rounded-3 border">
+                    <label for="id_cita_servicios" class="form-label fw-semibold text-secondary small mb-1 d-flex justify-content-between">
+                        <span><i class="fas fa-tools text-primary me-1"></i> Servicios Solicitados</span>
+                        <span class="text-muted fw-normal small">(Selecciona uno o varios servicios)</span>
+                    </label>
+                    {{ form.servicios }}
+                    <small class="text-muted d-block mt-1">Los servicios seleccionados calculan la duracion estimada y el presupuesto de la cita.</small>
+                    {% if form.servicios.errors %}
+                        <div class="text-danger small mt-1">{{ form.servicios.errors.0 }}</div>
+                    {% endif %}
+                </div>
+            </div>
+
+            <!-- Notas u Observaciones -->
+            <div class="col-12">
+                <label for="id_cita_notas" class="form-label fw-semibold text-secondary small mb-1">
+                    <i class="fas fa-sticky-note text-primary me-1"></i> Observaciones / Motivo de Ingreso
+                </label>
+                {{ form.notas }}
+                {% if form.notas.errors %}
+                    <div class="text-danger small mt-1">{{ form.notas.errors.0 }}</div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal Footer -->
+    <div class="modal-footer bg-white border-top px-4 py-3 d-flex justify-content-between align-items-center" style="border-radius: 0 0 1.25rem 1.25rem;">
+        <button type="button" class="btn btn-outline-secondary px-4 rounded-pill" data-bs-dismiss="modal">
+            <i class="fas fa-times me-1"></i> Cancelar
+        </button>
+        <button type="submit" id="btnGuardarCita" class="btn btn-primary px-4 rounded-pill shadow-sm">
+            <i class="fas fa-calendar-check me-1"></i> Agendar Cita
+        </button>
+    </div>
+</form>

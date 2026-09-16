@@ -1,6 +1,6 @@
 from django import forms
 from django.core.exceptions import ValidationError
-from .models import Vehiculo, Repuesto, Conductor, Cliente, PreguntaFrecuente, DetalleServicio, OrdenServicio, ServicioCatalogo, ConfiguracionTaller
+from .models import Vehiculo, Repuesto, Conductor, Cliente, PreguntaFrecuente, DetalleServicio, OrdenServicio, ServicioCatalogo, ConfiguracionTaller, Cita
 
 class KilometrajeWidget(forms.NumberInput):
     """Widget personalizado para manejar kilometraje con formato de miles"""
@@ -65,13 +65,23 @@ class ConductorForm(forms.ModelForm):
     class Meta:
         model = Conductor
         exclude = ['cliente', 'fecha_registro']
+        widgets = {
+            'nombre': forms.TextInput(attrs={'class': 'form-control', 'placeholder': 'Ej. Carlos Mendoza'}),
+            'telefono': forms.TextInput(attrs={'class': 'form-control', 'placeholder': 'Ej. 0991234567'}),
+            'correo': forms.EmailInput(attrs={'class': 'form-control', 'placeholder': 'conductor@ejemplo.com'}),
+            'direccion': forms.TextInput(attrs={'class': 'form-control', 'placeholder': 'Av. Principal y Secundaria'}),
+            'telegram_chat_id': forms.TextInput(attrs={'class': 'form-control', 'placeholder': 'Opcional (Ej. 12345678)'}),
+        }
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        for field in self.fields.values():
+            if 'class' not in field.widget.attrs:
+                field.widget.attrs['class'] = 'form-control'
 
 # Formulario exclusivo para la vista de edición con estilos
 class ConductorUpdateForm(ConductorForm):
-    def __init__(self, *args, **kwargs):
-        super().__init__(*args, **kwargs)
-        for field_name, field in self.fields.items():
-            field.widget.attrs.update({'class': 'form-control', 'autocomplete': 'off'})
+    pass
 
 class VehiculoForm(forms.ModelForm):
     class Meta:
@@ -79,8 +89,14 @@ class VehiculoForm(forms.ModelForm):
         # Incluimos 'conductor', pero lo filtraremos en __init__
         exclude = ['cliente', 'fecha_ultimo_servicio', 'fecha_creacion', 'activo']
         widgets = {
-            'anio': forms.NumberInput(attrs={'min': 1980, 'max': 2025}),
-            'kilometraje': KilometrajeWidget(attrs={'placeholder': 'Ej: 150,000'}),
+            'conductor': forms.Select(attrs={'class': 'form-select'}),
+            'placa': forms.TextInput(attrs={'class': 'form-control text-uppercase', 'placeholder': 'Ej: PBA-1234'}),
+            'marca': forms.TextInput(attrs={'class': 'form-control', 'placeholder': 'Ej: Chevrolet, Toyota'}),
+            'modelo': forms.TextInput(attrs={'class': 'form-control', 'placeholder': 'Ej: D-Max, Corolla'}),
+            'anio': forms.NumberInput(attrs={'class': 'form-control', 'min': 1970, 'max': 2030, 'placeholder': 'Ej: 2022'}),
+            'color': forms.TextInput(attrs={'class': 'form-control', 'placeholder': 'Ej: Blanco, Plata'}),
+            'vin': forms.TextInput(attrs={'class': 'form-control text-uppercase', 'placeholder': 'Número de Chasis (opcional)'}),
+            'kilometraje': KilometrajeWidget(attrs={'class': 'form-control', 'placeholder': 'Ej: 45000'}),
         }
 
     def __init__(self, *args, **kwargs):
@@ -92,10 +108,19 @@ class VehiculoForm(forms.ModelForm):
             # Filtramos el campo 'conductor' para mostrar solo los del cliente del usuario
             self.fields['conductor'].queryset = Conductor.objects.filter(cliente=user.perfilusuario.cliente)
             self.fields['conductor'].required = False # Hacemos el campo no obligatorio
+            self.fields['conductor'].empty_label = "--- Seleccionar Conductor / Propietario ---"
         else:
             # Si no hay usuario o cliente, no mostramos ningún conductor
             self.fields['conductor'].queryset = Conductor.objects.none()
             self.fields['conductor'].required = False
+            self.fields['conductor'].empty_label = "--- Sin conductores disponibles ---"
+
+        # Asegurar clases a todos los campos
+        for name, field in self.fields.items():
+            if isinstance(field.widget, forms.Select):
+                field.widget.attrs.setdefault('class', 'form-select')
+            else:
+                field.widget.attrs.setdefault('class', 'form-control')
 
 
 class RepuestoForm(forms.ModelForm):
@@ -103,6 +128,15 @@ class RepuestoForm(forms.ModelForm):
         model = Repuesto
         fields = '__all__'
         widgets = {
+            'nombre': forms.TextInput(attrs={'class': 'form-control', 'placeholder': 'Ej. Filtro de Aceite sintético'}),
+            'codigo': forms.TextInput(attrs={'class': 'form-control font-monospace text-uppercase', 'placeholder': 'Ej. FIL-024'}),
+            'descripcion': forms.Textarea(attrs={'class': 'form-control', 'rows': 3, 'placeholder': 'Descripción detallada, compatibilidad, especificaciones...'}),
+            'imagen': forms.FileInput(attrs={'class': 'form-control'}),
+            'precio_compra': forms.NumberInput(attrs={'class': 'form-control', 'step': '0.01', 'min': '0', 'placeholder': '0.00'}),
+            'precio_venta': forms.NumberInput(attrs={'class': 'form-control', 'step': '0.01', 'min': '0', 'placeholder': '0.00'}),
+            'stock': forms.NumberInput(attrs={'class': 'form-control', 'min': '0', 'placeholder': '0'}),
+            'stock_minimo': forms.NumberInput(attrs={'class': 'form-control', 'min': '0', 'placeholder': '5'}),
+            'proveedor': forms.TextInput(attrs={'class': 'form-control', 'placeholder': 'Ej. Bosch, Mobil, Distribuidora XYZ'}),
             'aplicar_iva_producto': forms.Select(choices=[
                 ('', '--- Usar configuración del taller ---'),
                 (True, 'Sí, aplicar IVA'),
@@ -130,24 +164,18 @@ class RepuestoForm(forms.ModelForm):
         # Configurar campos de IVA como opcionales
         if 'aplicar_iva_producto' in self.fields:
             self.fields['aplicar_iva_producto'].required = False
-            self.fields['aplicar_iva_producto'].help_text = 'Dejar vacío para usar la configuración del taller'
+            self.fields['aplicar_iva_producto'].help_text = 'Dejar vacío para usar la configuración global del taller'
             
         if 'porcentaje_iva_producto' in self.fields:
             self.fields['porcentaje_iva_producto'].required = False
-            self.fields['porcentaje_iva_producto'].help_text = 'Solo si se aplica IVA específico para este producto'
+            self.fields['porcentaje_iva_producto'].help_text = 'Opcional: porcentaje específico para este ítem'
 
-        # Aplicar clases de Bootstrap a todos los campos
+        # Asegurar clases de Bootstrap en todos los campos
         for field_name, field in self.fields.items():
-            # Saltar campos que ya tienen widgets configurados
-            if field_name in ['aplicar_iva_producto', 'porcentaje_iva_producto']:
-                continue
-                
-            # Para campos de selección, usar 'form-select'
             if isinstance(field.widget, forms.Select):
-                field.widget.attrs.update({'class': 'form-select'})
-            # Para campos de número, texto, etc., usar 'form-control'
+                field.widget.attrs.setdefault('class', 'form-select')
             else:
-                field.widget.attrs.update({'class': 'form-control'})
+                field.widget.attrs.setdefault('class', 'form-control')
 
 # --- Formulario para ServicioCatalogo ---
 class ServicioCatalogoForm(forms.ModelForm):
@@ -508,3 +536,52 @@ class ConfiguracionTallerForm(forms.ModelForm):
             if len(telefono) < 7:
                 raise ValidationError('El teléfono WhatsApp debe tener al menos 7 dígitos')
         return telefono
+
+
+class CitaForm(forms.ModelForm):
+    """Formulario profesional para agendar citas"""
+    class Meta:
+        model = Cita
+        fields = ['conductor', 'vehiculo', 'fecha_cita', 'servicios', 'estado', 'notas']
+        widgets = {
+            'conductor': forms.Select(attrs={'class': 'form-select select2-modal', 'id': 'id_cita_conductor'}),
+            'vehiculo': forms.Select(attrs={'class': 'form-select select2-modal', 'id': 'id_cita_vehiculo'}),
+            'fecha_cita': forms.DateTimeInput(
+                attrs={
+                    'class': 'form-control',
+                    'type': 'datetime-local',
+                    'id': 'id_cita_fecha'
+                },
+                format='%Y-%m-%dT%H:%M'
+            ),
+            'servicios': forms.SelectMultiple(attrs={
+                'class': 'form-select select2-modal',
+                'id': 'id_cita_servicios',
+                'data-placeholder': 'Seleccione uno o más servicios...'
+            }),
+            'estado': forms.Select(attrs={'class': 'form-select', 'id': 'id_cita_estado'}),
+            'notas': forms.Textarea(attrs={
+                'class': 'form-control',
+                'rows': 3,
+                'placeholder': 'Observaciones, síntomas del vehículo o requerimientos del cliente...',
+                'id': 'id_cita_notas'
+            }),
+        }
+
+    def __init__(self, *args, **kwargs):
+        cliente = kwargs.pop('cliente', None)
+        super().__init__(*args, **kwargs)
+
+        # Configurar formato para datetime-local si hay valor inicial
+        if self.instance and self.instance.pk and self.instance.fecha_cita:
+            self.initial['fecha_cita'] = self.instance.fecha_cita.strftime('%Y-%m-%dT%H:%M')
+
+        if cliente:
+            self.fields['conductor'].queryset = Conductor.objects.filter(cliente=cliente).order_by('nombre')
+            self.fields['vehiculo'].queryset = Vehiculo.objects.filter(cliente=cliente).select_related('conductor').order_by('placa')
+            self.fields['servicios'].queryset = ServicioCatalogo.objects.filter(cliente=cliente, activo=True).order_by('nombre')
+        
+        self.fields['conductor'].empty_label = "-- Seleccionar Conductor / Propietario --"
+        self.fields['vehiculo'].empty_label = "-- Seleccionar Vehículo --"
+        self.fields['servicios'].help_text = "Puedes seleccionar múltiples servicios manteniendo presionada la tecla Ctrl/Cmd o en el buscador."
+

@@ -98,7 +98,9 @@ function attachModalFormHandler(modalId) {
                 // Caso 1: Éxito con actualización de tabla (conductores)
                 const modalInstance = bootstrap.Modal.getInstance(modal);
                 modalInstance.hide();
-                const tablaContainer = document.getElementById('tabla-conductores-container');
+                const tablaContainer = document.getElementById('contenedor-tabla-conductores') || 
+                                       document.getElementById('contenedor-tabla-vehiculos') || 
+                                       document.getElementById('tabla-conductores-container');
                 if (tablaContainer) {
                     tablaContainer.innerHTML = data.tabla;
                 } else {

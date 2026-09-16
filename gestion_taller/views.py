@@ -10,7 +10,7 @@ from decimal import Decimal
 import io
 from .models import Vehiculo, Repuesto, ServicioCatalogo, PerfilUsuario, Conductor, User, OrdenServicio, Notificacion, Pago
 from django.db import models
-from .forms import VehiculoForm, RepuestoForm, PerfilUsuarioForm, ConductorForm, OrdenServicioForm, ServicioCatalogoForm, ConductorUpdateForm
+from .forms import VehiculoForm, RepuestoForm, PerfilUsuarioForm, ConductorForm, OrdenServicioForm, ServicioCatalogoForm, ConductorUpdateForm, CitaForm
 from .models import Conductor
 from django.urls import reverse_lazy
 from django.views.generic import ListView, CreateView, UpdateView, DeleteView
@@ -180,7 +180,7 @@ class VehiculoListView(ListView):
     def get_queryset(self):
         perfil = self.request.user.perfilusuario
         if perfil.cliente:
-            return Vehiculo.objects.filter(cliente=perfil.cliente)
+            return Vehiculo.objects.filter(cliente=perfil.cliente).select_related('conductor').order_by('-fecha_creacion')
         return Vehiculo.objects.none()
 
 @method_decorator(login_required, name='dispatch')
@@ -195,20 +195,17 @@ class VehiculoCreateView(CreateView):
         kwargs['user'] = self.request.user
         return kwargs
 
-    def get_context_data(self, **kwargs):
-        context = super().get_context_data(**kwargs)
-        context['modal_title'] = 'Nuevo Vehículo'
-        return context
-
     def form_valid(self, form):
         form.instance.cliente = self.request.user.perfilusuario.cliente
         self.object = form.save()
         
         if self.request.headers.get('x-requested-with') == 'XMLHttpRequest':
+            vehiculos = Vehiculo.objects.filter(cliente=self.request.user.perfilusuario.cliente).select_related('conductor')
+            html_tabla = render_to_string('gestion_taller/vehiculo_tabla.html', {'vehiculos': vehiculos})
             return JsonResponse({
                 'success': True,
                 'message': 'Vehículo guardado correctamente',
-                'redirect': str(self.get_success_url())
+                'tabla': html_tabla
             })
             
         messages.success(self.request, 'Vehículo guardado correctamente')
@@ -216,25 +213,31 @@ class VehiculoCreateView(CreateView):
 
     def form_invalid(self, form):
         if self.request.headers.get('x-requested-with') == 'XMLHttpRequest':
-            return JsonResponse({
-                'success': False,
-                'form': self.get_context_data(form=form).get('form').as_div()
-            })
+            html_form = render_to_string('gestion_taller/vehiculo_modal.html', {'form': form}, request=self.request)
+            return HttpResponse(html_form)
             
         messages.error(self.request, 'Por favor corrija los errores en el formulario')
         return super().form_invalid(form)
+
+    def get(self, request, *args, **kwargs):
+        if request.headers.get('x-requested-with') == 'XMLHttpRequest':
+            self.object = None
+            form = self.get_form()
+            html_form = render_to_string(self.template_name, {'form': form}, request=request)
+            return HttpResponse(html_form)
+        return super().get(request, *args, **kwargs)
 
 @method_decorator(login_required, name='dispatch')
 class VehiculoUpdateView(UpdateView):
     model = Vehiculo
     form_class = VehiculoForm
-    template_name = 'gestion_taller/vehiculo_form_modal.html'
+    template_name = 'gestion_taller/vehiculo_modal.html'
     success_url = reverse_lazy('vehiculos')
 
     def get_queryset(self):
         perfil = self.request.user.perfilusuario
         if perfil.cliente:
-            return Vehiculo.objects.filter(cliente=perfil.cliente)
+            return Vehiculo.objects.filter(cliente=perfil.cliente).select_related('conductor')
         return Vehiculo.objects.none()
 
     def get_form_kwargs(self):
@@ -246,21 +249,21 @@ class VehiculoUpdateView(UpdateView):
         if request.headers.get('x-requested-with') == 'XMLHttpRequest':
             self.object = self.get_object()
             form = self.get_form()
-            html_form = render_to_string('gestion_taller/vehiculo_form_modal.html', {'form': form}, request=request)
+            html_form = render_to_string(self.template_name, {'form': form}, request=request)
             return HttpResponse(html_form)
         return super().get(request, *args, **kwargs)
 
     def form_valid(self, form):
         self.object = form.save()
         if self.request.headers.get('x-requested-with') == 'XMLHttpRequest':
-            vehiculos = Vehiculo.objects.filter(cliente=self.request.user.perfilusuario.cliente)
+            vehiculos = Vehiculo.objects.filter(cliente=self.request.user.perfilusuario.cliente).select_related('conductor')
             html_tabla = render_to_string('gestion_taller/vehiculo_tabla.html', {'vehiculos': vehiculos})
             return JsonResponse({'success': True, 'tabla': html_tabla})
         return super().form_valid(form)
 
     def form_invalid(self, form):
         if self.request.headers.get('x-requested-with') == 'XMLHttpRequest':
-            html_form = render_to_string('gestion_taller/vehiculo_form_ajax.html', {'form': form}, request=self.request)
+            html_form = render_to_string(self.template_name, {'form': form}, request=request)
             return HttpResponse(html_form)
         return super().form_invalid(form)
 
@@ -504,7 +507,7 @@ class ConductorListView(ListView):
     def get_queryset(self):
         perfil = self.request.user.perfilusuario
         if perfil.cliente:
-            return Conductor.objects.filter(cliente=perfil.cliente)
+            return Conductor.objects.filter(cliente=perfil.cliente).prefetch_related('vehiculos').order_by('-fecha_registro')
         return Conductor.objects.none()
 
 @method_decorator(login_required, name='dispatch')
@@ -560,7 +563,7 @@ class ConductorCreateView(CreateView):
 class ConductorUpdateView(UpdateView):
     model = Conductor
     form_class = ConductorUpdateForm
-    template_name = 'gestion_taller/conductor_form.html'
+    template_name = 'gestion_taller/conductor_form_ajax.html'
     success_url = reverse_lazy('conductores')
     def get_queryset(self):
         perfil = self.request.user.perfilusuario
@@ -573,7 +576,7 @@ class ConductorUpdateView(UpdateView):
             form.instance.cliente = perfil.cliente
         self.object = form.save()
         if self.request.headers.get('x-requested-with') == 'XMLHttpRequest':
-            conductores = Conductor.objects.filter(cliente=perfil.cliente)
+            conductores = Conductor.objects.filter(cliente=perfil.cliente).prefetch_related('vehiculos').order_by('-fecha_registro')
             from django.template.loader import render_to_string
             html_tabla = render_to_string('gestion_taller/conductor_tabla.html', {'conductores': conductores})
             from django.http import JsonResponse
@@ -583,7 +586,7 @@ class ConductorUpdateView(UpdateView):
     def form_invalid(self, form):
         if self.request.headers.get('x-requested-with') == 'XMLHttpRequest':
             from django.template.loader import render_to_string
-            html_form = render_to_string('gestion_taller/conductor_form.html', {'form': form}, request=self.request)
+            html_form = render_to_string('gestion_taller/conductor_form_ajax.html', {'form': form}, request=self.request)
             from django.http import HttpResponse
             return HttpResponse(html_form)
         return super().form_invalid(form)
@@ -594,18 +597,10 @@ class ConductorUpdateView(UpdateView):
             form = self.get_form()
             context = {'form': form}
             from django.template.loader import render_to_string
-            html_form = render_to_string('gestion_taller/conductor_form.html', context, request=request)
+            html_form = render_to_string('gestion_taller/conductor_form_ajax.html', context, request=request)
             from django.http import HttpResponse
             return HttpResponse(html_form)
         return super().get(request, *args, **kwargs)
-
-    def form_invalid(self, form):
-        if self.request.headers.get('x-requested-with') == 'XMLHttpRequest':
-            from django.template.loader import render_to_string
-            html_form = render_to_string('gestion_taller/conductor_form.html', {'form': form}, request=self.request)
-            from django.http import HttpResponse
-            return HttpResponse(html_form)
-        return super().form_invalid(form)
 
 @method_decorator(login_required, name='dispatch')
 class ConductorDeleteView(DeleteView):
@@ -1698,7 +1693,13 @@ def home(request):
     # Obtener datos del cliente si existe
     if hasattr(request.user, 'perfilusuario') and request.user.perfilusuario.cliente:
         cliente = request.user.perfilusuario.cliente
-        logo_url = cliente.logo.url if cliente.logo else None
+        try:
+            if cliente.logo and cliente.logo.storage.exists(cliente.logo.name):
+                logo_url = cliente.logo.url
+            else:
+                logo_url = None
+        except Exception:
+            logo_url = None
         
         # Obtener estadísticas filtradas por cliente
         stats = {
@@ -2693,6 +2694,9 @@ def dashboard_citas(request):
         estado__in=['pendiente', 'confirmada']
     ).select_related('conductor', 'vehiculo').prefetch_related('servicios').order_by('fecha_cita')[:10]
     
+    # Formulario para agendar citas directamente desde el modal
+    form_cita = CitaForm(cliente=cliente)
+
     context = {
         'title': 'Dashboard de Citas',
         'year': year,
@@ -2706,6 +2710,7 @@ def dashboard_citas(request):
         'citas_por_dia': json.dumps(citas_por_dia),
         'proximas_citas': proximas_citas,
         'today': today,
+        'form': form_cita,
     }
     
     return render(request, 'gestion_taller/citas/dashboard.html', context)
@@ -2877,6 +2882,71 @@ def cita_cambiar_estado(request, pk):
         return JsonResponse({'error': str(e)}, status=500)
 
 @login_required
+def cita_crear(request):
+    """Crear nueva cita (modal HTMX / AJAX / POST)"""
+    try:
+        cliente = request.user.perfilusuario.cliente
+    except Exception:
+        if request.headers.get('x-requested-with') == 'XMLHttpRequest' or request.GET.get('format') == 'json':
+            return JsonResponse({'success': False, 'error': 'No tienes un perfil de cliente asignado.'}, status=403)
+        messages.error(request, 'No tienes permisos para realizar esta acción.')
+        return redirect('dashboard_citas')
+
+    from .models import Cita, Vehiculo
+
+    if request.method == 'POST':
+        form = CitaForm(request.POST, cliente=cliente)
+        if form.is_valid():
+            cita = form.save(commit=False)
+            cita.cliente = cliente
+            cita.save()
+            form.save_m2m() # Guardar servicios seleccionados
+
+            # Si el vehículo tiene conductor asociado y no se especificó o viceversa
+            if not cita.conductor and cita.vehiculo and cita.vehiculo.conductor:
+                cita.conductor = cita.vehiculo.conductor
+                cita.save()
+
+            messages.success(request, f'Cita para {cita.conductor.nombre} agendada exitosamente.')
+
+            if request.headers.get('x-requested-with') == 'XMLHttpRequest' or request.POST.get('format') == 'json':
+                return JsonResponse({
+                    'success': True,
+                    'message': 'Cita agendada correctamente',
+                    'cita_id': cita.id
+                })
+            
+            return redirect('dashboard_citas')
+        else:
+            if request.headers.get('x-requested-with') == 'XMLHttpRequest' or request.POST.get('format') == 'json':
+                errores = {field: [str(err) for err in err_list] for field, err_list in form.errors.items()}
+                return JsonResponse({'success': False, 'errors': errores}, status=400)
+    else:
+        # Preseleccionar fecha si viene por GET (ej: al hacer clic en un día del calendario)
+        initial_data = {}
+        fecha_previa = request.GET.get('fecha')
+        if fecha_previa:
+            try:
+                # Soportar formatos 'YYYY-MM-DD' o 'YYYY-MM-DDTHH:MM'
+                if len(fecha_previa) == 10:
+                    fecha_previa += 'T09:00'
+                initial_data['fecha_cita'] = fecha_previa
+            except Exception:
+                pass
+
+        form = CitaForm(cliente=cliente, initial=initial_data)
+
+    context = {
+        'form': form,
+        'title': 'Agendar Nueva Cita'
+    }
+
+    if request.headers.get('x-requested-with') == 'XMLHttpRequest' or request.GET.get('modal') == 'true':
+        return render(request, 'gestion_taller/citas/cita_form_modal.html', context)
+
+    return render(request, 'gestion_taller/citas/cita_form.html', context)
+
+@login_required
 def citas_list(request):
     """Lista de citas con filtros"""
     try:
@@ -2929,7 +2999,8 @@ def citas_list(request):
         'conductor_filtro': conductor_filtro,
         'fecha_desde': fecha_desde,
         'fecha_hasta': fecha_hasta,
-        'estados_choices': [('pendiente', 'Pendiente'), ('confirmada', 'Confirmada'), ('cancelada', 'Cancelada'), ('completada', 'Completada')]
+        'estados_choices': [('pendiente', 'Pendiente'), ('confirmada', 'Confirmada'), ('cancelada', 'Cancelada'), ('completada', 'Completada')],
+        'form': CitaForm(cliente=cliente)
     }
     
     return render(request, 'gestion_taller/citas/list.html', context)

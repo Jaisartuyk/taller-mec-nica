@@ -1,56 +1,190 @@
-{% load crispy_forms_tags %}
-{% load static %}
+﻿{% load static %}
 
 <div id="repuestoFormContainer">
   <form method="post" enctype="multipart/form-data" hx-post="{{ request.path }}" hx-target="this" hx-swap="outerHTML" hx-encoding="multipart/form-data">
     {% csrf_token %}
-    <div class="modal-header bg-primary text-white">
-      <h5 class="modal-title">{% if form.instance.pk %}Editar Repuesto{% else %}Crear Repuesto{% endif %}</h5>
-      <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+    
+    <!-- Header del Modal con Degradado Ejecutivo -->
+    <div class="modal-header border-0 px-4 py-3" style="background: linear-gradient(135deg, #1e293b 0%, #0f172a 100%); color: white;">
+      <div class="d-flex align-items-center gap-2">
+        <div class="rounded-3 p-2 d-flex align-items-center justify-content-center" style="background: rgba(59, 130, 246, 0.2); color: #60a5fa;">
+          <i class="fas fa-boxes-stacked fa-lg"></i>
+        </div>
+        <div>
+          <h5 class="modal-title fw-bold text-white mb-0">{% if form.instance.pk %}Editar Repuesto #{{ form.instance.id }}{% else %}Registrar Nuevo Repuesto{% endif %}</h5>
+          <span class="text-white-50 small" style="font-size: 0.75rem;">Ficha de inventario, costos y control de stock</span>
+        </div>
+      </div>
+      <button type="button" class="btn-close btn-close-white shadow-none" data-bs-dismiss="modal" aria-label="Close"></button>
     </div>
-    <div class="modal-body">
+
+    <div class="modal-body p-4 bg-white">
       {% if form.instance.pk %}
         <input type="hidden" name="id" value="{{ form.instance.pk }}">
       {% endif %}
       
       {% if form.non_field_errors %}
-        <div class="alert alert-danger">
+        <div class="alert alert-danger py-2 mb-3 rounded-3">
           {% for error in form.non_field_errors %}
-            {{ error }}
+            <div><i class="fas fa-exclamation-circle me-1"></i> {{ error }}</div>
           {% endfor %}
         </div>
       {% endif %}
       
-      <div class="row">
-        {% for field in form %}
-          <div class="col-12 mb-3">
-            <label for="{{ field.id_for_label }}" class="form-label">
-              {{ field.label }}
-              {% if field.field.required %}<span class="text-danger">*</span>{% endif %}
-            </label>
-            {{ field }}
-            {% if field.help_text %}
-            <div class="form-text text-muted small">{{ field.help_text }}</div>
-            {% endif %}
-            {% for error in field.errors %}
-            <div class="invalid-feedback d-block">{{ error }}</div>
-            {% endfor %}
+      <div class="row g-3">
+        <!-- Sección 1: Datos Principales -->
+        <div class="col-md-8">
+          <label for="{{ form.nombre.id_for_label }}" class="form-label fw-semibold text-dark small mb-1">
+            <i class="fas fa-tag text-primary me-1"></i> {{ form.nombre.label }} <span class="text-danger">*</span>
+          </label>
+          {{ form.nombre }}
+          {% if form.nombre.errors %}
+            <div class="invalid-feedback d-block">{{ form.nombre.errors|striptags }}</div>
+          {% endif %}
+        </div>
+
+        <div class="col-md-4">
+          <label for="{{ form.codigo.id_for_label }}" class="form-label fw-semibold text-dark small mb-1">
+            <i class="fas fa-barcode text-secondary me-1"></i> Código / SKU
+          </label>
+          {{ form.codigo }}
+          {% if form.codigo.errors %}
+            <div class="invalid-feedback d-block">{{ form.codigo.errors|striptags }}</div>
+          {% endif %}
+        </div>
+
+        <div class="col-12">
+          <label for="{{ form.descripcion.id_for_label }}" class="form-label fw-semibold text-dark small mb-1">
+            <i class="fas fa-align-left text-muted me-1"></i> Descripción del Repuesto
+          </label>
+          {{ form.descripcion }}
+          {% if form.descripcion.errors %}
+            <div class="invalid-feedback d-block">{{ form.descripcion.errors|striptags }}</div>
+          {% endif %}
+        </div>
+
+        <!-- Imagen del Repuesto -->
+        <div class="col-12">
+          <label for="{{ form.imagen.id_for_label }}" class="form-label fw-semibold text-dark small mb-1">
+            <i class="fas fa-camera text-info me-1"></i> Foto / Imagen del Producto (Opcional)
+          </label>
+          <div class="input-group">
+            <span class="input-group-text bg-light text-muted"><i class="fas fa-image"></i></span>
+            {{ form.imagen }}
           </div>
-        {% endfor %}
+          {% if form.imagen.errors %}
+            <div class="invalid-feedback d-block">{{ form.imagen.errors|striptags }}</div>
+          {% endif %}
+        </div>
+
+        <!-- Sección 2: Costos & Precios (Caja Destacada) -->
+        <div class="col-12">
+          <div class="p-3 rounded-4" style="background-color: #f8fafc; border: 1px solid #e2e8f0;">
+            <div class="d-flex align-items-center gap-2 mb-3">
+              <span class="badge bg-success bg-opacity-10 text-success p-2 rounded-circle">
+                <i class="fas fa-dollar-sign"></i>
+              </span>
+              <span class="fw-bold text-dark small text-uppercase" style="letter-spacing: 0.5px;">Estructura de Precios</span>
+            </div>
+            
+            <div class="row g-3">
+              <div class="col-md-6">
+                <label for="{{ form.precio_compra.id_for_label }}" class="form-label fw-semibold text-dark small mb-1">
+                  Precio de Compra (Costo) <span class="text-danger">*</span>
+                </label>
+                <div class="input-group">
+                  <span class="input-group-text bg-white text-muted">$</span>
+                  {{ form.precio_compra }}
+                </div>
+                {% if form.precio_compra.errors %}
+                  <div class="invalid-feedback d-block">{{ form.precio_compra.errors|striptags }}</div>
+                {% endif %}
+              </div>
+
+              <div class="col-md-6">
+                <label for="{{ form.precio_venta.id_for_label }}" class="form-label fw-semibold text-dark small mb-1">
+                  Precio de Venta al Público <span class="text-danger">*</span>
+                </label>
+                <div class="input-group">
+                  <span class="input-group-text bg-success bg-opacity-10 text-success fw-bold border-success border-opacity-25">$</span>
+                  {{ form.precio_venta }}
+                </div>
+                {% if form.precio_venta.errors %}
+                  <div class="invalid-feedback d-block">{{ form.precio_venta.errors|striptags }}</div>
+                {% endif %}
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Sección 3: Control de Stock & Proveedor -->
+        <div class="col-md-4">
+          <label for="{{ form.stock.id_for_label }}" class="form-label fw-semibold text-dark small mb-1">
+            <i class="fas fa-cubes text-primary me-1"></i> Stock Disponible <span class="text-danger">*</span>
+          </label>
+          {{ form.stock }}
+          {% if form.stock.errors %}
+            <div class="invalid-feedback d-block">{{ form.stock.errors|striptags }}</div>
+          {% endif %}
+        </div>
+
+        <div class="col-md-4">
+          <label for="{{ form.stock_minimo.id_for_label }}" class="form-label fw-semibold text-dark small mb-1">
+            <i class="fas fa-bell text-warning me-1"></i> Stock Mínimo Alerta
+          </label>
+          {{ form.stock_minimo }}
+          {% if form.stock_minimo.errors %}
+            <div class="invalid-feedback d-block">{{ form.stock_minimo.errors|striptags }}</div>
+          {% endif %}
+        </div>
+
+        <div class="col-md-4">
+          <label for="{{ form.proveedor.id_for_label }}" class="form-label fw-semibold text-dark small mb-1">
+            <i class="fas fa-truck text-secondary me-1"></i> Proveedor
+          </label>
+          {{ form.proveedor }}
+          {% if form.proveedor.errors %}
+            <div class="invalid-feedback d-block">{{ form.proveedor.errors|striptags }}</div>
+          {% endif %}
+        </div>
+
+        <!-- Sección 4: Configuración de IVA Específica -->
+        <div class="col-md-6">
+          <label for="{{ form.aplicar_iva_producto.id_for_label }}" class="form-label fw-semibold text-dark small mb-1">
+            <i class="fas fa-percentage text-muted me-1"></i> Aplicar IVA
+          </label>
+          {{ form.aplicar_iva_producto }}
+          <div class="form-text text-muted" style="font-size: 0.72rem;">{{ form.aplicar_iva_producto.help_text }}</div>
+          {% if form.aplicar_iva_producto.errors %}
+            <div class="invalid-feedback d-block">{{ form.aplicar_iva_producto.errors|striptags }}</div>
+          {% endif %}
+        </div>
+
+        <div class="col-md-6">
+          <label for="{{ form.porcentaje_iva_producto.id_for_label }}" class="form-label fw-semibold text-dark small mb-1">
+            <i class="fas fa-receipt text-muted me-1"></i> Porcentaje IVA (%)
+          </label>
+          <div class="input-group">
+            {{ form.porcentaje_iva_producto }}
+            <span class="input-group-text bg-light">%</span>
+          </div>
+          <div class="form-text text-muted" style="font-size: 0.72rem;">{{ form.porcentaje_iva_producto.help_text }}</div>
+          {% if form.porcentaje_iva_producto.errors %}
+            <div class="invalid-feedback d-block">{{ form.porcentaje_iva_producto.errors|striptags }}</div>
+          {% endif %}
+        </div>
       </div>
     </div>
-    <div class="modal-footer">
-      <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">
-        <i class="bi bi-x-lg me-1"></i> Cancelar
+
+    <!-- Footer con Botones Estilizados -->
+    <div class="modal-footer px-4 py-3 border-top d-flex justify-content-between bg-light" style="border-bottom-left-radius: 1rem; border-bottom-right-radius: 1rem;">
+      <button type="button" class="btn btn-light px-4 rounded-pill border" data-bs-dismiss="modal">
+        <i class="fas fa-times me-1"></i> Cancelar
       </button>
-      <button type="submit" class="btn btn-primary px-4">
-        <i class="bi bi-save me-1"></i> Guardar
+      <button type="submit" class="btn btn-primary px-4 rounded-pill shadow-sm d-flex align-items-center gap-2" style="background: #2563eb; border-color: #2563eb; font-weight: 500;">
+        <i class="fas fa-save"></i> 
+        <span>{% if form.instance.pk %}Actualizar Repuesto{% else %}Guardar Repuesto{% endif %}</span>
       </button>
     </div>
   </form>
 </div>
-
-<!-- Script eliminado - el modal se maneja desde repuesto_list.html -->
-
-<!-- HTMX maneja el envío del formulario automáticamente -->
-

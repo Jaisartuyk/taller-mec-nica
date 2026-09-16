@@ -1,25 +1,131 @@
-{% for vehiculo in vehiculos %}
-<tr>
-    <td>{{ vehiculo.marca }}</td>
-    <td>{{ vehiculo.modelo }}</td>
-    <td>{{ vehiculo.anio }}</td>
-    <td>{{ vehiculo.placa }}</td>
-    <td>{{ vehiculo.conductor|default:"Sin conductor" }}</td>
-    <td>
-        <button type="button" class="btn btn-warning btn-sm open-modal-btn"
-                data-modal-target="formModal"
-                data-url="{% url 'vehiculo_editar' vehiculo.pk %}">
-            <i class="bi bi-pencil-square"></i> Editar
-        </button>
-        <button type="button" class="btn btn-danger btn-sm open-modal-btn"
-                data-modal-target="deleteModal"
-                data-url="{% url 'vehiculo_eliminar' vehiculo.pk %}">
-            <i class="bi bi-trash"></i> Eliminar
-        </button>
-    </td>
-</tr>
+﻿{% for vehiculo in vehiculos %}
+<div class="col-xl-4 col-md-6 col-sm-12 vehiculo-item" 
+     data-placa="{{ vehiculo.placa|lower }}" 
+     data-marca="{{ vehiculo.marca|lower }}" 
+     data-modelo="{{ vehiculo.modelo|lower }}"
+     data-conductor="{{ vehiculo.conductor.nombre|default:''|lower }}"
+     data-anio="{{ vehiculo.anio|default:'' }}"
+     data-vin="{{ vehiculo.vin|default:''|lower }}">
+    <div class="card h-100 border-0 shadow-sm rounded-4 hover-card transition-all" style="background: #ffffff; border: 1px solid #e2e8f0 !important; border-radius: 1rem;">
+        <div class="card-body p-3 p-md-4 d-flex flex-column justify-content-between">
+            <!-- Header de Tarjeta: Ícono/Placa, Marca Modelo y Acciones -->
+            <div>
+                <div class="d-flex align-items-start justify-content-between mb-3">
+                    <div class="d-flex align-items-center gap-3">
+                        <div class="rounded-circle d-flex align-items-center justify-content-center fw-bold shadow-sm"
+                             style="width: 48px; height: 48px; background: linear-gradient(135deg, #0ea5e9 0%, #2563eb 100%); color: #ffffff; font-size: 1.25rem;">
+                            <i class="fas fa-car-side"></i>
+                        </div>
+                        <div>
+                            <div class="d-flex align-items-center gap-2">
+                                <span class="badge bg-dark text-white font-monospace px-2 py-1 shadow-2xs" style="letter-spacing: 1px; font-size: 0.85rem;">
+                                    {{ vehiculo.placa }}
+                                </span>
+                                {% if vehiculo.activo %}
+                                    <span class="badge bg-success bg-opacity-10 text-success border border-success border-opacity-25" style="font-size: 0.68rem;">Activo</span>
+                                {% else %}
+                                    <span class="badge bg-secondary bg-opacity-10 text-secondary border" style="font-size: 0.68rem;">Inactivo</span>
+                                {% endif %}
+                            </div>
+                            <h6 class="fw-bold mb-0 mt-1 text-dark" style="font-size: 1.05rem;">{{ vehiculo.marca }} {{ vehiculo.modelo }}</h6>
+                        </div>
+                    </div>
+
+                    <!-- Botones de Acción Directos -->
+                    <div class="d-flex align-items-center gap-1">
+                        <button type="button"
+                                class="btn btn-sm btn-light border rounded-circle text-primary" 
+                                style="width: 32px; height: 32px; padding: 0;"
+                                title="Editar"
+                                onclick="openModal('{% url 'vehiculo_editar' vehiculo.pk %}', 'Editar Vehículo', 'modalVehiculo');">
+                            <i class="fas fa-pencil-alt fa-xs"></i>
+                        </button>
+                        <button type="button"
+                                class="btn btn-sm btn-light border rounded-circle text-danger"
+                                style="width: 32px; height: 32px; padding: 0;"
+                                title="Eliminar"
+                                data-modal-target="modalVehiculoEliminar"
+                                data-url="{% url 'vehiculo_eliminar' vehiculo.pk %}">
+                            <i class="fas fa-trash-alt fa-xs"></i>
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Insignias y Datos Rápidos -->
+                <div class="d-flex flex-wrap gap-2 mb-3">
+                    <span class="badge rounded-pill bg-light text-dark border px-2 py-1" style="font-size: 0.75rem;">
+                        <i class="far fa-calendar-alt text-primary me-1"></i>Año {{ vehiculo.anio }}
+                    </span>
+                    {% if vehiculo.color %}
+                    <span class="badge rounded-pill bg-light text-dark border px-2 py-1" style="font-size: 0.75rem;">
+                        <i class="fas fa-palette text-warning me-1"></i>{{ vehiculo.color }}
+                    </span>
+                    {% endif %}
+                    <span class="badge rounded-pill bg-light text-dark border px-2 py-1" style="font-size: 0.75rem;">
+                        <i class="fas fa-tachometer-alt text-danger me-1"></i>{{ vehiculo.kilometraje|default:"0" }} km
+                    </span>
+                </div>
+
+                <!-- Ficha del Conductor / Propietario -->
+                <div class="rounded-3 p-3 mb-3" style="background-color: #f8fafc; border: 1px solid #f1f5f9;">
+                    <div class="text-muted text-uppercase fw-bold mb-2" style="font-size: 0.65rem; letter-spacing: 0.5px;">Conductor Asignado:</div>
+                    {% if vehiculo.conductor %}
+                        <div class="d-flex align-items-center justify-content-between">
+                            <div class="d-flex align-items-center gap-2">
+                                <div class="rounded-circle bg-primary bg-opacity-10 text-primary d-flex align-items-center justify-content-center fw-bold" style="width: 32px; height: 32px; font-size: 0.8rem;">
+                                    {{ vehiculo.conductor.nombre|first|upper }}
+                                </div>
+                                <div>
+                                    <div class="fw-semibold text-dark small">{{ vehiculo.conductor.nombre }}</div>
+                                    {% if vehiculo.conductor.telefono %}
+                                        <small class="text-muted" style="font-size: 0.75rem;"><i class="fas fa-phone-alt fa-xs text-success me-1"></i>{{ vehiculo.conductor.telefono }}</small>
+                                    {% endif %}
+                                </div>
+                            </div>
+                            {% if vehiculo.conductor.telefono %}
+                            <a href="https://wa.me/{{ vehiculo.conductor.telefono|cut:' '|cut:'-' }}" target="_blank" class="btn btn-sm btn-light border rounded-pill px-2 text-success shadow-none" style="font-size: 0.75rem;" title="WhatsApp">
+                                <i class="fab fa-whatsapp"></i>
+                            </a>
+                            {% endif %}
+                        </div>
+                    {% else %}
+                        <div class="d-flex align-items-center text-muted small py-1">
+                            <i class="fas fa-user-slash me-2 opacity-50"></i>
+                            <span>Sin conductor asignado</span>
+                        </div>
+                    {% endif %}
+                </div>
+
+                {% if vehiculo.vin %}
+                <div class="d-flex align-items-center text-muted small px-1">
+                    <i class="fas fa-barcode me-2"></i>
+                    <span class="font-monospace" style="font-size: 0.75rem;">VIN: {{ vehiculo.vin }}</span>
+                </div>
+                {% endif %}
+            </div>
+
+            <!-- Footer con Botón Rápido -->
+            <div class="pt-3 mt-3 border-top d-flex gap-2">
+                <button type="button" 
+                        class="btn btn-outline-primary btn-sm rounded-pill w-100 py-1 fw-medium"
+                        onclick="openModal('{% url 'vehiculo_editar' vehiculo.pk %}', 'Editar Vehículo', 'modalVehiculo');">
+                    <i class="fas fa-edit me-1"></i> Gestionar Ficha Vehículo
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
 {% empty %}
-<tr>
-    <td colspan="6" class="text-center">No hay vehículos registrados.</td>
-</tr>
+<div class="col-12 text-center py-5">
+    <div class="rounded-circle bg-light d-inline-flex p-4 text-muted mb-3">
+        <i class="fas fa-car fa-3x opacity-50"></i>
+    </div>
+    <h5 class="fw-bold text-dark">No hay vehículos registrados</h5>
+    <p class="text-muted small mb-3">Registra los automóviles o motocicletas de tus clientes para gestionar servicios y órdenes.</p>
+    {% url 'vehiculo_nuevo' as vehiculo_nuevo_url %}
+    <button type="button" class="btn btn-primary rounded-pill px-4 shadow-sm"
+            onclick="openModal('{{ vehiculo_nuevo_url }}', 'Nuevo Vehículo', 'modalVehiculo')">
+        <i class="fas fa-plus-circle me-1"></i> Registrar Vehículo Ahora
+    </button>
+</div>
 {% endfor %}

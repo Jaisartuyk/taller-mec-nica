@@ -1,276 +1,206 @@
-<form method="post" id="ordenServicioForm">
+﻿<form method="post" id="ordenServicioModalForm" action="{% url 'orden_servicio_nueva' %}">
     {% csrf_token %}
-    {{ form.non_field_errors }}
     
-    <div class="modal-header">
-        <h5 class="modal-title">{% if form.instance.pk %}Editar{% else %}Nueva{% endif %} Orden de Servicio</h5>
-        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
-    </div>
-    
-    <div class="modal-body">
-        <div class="row g-3">
-            <!-- Campo Vehículo -->
-            <div class="col-md-6">
-                <label for="id_vehiculo" class="form-label">Vehículo *</label>
-                {{ form.vehiculo }}
-                {% if form.vehiculo.errors %}
-                    <div class="text-danger small">{{ form.vehiculo.errors }}</div>
-                {% endif %}
-            </div>
+    {% if form.non_field_errors %}
+        <div class="alert alert-danger py-2 mb-3">
+            {% for error in form.non_field_errors %}
+                <div><i class="fas fa-exclamation-circle me-1"></i> {{ error }}</div>
+            {% endfor %}
+        </div>
+    {% endif %}
 
-            <!-- Campo Conductor -->
-            <div class="col-md-6">
-                <label for="conductor-display" class="form-label">Conductor</label>
-                <div class="input-group">
-                    <input type="text" id="conductor-display" class="form-control" readonly
-                        value="{% if form.instance.vehiculo and form.instance.vehiculo.conductor %}{{ form.instance.vehiculo.conductor.nombre }}{% elif form.instance.conductor %}{{ form.instance.conductor.nombre }}{% endif %}">
+    <div class="row g-3">
+        <!-- Vehículo -->
+        <div class="col-md-6">
+            <label for="id_modal_vehiculo" class="form-label fw-semibold text-dark small mb-1">
+                <i class="fas fa-car text-primary me-1"></i> Vehículo <span class="text-danger">*</span>
+            </label>
+            <select name="vehiculo" class="form-select" id="id_modal_vehiculo" required>
+                <option value="">--- Seleccionar Vehículo ---</option>
+                {% for v in form.fields.vehiculo.queryset %}
+                    <option value="{{ v.id }}" data-conductor-id="{{ v.conductor.id|default:'' }}" data-conductor-nombre="{{ v.conductor.nombre|default:'' }}" data-conductor-tel="{{ v.conductor.telefono|default:'' }}" data-km="{{ v.kilometraje|default:0 }}" {% if form.instance.vehiculo_id == v.id %}selected{% endif %}>
+                        {{ v.placa }} - {{ v.marca }} {{ v.modelo }}
+                    </option>
+                {% endfor %}
+            </select>
+        </div>
+
+        <!-- Conductor -->
+        <div class="col-md-6">
+            <label class="form-label fw-semibold text-dark small mb-1">
+                <i class="fas fa-user-check text-secondary me-1"></i> Conductor Asignado
+            </label>
+            <input type="text" id="modal_conductor_display" class="form-control bg-light" readonly
+                   placeholder="Automático según vehículo"
+                   value="{% if form.instance.conductor %}{{ form.instance.conductor.nombre }}{% elif form.instance.vehiculo and form.instance.vehiculo.conductor %}{{ form.instance.vehiculo.conductor.nombre }}{% endif %}">
+            <input type="hidden" name="conductor" id="id_modal_conductor" value="{% if form.instance.conductor %}{{ form.instance.conductor.id }}{% elif form.instance.vehiculo and form.instance.vehiculo.conductor %}{{ form.instance.vehiculo.conductor.id }}{% endif %}">
+        </div>
+
+        <!-- Kilometraje -->
+        <div class="col-md-6">
+            <label for="id_modal_kilometraje" class="form-label fw-semibold text-dark small mb-1">
+                <i class="fas fa-tachometer-alt text-danger me-1"></i> Kilometraje Actual
+            </label>
+            <div class="input-group">
+                <input type="number" name="kilometraje" id="id_modal_kilometraje" class="form-control" placeholder="Ej: 45000" value="{{ form.instance.kilometraje|default:0 }}">
+                <span class="input-group-text bg-light small">km</span>
+            </div>
+        </div>
+
+        <!-- Estado -->
+        <div class="col-md-6">
+            <label for="id_modal_estado" class="form-label fw-semibold text-dark small mb-1">
+                <i class="fas fa-flag text-warning me-1"></i> Estado
+            </label>
+            <select name="estado" class="form-select" id="id_modal_estado">
+                <option value="pendiente" selected>Pendiente</option>
+                <option value="en_progreso">En Progreso</option>
+                <option value="completada">Completada</option>
+                <option value="facturada">Facturada</option>
+                <option value="anulada">Anulada</option>
+            </select>
+        </div>
+
+        <!-- Servicios del Taller -->
+        <div class="col-12">
+            <label class="form-label fw-semibold text-dark small mb-1 d-flex justify-content-between align-items-center">
+                <span><i class="fas fa-tools text-primary me-1"></i> Servicios a Realizar <span class="text-danger">*</span></span>
+                <span class="badge bg-primary bg-opacity-10 text-primary" id="servicios-contador">0 seleccionados</span>
+            </label>
+            <div class="p-3 bg-light rounded-3 border" style="max-height: 180px; overflow-y: auto; background-color: #f8fafc !important;">
+                <div class="row g-2">
+                    {% for serv in form.fields.servicios.queryset %}
+                    <div class="col-md-6">
+                        <div class="form-check p-2 bg-white rounded-2 border border-opacity-50">
+                            <input class="form-check-input servicio-checkbox me-2" type="checkbox" name="servicios" value="{{ serv.id }}" id="serv_{{ serv.id }}" data-precio="{{ serv.precio|default:0 }}" {% if serv in form.instance.servicios.all %}checked{% endif %}>
+                            <label class="form-check-label small fw-medium text-dark w-100 cursor-pointer d-flex justify-content-between" for="serv_{{ serv.id }}">
+                                <span>{{ serv.nombre }}</span>
+                                <span class="text-primary fw-bold">${{ serv.precio|default:"0.00" }}</span>
+                            </label>
+                        </div>
+                    </div>
+                    {% empty %}
+                    <div class="col-12 text-muted small py-2 text-center">No hay servicios registrados en el catálogo.</div>
+                    {% endfor %}
                 </div>
+            </div>
+        </div>
 
-                <!-- Campo oculto del formulario Django -->
-                {{ form.conductor }}
-
-                <div id="conductor-info" class="conductor-info text-muted mt-1">
-                    {% if form.instance.vehiculo and form.instance.vehiculo.conductor and form.instance.vehiculo.conductor.telefono %}
-                        <i class="bi bi-telephone"></i> {{ form.instance.vehiculo.conductor.telefono }}
-                    {% endif %}
+        <!-- Repuestos & Materiales -->
+        <div class="col-12">
+            <label class="form-label fw-semibold text-dark small mb-1 d-flex justify-content-between align-items-center">
+                <span><i class="fas fa-cogs text-info me-1"></i> Repuestos / Materiales</span>
+                <span class="badge bg-secondary bg-opacity-10 text-secondary" id="productos-contador">0 seleccionados</span>
+            </label>
+            <div class="p-3 bg-light rounded-3 border" style="max-height: 180px; overflow-y: auto; background-color: #f8fafc !important;">
+                <div class="row g-2">
+                    {% for prod in form.fields.productos.queryset %}
+                    <div class="col-md-6">
+                        <div class="form-check p-2 bg-white rounded-2 border border-opacity-50">
+                            <input class="form-check-input producto-checkbox me-2" type="checkbox" name="productos" value="{{ prod.id }}" id="prod_{{ prod.id }}" data-precio="{{ prod.precio_venta|default:0 }}" {% if prod in form.instance.productos.all %}checked{% endif %}>
+                            <label class="form-check-label small fw-medium text-dark w-100 cursor-pointer d-flex justify-content-between" for="prod_{{ prod.id }}">
+                                <span>{{ prod.nombre }}</span>
+                                <span class="text-success fw-bold">${{ prod.precio_venta|default:"0.00" }}</span>
+                            </label>
+                        </div>
+                    </div>
+                    {% empty %}
+                    <div class="col-12 text-muted small py-2 text-center">No hay productos en inventario.</div>
+                    {% endfor %}
                 </div>
             </div>
+        </div>
 
-            <!-- Campo Kilometraje -->
-            <div class="col-md-6">
-                <label for="id_kilometraje" class="form-label">Kilometraje</label>
-                {{ form.kilometraje }}
-                {% if form.kilometraje.errors %}
-                    <div class="text-danger small">{{ form.kilometraje.errors }}</div>
-                {% endif %}
-            </div>
-            
-            <!-- Campo Estado -->
-            <div class="col-md-6">
-                <label for="id_estado" class="form-label">Estado</label>
-                {{ form.estado }}
-                {% if form.estado.errors %}
-                    <div class="text-danger small">{{ form.estado.errors }}</div>
-                {% endif %}
-            </div>
+        <!-- Método de Pago -->
+        <div class="col-md-6">
+            <label for="id_modal_metodo_pago" class="form-label fw-semibold text-dark small mb-1">
+                <i class="fas fa-money-bill-wave text-success me-1"></i> Método de Pago
+            </label>
+            <input type="text" name="metodo_pago" id="id_modal_metodo_pago" class="form-control" placeholder="Ej: Efectivo, Transferencia, Tarjeta" value="{{ form.instance.metodo_pago|default:'' }}">
+        </div>
 
-            <!-- Campo Servicios -->
-            <div class="col-12">
-                <label for="id_servicios" class="form-label">Servicios *</label>
-                {{ form.servicios }}
-                {% if form.servicios.errors %}
-                    <div class="text-danger small">{{ form.servicios.errors }}</div>
-                {% endif %}
-            </div>
-
-            <!-- Campo Productos -->
-            <div class="col-12">
-                <label for="id_productos" class="form-label">Productos</label>
-                {{ form.productos }}
-                {% if form.productos.errors %}
-                    <div class="text-danger small">{{ form.productos.errors }}</div>
-                {% endif %}
-                <div id="productos-por-servicio" class="mt-2"></div>
-            </div>
-
-            <!-- Campo Método de Pago -->
-            <div class="col-md-6">
-                <label for="id_metodo_pago" class="form-label">Método de Pago</label>
-                {{ form.metodo_pago }}
-                {% if form.metodo_pago.errors %}
-                    <div class="text-danger small">{{ form.metodo_pago.errors }}</div>
-                {% endif %}
+        <!-- Total Liquidación -->
+        <div class="col-md-6">
+            <label for="id_modal_total" class="form-label fw-bold text-dark small mb-1">
+                <i class="fas fa-dollar-sign text-success me-1"></i> Total Estimado ($)
+            </label>
+            <div class="input-group input-group-lg">
+                <span class="input-group-text bg-success bg-opacity-10 text-success fw-bold">$</span>
+                <input type="text" name="total" id="id_modal_total" class="form-control fw-bold text-success bg-light" readonly value="{{ form.instance.total|default:'0.00' }}">
             </div>
         </div>
     </div>
-    
-    <div class="modal-footer">
-        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
-        <button type="submit" class="btn btn-primary">
-            <i class="bi bi-check-lg"></i> {% if form.instance.pk %}Actualizar{% else %}Crear{% endif %} Orden
+
+    <!-- Footer Modal -->
+    <div class="modal-footer px-0 pb-0 pt-4 mt-3 border-top d-flex justify-content-between">
+        <button type="button" class="btn btn-light px-4 rounded-pill border" data-bs-dismiss="modal">
+            <i class="fas fa-times me-1"></i> Cancelar
+        </button>
+        <button type="submit" class="btn btn-primary px-4 rounded-pill shadow-sm" style="background: #2563eb; border-color: #2563eb;">
+            <i class="fas fa-save me-1"></i> Guardar Orden de Servicio
         </button>
     </div>
 </form>
 
 <script>
-// Variable para evitar múltiples inicializaciones del modal
-if (typeof window.ordenServicioModalInitialized === 'undefined') {
-    window.ordenServicioModalInitialized = false;
-}
+(function() {
+    const form = document.getElementById('ordenServicioModalForm');
+    if (!form) return;
 
-$(document).ready(function() {
-    // Evitar múltiples inicializaciones del modal
-    if (window.ordenServicioModalInitialized) {
-        console.log('Modal ya inicializado, saltando...');
-        return;
-    }
-    
-    // Destruir Select2 existente antes de inicializar
-    $('#ordenServicioForm select').each(function() {
-        if ($(this).hasClass('select2-hidden-accessible')) {
-            $(this).select2('destroy');
-        }
-    });
-    
-    // Inicializar Select2 específicamente para cada campo en el modal
-    $('#ordenServicioForm #id_vehiculo').select2({
-        dropdownParent: $('#ordenServicioForm').closest('.modal'),
-        width: '100%',
-        theme: 'bootstrap-5',
-        allowClear: true,
-        placeholder: 'Seleccione un vehículo...'
-    });
-    
-    $('#ordenServicioForm #id_servicios').select2({
-        dropdownParent: $('#ordenServicioForm').closest('.modal'),
-        width: '100%',
-        theme: 'bootstrap-5',
-        allowClear: true,
-        placeholder: 'Seleccione servicios...'
-    });
-    
-    $('#ordenServicioForm #id_productos').select2({
-        dropdownParent: $('#ordenServicioForm').closest('.modal'),
-        width: '100%',
-        theme: 'bootstrap-5',
-        allowClear: true,
-        placeholder: 'Seleccione productos...'
-    });
-    
-    $('#ordenServicioForm #id_metodo_pago').select2({
-        dropdownParent: $('#ordenServicioForm').closest('.modal'),
-        width: '100%',
-        theme: 'bootstrap-5',
-        allowClear: true,
-        placeholder: 'Seleccione método de pago...'
-    });
-    
-    // Función para actualizar conductor basado en vehículo seleccionado
-    function actualizarConductorPorVehiculo(vehiculoId) {
-        if (!vehiculoId) {
-            $('#conductor-display').val('');
-            $('#id_conductor').val('');
-            $('#conductor-info').text('');
-            return;
-        }
-        
-        $.ajax({
-            url: `/api/vehiculo/${vehiculoId}/conductor/`,
-            method: 'GET',
-            success: function(data) {
-                if (data.success && data.conductor) {
-                    $('#conductor-display').val(data.conductor.nombre);
-                    $('#id_conductor').val(data.conductor.id);
-                    if (data.conductor.telefono) {
-                        $('#conductor-info').html(`<i class="bi bi-telephone"></i> ${data.conductor.telefono}`);
-                    } else {
-                        $('#conductor-info').text('');
-                    }
-                } else {
-                    $('#conductor-display').val('');
-                    $('#id_conductor').val('');
-                    $('#conductor-info').text('');
+    // Actualización de conductor y kilometraje al seleccionar vehículo
+    const selectVehiculo = form.querySelector('#id_modal_vehiculo');
+    if (selectVehiculo) {
+        selectVehiculo.addEventListener('change', function() {
+            const opt = this.options[this.selectedIndex];
+            const condDisplay = form.querySelector('#modal_conductor_display');
+            const condInput = form.querySelector('#id_modal_conductor');
+            const kmInput = form.querySelector('#id_modal_kilometraje');
+
+            if (opt && opt.value) {
+                if (condDisplay) condDisplay.value = opt.getAttribute('data-conductor-nombre') || 'Sin conductor';
+                if (condInput) condInput.value = opt.getAttribute('data-conductor-id') || '';
+                if (kmInput && (!kmInput.value || kmInput.value == '0')) {
+                    kmInput.value = opt.getAttribute('data-km') || 0;
                 }
-            },
-            error: function() {
-                $('#conductor-display').val('');
-                $('#id_conductor').val('');
-                $('#conductor-info').text('');
-            }
-        });
-    }
-
-    // Evento cambio de vehículo
-    $('#id_vehiculo').on('change', function() {
-        actualizarConductorPorVehiculo($(this).val());
-    });
-
-    // Cargar conductor inicial si ya hay vehículo seleccionado
-    const vehiculoInicial = $('#id_vehiculo').val();
-    if (vehiculoInicial) {
-        actualizarConductorPorVehiculo(vehiculoInicial);
-    }
-    
-    // Función para filtrar productos según servicios catálogo seleccionados
-    function filtrarProductosPorServicios() {
-        const serviciosIds = $('#id_servicios').val() || [];
-        
-        if (serviciosIds.length === 0) {
-            // Si no hay servicios seleccionados, limpiar productos sugeridos
-            $('#productos-por-servicio').html('');
-            return;
-        }
-        
-        // Obtener productos asociados a los servicios seleccionados
-        $.ajax({
-            url: '/api/productos-por-servicios/',
-            method: 'GET',
-            data: {
-                'servicios': serviciosIds
-            },
-            success: function(response) {
-                if (response.success) {
-                    // Mostrar productos sugeridos
-                    mostrarProductosSugeridos(response.productos);
-                }
-            },
-            error: function() {
-                console.log('Error al obtener productos por servicios');
-            }
-        });
-    }
-    
-    // Función para mostrar productos sugeridos
-    function mostrarProductosSugeridos(productos) {
-        let html = '';
-        if (productos && productos.length > 0) {
-            html = '<div class="mt-2"><small class="text-muted"><i class="bi bi-lightbulb"></i> Productos sugeridos:</small>';
-            html += '<div class="mt-1">';
-            productos.forEach(function(producto) {
-                const isSelected = $('#id_productos').val() && $('#id_productos').val().includes(producto.id.toString());
-                const badgeClass = isSelected ? 'bg-success' : 'bg-secondary';
-                const icon = isSelected ? 'bi-check-circle' : 'bi-plus-circle';
-                html += `<span class="badge ${badgeClass} me-1 mb-1 producto-sugerido" data-producto-id="${producto.id}" style="cursor: pointer;">`;
-                html += `<i class="bi ${icon}"></i> ${producto.nombre} - $${parseFloat(producto.precio).toFixed(2)}`;
-                html += '</span>';
-            });
-            html += '</div></div>';
-        }
-        $('#productos-por-servicio').html(html);
-        
-        // Event listener para agregar/quitar productos sugeridos
-        $('.producto-sugerido').off('click').on('click', function() {
-            const productoId = $(this).data('producto-id').toString();
-            const productosSeleccionados = $('#id_productos').val() || [];
-            
-            if (productosSeleccionados.includes(productoId)) {
-                // Quitar producto
-                const nuevaSeleccion = productosSeleccionados.filter(id => id !== productoId);
-                $('#id_productos').val(nuevaSeleccion).trigger('change');
             } else {
-                // Agregar producto
-                productosSeleccionados.push(productoId);
-                $('#id_productos').val(productosSeleccionados).trigger('change');
+                if (condDisplay) condDisplay.value = '';
+                if (condInput) condInput.value = '';
             }
         });
     }
-    
-    // Event listener para cambio de servicios catálogo
-    $('#id_servicios').on('change', function() {
-        filtrarProductosPorServicios();
-    });
-    
-    // Inicializar filtrado de productos
-    filtrarProductosPorServicios();
-    
-    // Marcar modal como inicializado
-    window.ordenServicioModalInitialized = true;
-    console.log('Modal de orden de servicio inicializado correctamente');
-});
 
-// Resetear inicialización cuando se cierre el modal
-$(document).on('hidden.bs.modal', '#formModal', function () {
-    window.ordenServicioModalInitialized = false;
-    console.log('Modal cerrado, reseteando inicialización');
-});
+    // Cálculo dinámico de total
+    function recalcularTotal() {
+        let total = 0;
+        let sCount = 0;
+        let pCount = 0;
+
+        form.querySelectorAll('.servicio-checkbox:checked').forEach(cb => {
+            total += parseFloat(cb.getAttribute('data-precio')) || 0;
+            sCount++;
+        });
+
+        form.querySelectorAll('.producto-checkbox:checked').forEach(cb => {
+            total += parseFloat(cb.getAttribute('data-precio')) || 0;
+            pCount++;
+        });
+
+        const totalInput = form.querySelector('#id_modal_total');
+        if (totalInput) {
+            totalInput.value = total.toFixed(2);
+        }
+
+        const sContador = form.querySelector('#servicios-contador');
+        if (sContador) sContador.textContent = `${sCount} seleccionado${sCount === 1 ? '' : 's'}`;
+
+        const pContador = form.querySelector('#productos-contador');
+        if (pContador) pContador.textContent = `${pCount} seleccionado${pCount === 1 ? '' : 's'}`;
+    }
+
+    form.querySelectorAll('.servicio-checkbox, .producto-checkbox').forEach(cb => {
+        cb.addEventListener('change', recalcularTotal);
+    });
+
+    recalcularTotal();
+})();
 </script>

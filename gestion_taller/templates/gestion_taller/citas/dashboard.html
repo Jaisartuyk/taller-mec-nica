@@ -120,12 +120,15 @@
         <div class="col-12">
             <div class="d-flex justify-content-between align-items-center">
                 <h2><i class="fas fa-calendar-alt"></i> {{ title }}</h2>
-                <div class="btn-group">
-                    <a href="{% url 'citas_list' %}" class="btn btn-outline-primary">
-                        <i class="fas fa-list"></i> Ver Lista
+                <div class="btn-group gap-2">
+                    <button type="button" class="btn btn-primary rounded-pill shadow-sm px-3" onclick="abrirModalCrearCita()">
+                        <i class="fas fa-plus-circle me-1"></i> Agendar Cita
+                    </button>
+                    <a href="{% url 'citas_list' %}" class="btn btn-outline-primary rounded-pill px-3">
+                        <i class="fas fa-list me-1"></i> Ver Lista
                     </a>
-                    <button type="button" class="btn btn-primary" onclick="actualizarCalendario()">
-                        <i class="fas fa-sync-alt"></i> Actualizar
+                    <button type="button" class="btn btn-light border rounded-pill px-3" onclick="actualizarCalendario()">
+                        <i class="fas fa-sync-alt me-1"></i> Actualizar
                     </button>
                 </div>
             </div>
@@ -252,6 +255,117 @@
         </div>
     </div>
 </div>
+
+<!-- Modal para Crear / Agendar Cita -->
+<div class="modal fade" id="crearCitaModal" tabindex="-1" aria-labelledby="crearCitaModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-lg modal-dialog-centered">
+        <div class="modal-content border-0 shadow-lg" style="border-radius: 1.25rem; overflow: hidden;">
+            <div class="modal-header border-0 pb-0" style="background: linear-gradient(135deg, #1e293b 0%, #0f172a 100%); color: white; padding: 1.5rem 1.75rem;">
+                <div class="d-flex align-items-center gap-3">
+                    <div style="width: 46px; height: 46px; border-radius: 12px; background: rgba(59, 130, 246, 0.2); display: flex; align-items: center; justify-content: center; border: 1px solid rgba(59, 130, 246, 0.4);">
+                        <i class="fas fa-calendar-plus text-primary fs-5"></i>
+                    </div>
+                    <div>
+                        <h5 class="modal-title fw-bold mb-0 text-white" id="crearCitaModalLabel">Agendar Nueva Cita</h5>
+                        <small class="text-white-50">Programa la recepcion y servicios de un vehiculo en el taller</small>
+                    </div>
+                </div>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+
+            <form id="formCrearCita" method="post" action="{% url 'cita_crear' %}" class="p-0 m-0">
+                {% csrf_token %}
+                <div class="modal-body p-4" style="background-color: #f8fafc;">
+                    <div id="citaFormErrors" class="alert alert-danger d-none mb-3 py-2 px-3 small rounded-3">
+                        <i class="fas fa-exclamation-triangle me-2"></i><span id="citaFormErrorsText">Por favor revise los campos requeridos.</span>
+                    </div>
+
+                    <div class="row g-3">
+                        <!-- Conductor / Propietario -->
+                        <div class="col-md-6">
+                            <label for="id_cita_conductor" class="form-label fw-semibold text-secondary small mb-1">
+                                <i class="fas fa-user text-primary me-1"></i> Conductor / Propietario <span class="text-danger">*</span>
+                            </label>
+                            {{ form.conductor }}
+                            {% if form.conductor.errors %}
+                                <div class="text-danger small mt-1">{{ form.conductor.errors.0 }}</div>
+                            {% endif %}
+                        </div>
+
+                        <!-- Vehiculo -->
+                        <div class="col-md-6">
+                            <label for="id_cita_vehiculo" class="form-label fw-semibold text-secondary small mb-1">
+                                <i class="fas fa-car text-primary me-1"></i> Vehiculo <span class="text-danger">*</span>
+                            </label>
+                            {{ form.vehiculo }}
+                            {% if form.vehiculo.errors %}
+                                <div class="text-danger small mt-1">{{ form.vehiculo.errors.0 }}</div>
+                            {% endif %}
+                        </div>
+
+                        <!-- Fecha y Hora -->
+                        <div class="col-md-6">
+                            <label for="id_cita_fecha" class="form-label fw-semibold text-secondary small mb-1">
+                                <i class="fas fa-clock text-primary me-1"></i> Fecha y Hora de Llegada <span class="text-danger">*</span>
+                            </label>
+                            {{ form.fecha_cita }}
+                            {% if form.fecha_cita.errors %}
+                                <div class="text-danger small mt-1">{{ form.fecha_cita.errors.0 }}</div>
+                            {% endif %}
+                        </div>
+
+                        <!-- Estado Inicial -->
+                        <div class="col-md-6">
+                            <label for="id_cita_estado" class="form-label fw-semibold text-secondary small mb-1">
+                                <i class="fas fa-info-circle text-primary me-1"></i> Estado Inicial
+                            </label>
+                            {{ form.estado }}
+                            {% if form.estado.errors %}
+                                <div class="text-danger small mt-1">{{ form.estado.errors.0 }}</div>
+                            {% endif %}
+                        </div>
+
+                        <!-- Servicios del Catalogo -->
+                        <div class="col-12">
+                            <div class="p-3 bg-white rounded-3 border">
+                                <label for="id_cita_servicios" class="form-label fw-semibold text-secondary small mb-1 d-flex justify-content-between">
+                                    <span><i class="fas fa-tools text-primary me-1"></i> Servicios Solicitados</span>
+                                    <span class="text-muted fw-normal small">(Selecciona uno o varios servicios)</span>
+                                </label>
+                                {{ form.servicios }}
+                                <small class="text-muted d-block mt-1">Los servicios seleccionados calculan la duracion estimada y el presupuesto de la cita.</small>
+                                {% if form.servicios.errors %}
+                                    <div class="text-danger small mt-1">{{ form.servicios.errors.0 }}</div>
+                                {% endif %}
+                            </div>
+                        </div>
+
+                        <!-- Notas u Observaciones -->
+                        <div class="col-12">
+                            <label for="id_cita_notas" class="form-label fw-semibold text-secondary small mb-1">
+                                <i class="fas fa-sticky-note text-primary me-1"></i> Observaciones / Motivo de Ingreso
+                            </label>
+                            {{ form.notas }}
+                            {% if form.notas.errors %}
+                                <div class="text-danger small mt-1">{{ form.notas.errors.0 }}</div>
+                            {% endif %}
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Modal Footer -->
+                <div class="modal-footer bg-white border-top px-4 py-3 d-flex justify-content-between align-items-center" style="border-radius: 0 0 1.25rem 1.25rem;">
+                    <button type="button" class="btn btn-outline-secondary px-4 rounded-pill" data-bs-dismiss="modal">
+                        <i class="fas fa-times me-1"></i> Cancelar
+                    </button>
+                    <button type="submit" id="btnGuardarCita" class="btn btn-primary px-4 rounded-pill shadow-sm">
+                        <i class="fas fa-calendar-check me-1"></i> Agendar Cita
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
 {% endblock %}
 
 {% block extra_js %}
@@ -279,6 +393,10 @@ document.addEventListener('DOMContentLoaded', function() {
                 alert('Error al cargar las citas');
             }
         },
+        dateClick: function(info) {
+            // Al hacer clic en cualquier día o fecha del calendario
+            abrirModalCrearCita(info.dateStr);
+        },
         eventClick: function(info) {
             verDetalleCita(info.event.id);
         },
@@ -298,6 +416,9 @@ document.addEventListener('DOMContentLoaded', function() {
     window.actualizarCalendario = function() {
         calendar.refetchEvents();
     };
+
+    // Inicializar evento de envío del formulario del modal de crear cita
+    configurarFormularioCrearCita();
 });
 
 function verDetalleCita(citaId) {
@@ -411,9 +532,85 @@ function cambiarEstadoCita(citaId, nuevoEstado) {
             alert('Error: ' + data.error);
         }
     })
-    .catch(error => {
-        console.error('Error:', error);
-        alert('Error al cambiar el estado de la cita');
+}
+
+// Funciones para abrir y procesar el Modal de Crear Cita
+function abrirModalCrearCita(fecha = '') {
+    const modalEl = document.getElementById('crearCitaModal');
+    if (!modalEl) return;
+    
+    // Si se hizo clic en una fecha del calendario, actualizar el input fecha_cita
+    if (fecha) {
+        const fechaInput = document.getElementById('id_cita_fecha');
+        if (fechaInput) {
+            let val = fecha;
+            if (val.length === 10) {
+                val += 'T09:00';
+            }
+            fechaInput.value = val;
+        }
+    }
+
+    const bsModal = bootstrap.Modal.getOrCreateInstance(modalEl);
+    bsModal.show();
+}
+
+function configurarFormularioCrearCita(bsModal) {
+    const form = document.getElementById('formCrearCita');
+    if (!form) return;
+
+    form.addEventListener('submit', function(e) {
+        e.preventDefault();
+
+        const btnGuardar = document.getElementById('btnGuardarCita');
+        const alertErrors = document.getElementById('citaFormErrors');
+        const alertErrorsText = document.getElementById('citaFormErrorsText');
+        
+        btnGuardar.disabled = true;
+        btnGuardar.innerHTML = '<span class="spinner-border spinner-border-sm me-1" role="status" aria-hidden="true"></span> Guardando...';
+        alertErrors.classList.add('d-none');
+
+        const formData = new FormData(form);
+        formData.append('format', 'json');
+
+        fetch(form.action, {
+            method: 'POST',
+            body: formData,
+            headers: {
+                'X-Requested-With': 'XMLHttpRequest'
+            }
+        })
+        .then(res => res.json())
+        .then(data => {
+            if (data.success) {
+                const modalEl = document.getElementById('crearCitaModal');
+                const bsModal = bootstrap.Modal.getInstance(modalEl);
+                if (bsModal) bsModal.hide();
+                actualizarCalendario();
+                location.reload();
+            } else {
+                btnGuardar.disabled = false;
+                btnGuardar.innerHTML = '<i class="fas fa-calendar-check me-1"></i> Agendar Cita';
+                alertErrors.classList.remove('d-none');
+                
+                let errorMsgs = [];
+                if (data.errors) {
+                    for (const [campo, errs] of Object.entries(data.errors)) {
+                        errorMsgs.push(`${campo}: ${errs.join(', ')}`);
+                    }
+                } else if (data.error) {
+                    errorMsgs.push(data.error);
+                }
+                alertErrorsText.innerText = errorMsgs.join(' | ') || 'Por favor complete todos los campos obligatorios.';
+            }
+        })
+        .catch(err => {
+            console.error(err);
+            btnGuardar.disabled = false;
+            btnGuardar.innerHTML = '<i class="fas fa-calendar-check me-1"></i> Agendar Cita';
+            alertErrors.classList.remove('d-none');
+            alertErrorsText.innerText = 'Error de conexión al registrar la cita.';
+        });
     });
 }
 </script>

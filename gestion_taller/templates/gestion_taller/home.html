@@ -1,214 +1,294 @@
 {% extends 'gestion_taller/base.html' %}
 {% load tz %}
 {% load static %}
-{% block title %}Inicio - Taller Mecánica{% endblock %}
+{% block title %}Dashboard Ejecutivo - IQAutoEC{% endblock %}
 
 {% block content %}
-<div class="container-fluid py-4">
-  <!-- Encabezado -->
-  <div class="text-center mb-5">
-    {% if logo_url %}
-      <img src="{{ logo_url }}" alt="Logo {{ cliente.nombre }}" width="120" class="mb-3 rounded shadow-sm bg-white" style="object-fit:contain;max-height:120px;">
-    {% else %}
-      <img src="{% static 'imagenes/logo_taller.svg' %}" alt="Logo Taller" width="120" class="mb-3">
-    {% endif %}
-    <h1 class="display-5 fw-bold">IQAutoEC</h1>
-    <p class="lead text-secondary">
-      Tecnología que alarga la vida de tu Vehiculo.
-    </p>
-  </div>
-
-  <!-- Tarjetas de estadísticas -->
-  <div class="row g-4 mb-4">
-    <div class="col-xl-3 col-md-6">
-      <div class="card h-100 border-0 shadow-sm">
-        <div class="card-body">
-          <div class="d-flex justify-content-between align-items-center">
+<div class="container-fluid p-0">
+  
+  <!-- Banner de Bienvenida Ejecutivo -->
+  <div class="card border-0 mb-4 overflow-hidden" style="background: linear-gradient(135deg, #1e293b 0%, #0f172a 100%); color: white; border-radius: 1.25rem;">
+    <div class="card-body p-4 p-md-5 position-relative">
+      <div class="row align-items-center">
+        <div class="col-lg-8">
+          <div class="d-flex align-items-center gap-3 mb-3">
+            {% if logo_url %}
+              <img src="{{ logo_url }}" alt="Logo {{ cliente.nombre }}" class="rounded-3 bg-white p-1 shadow-sm" style="width: 56px; height: 56px; object-fit: contain;">
+            {% else %}
+              <div class="rounded-3 bg-primary bg-opacity-25 d-flex align-items-center justify-content-center" style="width: 56px; height: 56px; border: 1px solid rgba(56, 189, 248, 0.4);">
+                <i class="fas fa-wrench text-info fa-lg"></i>
+              </div>
+            {% endif %}
             <div>
-              <h6 class="text-uppercase text-muted mb-2">Conductores</h6>
-              <h2 class="mb-0">{{ stats.total_conductores }}</h2>
-            </div>
-            <div class="bg-success bg-opacity-10 p-3 rounded-circle">
-              <i class="bi bi-people fs-3 text-success"></i>
+              <span class="badge bg-primary bg-opacity-25 text-info border border-info border-opacity-25 mb-1 px-2 py-1">
+                Panel de Control Mecánico
+              </span>
+              <h2 class="fw-bold mb-0 text-white">
+                {{ cliente.nombre|default:"IQAutoEC Workshop" }}
+              </h2>
             </div>
           </div>
+          <p class="text-secondary mb-0" style="max-width: 600px; font-size: 0.95rem; color: #cbd5e1 !important;">
+            Supervisión integral de flota, órdenes de trabajo, control de stock automatizado y atención inteligente por WhatsApp.
+          </p>
         </div>
-        <div class="card-footer bg-transparent border-top-0">
-          <a href="{% url 'conductores' %}" class="btn btn-link px-0 text-decoration-none">
-            Ver todos <i class="bi bi-arrow-right ms-1"></i>
-          </a>
-        </div>
-      </div>
-    </div>
-    
-    <div class="col-xl-3 col-md-6">
-      <div class="card h-100 border-0 shadow-sm">
-        <div class="card-body">
-          <div class="d-flex justify-content-between align-items-center">
-            <div>
-              <h6 class="text-uppercase text-muted mb-2">Vehículos</h6>
-              <h2 class="mb-0">{{ stats.total_vehiculos }}</h2>
-            </div>
-            <div class="bg-primary bg-opacity-10 p-3 rounded-circle">
-              <i class="bi bi-truck-front fs-3 text-primary"></i>
-            </div>
+        <div class="col-lg-4 text-lg-end mt-4 mt-lg-0">
+          <div class="d-flex flex-wrap gap-2 justify-content-lg-end">
+            <a href="{% url 'orden_servicio_nueva' %}" class="btn btn-primary px-3 py-2 rounded-pill shadow-sm" style="background: #2563eb; border-color: #2563eb;">
+              <i class="fas fa-plus-circle me-1"></i> Nueva Orden
+            </a>
+            <a href="{% url 'dashboard_citas' %}" class="btn btn-light px-3 py-2 rounded-pill shadow-sm">
+              <i class="fas fa-calendar-plus me-1 text-primary"></i> Agendar Cita
+            </a>
           </div>
-        </div>
-        <div class="card-footer bg-transparent border-top-0">
-          <a href="{% url 'vehiculos' %}" class="btn btn-link px-0 text-decoration-none">
-            Ver todos <i class="bi bi-arrow-right ms-1"></i>
-          </a>
-        </div>
-      </div>
-    </div>
-    
-    <div class="col-xl-3 col-md-6">
-      <div class="card h-100 border-0 shadow-sm">
-        <div class="card-body">
-          <div class="d-flex justify-content-between align-items-center">
-            <div>
-              <h6 class="text-uppercase text-muted mb-2">Repuestos</h6>
-              <h2 class="mb-0">{{ stats.total_repuestos }}</h2>
-            </div>
-            <div class="bg-info bg-opacity-10 p-3 rounded-circle">
-              <i class="bi bi-box-seam fs-3 text-info"></i>
-            </div>
-          </div>
-        </div>
-        <div class="card-footer bg-transparent border-top-0">
-          <a href="{% url 'repuestos' %}" class="btn btn-link px-0 text-decoration-none">
-            Ver inventario <i class="bi bi-arrow-right ms-1"></i>
-          </a>
-        </div>
-      </div>
-    </div>
-    
-    <div class="col-xl-3 col-md-6">
-      <div class="card h-100 border-0 shadow-sm">
-        <div class="card-body">
-          <div class="d-flex justify-content-between align-items-center">
-            <div>
-              <h6 class="text-uppercase text-muted mb-2">Órdenes de Servicio</h6>
-              <h2 class="mb-0">{{ stats.total_ordenes }}</h2>
-            </div>
-            <div class="bg-danger bg-opacity-10 p-3 rounded-circle">
-              <i class="bi bi-receipt fs-3 text-danger"></i>
-            </div>
-          </div>
-        </div>
-        <div class="card-footer bg-transparent border-top-0">
-          <a href="{% url 'orden_servicio_listado' %}" class="btn btn-link px-0 text-decoration-none">
-            Ver todas <i class="bi bi-arrow-right ms-1"></i>
-          </a>
-        </div>
-      </div>
-    </div>
-    
-
-  <!-- Sección de accesos rápidos -->
-  <div class="row g-4 mb-4">
-    <div class="col-md-3 mb-4">
-      <div class="card shadow-sm border-0 h-100">
-        <div class="card-body">
-          <i class="bi bi-nut fs-1 text-info mb-3"></i>
-          <h5 class="card-title">Repuestos</h5>
-          <p class="card-text text-muted">Control de inventario y stock de repuestos.</p>
-          <a href="{% url 'repuestos' %}" class="btn btn-outline-info w-100 mt-2">Ver Repuestos</a>
-        </div>
-      </div>
-    </div>
-    
-    <div class="col-md-3 mb-4">
-      <div class="card shadow-sm border-0 h-100">
-        <div class="card-body">
-          <i class="bi bi-gear-fill fs-1 text-success mb-3"></i>
-          <h5 class="card-title">Servicios del Catálogo</h5>
-          <p class="card-text text-muted">Gestiona los servicios que ofreces a tus clientes.</p>
-          <a href="{% url 'servicios_catalogo_list' %}" class="btn btn-outline-success w-100 mt-2">Ver Servicios</a>
         </div>
       </div>
     </div>
   </div>
 
-
-  <!-- Sección de Últimos Servicios -->
+  <!-- Métricas Ejecutivas (KPIs) -->
   <div class="row g-4 mb-4">
-    <div class="col-lg-6">
-      <div class="card border-0 shadow-sm h-100">
-        <div class="card-header bg-white border-0 py-3">
+    <!-- Órdenes de Servicio -->
+    <div class="col-sm-6 col-xl-3">
+      <div class="card h-100 border-0 shadow-sm" style="border-radius: 1rem;">
+        <div class="card-body p-4">
+          <div class="d-flex justify-content-between align-items-start mb-3">
+            <div>
+              <span class="text-muted text-uppercase fw-semibold" style="font-size: 0.75rem; letter-spacing: 0.5px;">Órdenes de Trabajo</span>
+              <h3 class="fw-bold my-1 text-dark">{{ stats.total_ordenes }}</h3>
+            </div>
+            <div class="rounded-3 p-3 text-primary" style="background-color: #eff6ff;">
+              <i class="fas fa-file-invoice fa-xl"></i>
+            </div>
+          </div>
+          <div class="d-flex align-items-center justify-content-between pt-2 border-top">
+            <span class="text-muted small">Servicios activos</span>
+            <a href="{% url 'orden_servicio_listado' %}" class="text-primary small fw-semibold text-decoration-none">
+              Ver detalle <i class="fas fa-arrow-right ms-1"></i>
+            </a>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Vehículos Registrados -->
+    <div class="col-sm-6 col-xl-3">
+      <div class="card h-100 border-0 shadow-sm" style="border-radius: 1rem;">
+        <div class="card-body p-4">
+          <div class="d-flex justify-content-between align-items-start mb-3">
+            <div>
+              <span class="text-muted text-uppercase fw-semibold" style="font-size: 0.75rem; letter-spacing: 0.5px;">Flota de Vehículos</span>
+              <h3 class="fw-bold my-1 text-dark">{{ stats.total_vehiculos }}</h3>
+            </div>
+            <div class="rounded-3 p-3 text-info" style="background-color: #ecfeff;">
+              <i class="fas fa-car fa-xl"></i>
+            </div>
+          </div>
+          <div class="d-flex align-items-center justify-content-between pt-2 border-top">
+            <span class="text-muted small">Mantenimientos al día</span>
+            <a href="{% url 'vehiculos' %}" class="text-info small fw-semibold text-decoration-none">
+              Gestionar <i class="fas fa-arrow-right ms-1"></i>
+            </a>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Conductores / Clientes -->
+    <div class="col-sm-6 col-xl-3">
+      <div class="card h-100 border-0 shadow-sm" style="border-radius: 1rem;">
+        <div class="card-body p-4">
+          <div class="d-flex justify-content-between align-items-start mb-3">
+            <div>
+              <span class="text-muted text-uppercase fw-semibold" style="font-size: 0.75rem; letter-spacing: 0.5px;">Clientes / Conductores</span>
+              <h3 class="fw-bold my-1 text-dark">{{ stats.total_conductores }}</h3>
+            </div>
+            <div class="rounded-3 p-3 text-success" style="background-color: #f0fdf4;">
+              <i class="fas fa-users fa-xl"></i>
+            </div>
+          </div>
+          <div class="d-flex align-items-center justify-content-between pt-2 border-top">
+            <span class="text-muted small">Cartera registrada</span>
+            <a href="{% url 'conductores' %}" class="text-success small fw-semibold text-decoration-none">
+              Directorio <i class="fas fa-arrow-right ms-1"></i>
+            </a>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Repuestos & Alertas -->
+    <div class="col-sm-6 col-xl-3">
+      <div class="card h-100 border-0 shadow-sm" style="border-radius: 1rem;">
+        <div class="card-body p-4">
+          <div class="d-flex justify-content-between align-items-start mb-3">
+            <div>
+              <span class="text-muted text-uppercase fw-semibold" style="font-size: 0.75rem; letter-spacing: 0.5px;">Repuestos en Stock</span>
+              <h3 class="fw-bold my-1 text-dark">{{ stats.total_repuestos }}</h3>
+            </div>
+            <div class="rounded-3 p-3 text-warning" style="background-color: #fffbeb;">
+              <i class="fas fa-boxes fa-xl"></i>
+            </div>
+          </div>
+          <div class="d-flex align-items-center justify-content-between pt-2 border-top">
+            {% if stats.repuestos_bajos %}
+              <span class="badge bg-danger bg-opacity-10 text-danger border border-danger border-opacity-25">
+                {{ stats.repuestos_bajos|length }} bajo stock
+              </span>
+            {% else %}
+              <span class="badge bg-success bg-opacity-10 text-success">Stock óptimo</span>
+            {% endif %}
+            <a href="{% url 'repuestos' %}" class="text-warning small fw-semibold text-decoration-none">
+              Inventario <i class="fas fa-arrow-right ms-1"></i>
+            </a>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Accesos Rápidos Modulares -->
+  <div class="row g-3 mb-4">
+    <div class="col-6 col-md-3">
+      <a href="{% url 'orden_servicio_nueva' %}" class="card border-0 shadow-sm text-decoration-none h-100 p-3 text-center">
+        <i class="fas fa-plus-square text-primary fa-2x mb-2"></i>
+        <div class="fw-bold text-dark small">Registrar Servicio</div>
+        <div class="text-muted" style="font-size: 0.75rem;">Crear nueva orden</div>
+      </a>
+    </div>
+    <div class="col-6 col-md-3">
+      <a href="{% url 'vehiculo_nuevo' %}" class="card border-0 shadow-sm text-decoration-none h-100 p-3 text-center">
+        <i class="fas fa-car text-info fa-2x mb-2"></i>
+        <div class="fw-bold text-dark small">Ingresar Vehículo</div>
+        <div class="text-muted" style="font-size: 0.75rem;">Alta a nueva unidad</div>
+      </a>
+    </div>
+    <div class="col-6 col-md-3">
+      <a href="{% url 'whatsapp_dashboard' %}" class="card border-0 shadow-sm text-decoration-none h-100 p-3 text-center">
+        <i class="fab fa-whatsapp text-success fa-2x mb-2"></i>
+        <div class="fw-bold text-dark small">Centro WhatsApp</div>
+        <div class="text-muted" style="font-size: 0.75rem;">Mensajería directa</div>
+      </a>
+    </div>
+    <div class="col-6 col-md-3">
+      <a href="{% url 'servicios_catalogo_list' %}" class="card border-0 shadow-sm text-decoration-none h-100 p-3 text-center">
+        <i class="fas fa-clipboard-list text-secondary fa-2x mb-2"></i>
+        <div class="fw-bold text-dark small">Tarifario de Servicios</div>
+        <div class="text-muted" style="font-size: 0.75rem;">{{ stats.servicios_activos }} servicios activos</div>
+      </a>
+    </div>
+  </div>
+
+  <!-- Contenedor de Listados / Actividad Reciente -->
+  <div class="row g-4 mb-4">
+    <!-- Últimos Servicios Registrados -->
+    <div class="col-lg-7">
+      <div class="card border-0 shadow-sm h-100" style="border-radius: 1rem;">
+        <div class="card-header bg-white border-0 py-3 px-4">
           <div class="d-flex justify-content-between align-items-center">
-            <h5 class="mb-0">Últimos Servicios</h5>
-            <a href="{% url 'orden_servicio_listado' %}" class="btn btn-sm btn-outline-primary">Ver todos</a>
+            <div class="d-flex align-items-center gap-2">
+              <i class="fas fa-history text-primary"></i>
+              <h5 class="fw-bold mb-0 text-dark">Órdenes de Servicio Recientes</h5>
+            </div>
+            <a href="{% url 'orden_servicio_listado' %}" class="btn btn-sm btn-outline-primary rounded-pill px-3">
+              Ver todas
+            </a>
           </div>
         </div>
         <div class="card-body p-0">
-          <div class="list-group list-group-flush">
-            {% for orden in stats.ultimos_servicios %}
-            <div class="list-group-item border-0 py-3">
-              <div class="d-flex justify-content-between align-items-center">
-                <div>
-                  <h6 class="mb-1">{{ orden.vehiculo.marca }} {{ orden.vehiculo.modelo }}</h6>
-                  <p class="text-muted small mb-0">
-                    N° Orden: <span class="fw-bold">{{ orden.id }}</span> <br>
-                    Fecha: {{ orden.fecha_creacion|localtime|date:"d/m/Y H:i" }} <br>
-                    Total a pagar: <span class="fw-bold">${{ orden.total|floatformat:2 }}</span>
-                  </p>
-                </div>
-                {% if orden.estado %}
-                  {% if orden.estado|lower == 'completada' or orden.estado|lower == 'facturada' %}
-                    <span class="badge bg-success">
-                  {% elif orden.estado|lower == 'pendiente' %}
-                    <span class="badge bg-warning text-dark">
-                  {% else %}
-                    <span class="badge bg-secondary">
-                  {% endif %}
-                  {{ orden.estado|capfirst }}
-                  </span>
-                {% else %}
-                  <span class="badge bg-secondary">Pendiente</span>
-                {% endif %}
-              </div>
-            </div>
-            {% empty %}
-            <div class="text-center py-4">
-              <i class="bi bi-inbox fs-1 text-muted mb-2"></i>
-              <p class="text-muted mb-0">No hay servicios recientes</p>
-            </div>
-            {% endfor %}
+          <div class="table-responsive">
+            <table class="table table-hover align-middle mb-0">
+              <thead class="bg-light text-muted small text-uppercase">
+                <tr>
+                  <th class="ps-4">N° Orden</th>
+                  <th>Vehículo</th>
+                  <th>Fecha</th>
+                  <th>Monto Total</th>
+                  <th>Estado</th>
+                  <th class="text-end pe-4">Acción</th>
+                </tr>
+              </thead>
+              <tbody>
+                {% for orden in stats.ultimos_servicios %}
+                <tr>
+                  <td class="ps-4 fw-bold text-primary">#{{ orden.id }}</td>
+                  <td>
+                    <div class="fw-semibold text-dark">{{ orden.vehiculo.marca }} {{ orden.vehiculo.modelo }}</div>
+                    <div class="text-muted small">{{ orden.vehiculo.placa }}</div>
+                  </td>
+                  <td class="text-muted small">
+                    {{ orden.fecha_creacion|localtime|date:"d/m/Y H:i" }}
+                  </td>
+                  <td class="fw-bold text-dark">${{ orden.total|floatformat:2 }}</td>
+                  <td>
+                    {% if orden.estado|lower == 'completada' or orden.estado|lower == 'facturada' %}
+                      <span class="badge bg-success bg-opacity-10 text-success border border-success border-opacity-25">
+                        <i class="fas fa-check-circle me-1"></i>{{ orden.estado|capfirst }}
+                      </span>
+                    {% elif orden.estado|lower == 'pendiente' %}
+                      <span class="badge bg-warning bg-opacity-10 text-warning border border-warning border-opacity-25">
+                        <i class="fas fa-hourglass-half me-1"></i>Pendiente
+                      </span>
+                    {% else %}
+                      <span class="badge bg-info bg-opacity-10 text-info border border-info border-opacity-25">
+                        {{ orden.estado|capfirst }}
+                      </span>
+                    {% endif %}
+                  </td>
+                  <td class="text-end pe-4">
+                    <a href="{% url 'orden_servicio_detail' orden.pk %}" class="btn btn-sm btn-light border rounded-pill px-2" title="Ver Detalle">
+                      <i class="fas fa-eye text-muted"></i>
+                    </a>
+                  </td>
+                </tr>
+                {% empty %}
+                <tr>
+                  <td colspan="6" class="text-center py-5 text-muted">
+                    <i class="fas fa-folder-open fa-2x mb-2 text-secondary opacity-50"></i>
+                    <p class="mb-0 small">No hay órdenes de servicio recientes</p>
+                  </td>
+                </tr>
+                {% endfor %}
+              </tbody>
+            </table>
           </div>
         </div>
       </div>
     </div>
 
-    <!-- Sección de Vehículos en Servicio -->
-    <div class="col-lg-6">
-      <div class="card border-0 shadow-sm h-100">
-        <div class="card-header bg-white border-0 py-3">
+    <!-- Vehículos Atendidos Recientemente -->
+    <div class="col-lg-5">
+      <div class="card border-0 shadow-sm h-100" style="border-radius: 1rem;">
+        <div class="card-header bg-white border-0 py-3 px-4">
           <div class="d-flex justify-content-between align-items-center">
-            <h5 class="mb-0">Últimos Servicios Realizados</h5>
-            <a href="{% url 'orden_servicio_listado' %}" class="btn btn-sm btn-outline-primary">Ver todos</a>
+            <div class="d-flex align-items-center gap-2">
+              <i class="fas fa-tachometer-alt text-info"></i>
+              <h5 class="fw-bold mb-0 text-dark">Vehículos Atendidos</h5>
+            </div>
+            <a href="{% url 'vehiculos' %}" class="btn btn-sm btn-outline-info rounded-pill px-3">
+              Ver flota
+            </a>
           </div>
         </div>
         <div class="card-body p-0">
           <div class="list-group list-group-flush">
             {% for vehiculo in stats.vehiculos_servicio %}
-            <div class="list-group-item border-0 py-3">
-              <div class="d-flex justify-content-between align-items-center">
-                <div>
-                  <h6 class="mb-1">{{ vehiculo.marca }} {{ vehiculo.modelo }}</h6>
-                  <p class="text-muted small mb-0">
-                    {{ vehiculo.placa }} - Último servicio: {{ vehiculo.fecha_ultimo_servicio|date:"d/m/Y" }}
-                  </p>
+            <div class="list-group-item border-0 py-3 px-4 d-flex justify-content-between align-items-center">
+              <div>
+                <div class="fw-bold text-dark">{{ vehiculo.marca }} {{ vehiculo.modelo }}</div>
+                <div class="text-muted small">
+                  <span class="badge bg-light text-dark border">{{ vehiculo.placa }}</span>
+                  <span class="ms-1">Servicio: {{ vehiculo.fecha_ultimo_servicio|date:"d/m/Y" }}</span>
                 </div>
-                <span class="badge bg-info text-dark">
-                  {{ vehiculo.kilometraje|default:0 }} km
-                </span>
               </div>
+              <span class="badge bg-light text-primary border fw-semibold">
+                {{ vehiculo.kilometraje|default:0 }} km
+              </span>
             </div>
             {% empty %}
-            <div class="text-center py-4">
-              <i class="bi bi-check-circle fs-1 text-muted mb-2"></i>
-              <p class="text-muted mb-0">No hay registros de servicios recientes</p>
+            <div class="text-center py-5 text-muted">
+              <i class="fas fa-check-double fa-2x mb-2 text-secondary opacity-50"></i>
+              <p class="mb-0 small">No hay historial reciente de servicios</p>
             </div>
             {% endfor %}
           </div>
@@ -217,67 +297,74 @@
     </div>
   </div>
 
-  <!-- Sección de Repuestos Bajos en Stock -->
+  <!-- Repuestos con Alerta de Stock Bajo -->
   <div class="row">
     <div class="col-12">
-      <div class="card border-0 shadow-sm">
-        <div class="card-header bg-white border-0 py-3">
+      <div class="card border-0 shadow-sm" style="border-radius: 1rem;">
+        <div class="card-header bg-white border-0 py-3 px-4">
           <div class="d-flex justify-content-between align-items-center">
-            <h5 class="mb-0">Repuestos con Stock Bajo</h5>
-            <a href="{% url 'repuestos' %}" class="btn btn-sm btn-outline-primary">Ver inventario</a>
+            <div class="d-flex align-items-center gap-2">
+              <i class="fas fa-exclamation-triangle text-warning"></i>
+              <h5 class="fw-bold mb-0 text-dark">Alerta de Stock e Inventario Crítico</h5>
+            </div>
+            <a href="{% url 'repuestos' %}" class="btn btn-sm btn-outline-primary rounded-pill px-3">
+              Ver Inventario Completo
+            </a>
           </div>
         </div>
         <div class="card-body p-0">
           <div id="tabla-repuestos-bajo-stock" hx-get="{% url 'home' %}" hx-trigger="repuestoActualizado from:body" hx-select="#tabla-repuestos-bajo-stock" hx-swap="outerHTML">
             <div class="table-responsive">
-              <table class="table table-hover mb-0">
-                <thead class="table-light">
+              <table class="table table-hover align-middle mb-0">
+                <thead class="bg-light text-muted small text-uppercase">
                   <tr>
-                    <th>Repuesto</th>
-                    
-                    <th>Servicios donde se usa</th>
+                    <th class="ps-4">Repuesto / Pieza</th>
+                    <th>Servicios Asociados</th>
                     <th>Stock Actual</th>
-                    <th>Stock Mínimo</th>
-                    <th>Estado</th>
-                    <th>Acciones</th>
+                    <th>Stock Mínimo Requerido</th>
+                    <th>Condición</th>
+                    <th class="text-end pe-4">Acción</th>
                   </tr>
                 </thead>
                 <tbody>
                   {% for repuesto in stats.repuestos_bajos %}
                   <tr>
-                    <td>{{ repuesto.nombre }}</td>
-                    
-                    <td>
+                    <td class="ps-4 fw-semibold text-dark">{{ repuesto.nombre }}</td>
+                    <td class="text-muted small">
                       {% if repuesto.servicios_catalogo.all %}
                         {% for servicio in repuesto.servicios_catalogo.all %}
-                          {{ servicio.nombre }}{% if not forloop.last %}, {% endif %}
-                        {% empty %}
-                          -
+                          <span class="badge bg-light text-dark border">{{ servicio.nombre }}</span>
                         {% endfor %}
-                      {% else %}-{% endif %}
-                    </td>
-                    <td>{{ repuesto.stock }}</td>
-                    <td>{{ repuesto.stock_minimo }}</td>
-                    <td>
-                      {% if repuesto.stock <= 0 %}
-                      <span class="badge bg-danger">Agotado</span>
                       {% else %}
-                      <span class="badge bg-warning">Bajo Stock</span>
+                        <span class="text-muted">-</span>
                       {% endif %}
                     </td>
+                    <td class="fw-bold {% if repuesto.stock <= 0 %}text-danger{% else %}text-warning{% endif %}">
+                      {{ repuesto.stock }} unidades
+                    </td>
+                    <td class="text-muted">{{ repuesto.stock_minimo }} unidades</td>
                     <td>
-                      <a href="{% url 'repuesto_update' repuesto.pk %}" 
-                         class="btn btn-warning btn-sm" 
-                         title="Reabastecer">
-                        <i class="bi bi-pencil-square"></i> Reabastecer
+                      {% if repuesto.stock <= 0 %}
+                        <span class="badge bg-danger bg-opacity-10 text-danger border border-danger border-opacity-25">
+                          <i class="fas fa-ban me-1"></i>Agotado
+                        </span>
+                      {% else %}
+                        <span class="badge bg-warning bg-opacity-10 text-warning border border-warning border-opacity-25">
+                          <i class="fas fa-exclamation-triangle me-1"></i>Stock Crítico
+                        </span>
+                      {% endif %}
+                    </td>
+                    <td class="text-end pe-4">
+                      <a href="{% url 'repuesto_update' repuesto.pk %}" class="btn btn-sm btn-warning text-dark fw-semibold rounded-pill px-3" title="Reabastecer">
+                        <i class="fas fa-plus me-1"></i> Reabastecer
                       </a>
                     </td>
                   </tr>
                   {% empty %}
                   <tr>
-                    <td colspan="5" class="text-center py-4">
-                      <i class="bi bi-check-circle fs-1 text-success mb-2"></i>
-                      <p class="text-muted mb-0">No hay repuestos con stock bajo</p>
+                    <td colspan="6" class="text-center py-4 text-muted">
+                      <i class="fas fa-check-circle text-success fa-2x mb-2"></i>
+                      <p class="mb-0 small">Todos los repuestos tienen niveles óptimos de inventario</p>
                     </td>
                   </tr>
                   {% endfor %}
@@ -289,14 +376,15 @@
       </div>
     </div>
   </div>
-  <div class="text-center mt-5">
-    <p class="text-muted small">
-      Plataforma estilo SaaS: cada taller opera con sus propios datos y usuarios.
-    </p>
+
+  <div class="text-center my-4">
+    <span class="badge bg-light text-muted border px-3 py-2">
+      <i class="fas fa-cubes me-1"></i> Plataforma Arquitectura Multi-Taller SaaS - IQAutoEC
+    </span>
   </div>
+
 </div>
 {% endblock content %}
 
 {% block extra_js %}
-<!-- No se necesita JavaScript adicional para el home -->
 {% endblock extra_js %}

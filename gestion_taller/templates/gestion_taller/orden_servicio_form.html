@@ -1,417 +1,353 @@
-{% extends 'gestion_taller/base.html' %}
+﻿{% extends 'gestion_taller/base.html' %}
 {% load static %}
 
-{% block extra_css %}
-<link href="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/css/select2.min.css" rel="stylesheet">
-<link href="https://cdn.jsdelivr.net/npm/select2-bootstrap-5-theme@1.3.0/dist/select2-bootstrap-5-theme.min.css" rel="stylesheet">
-<link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.8.1/font/bootstrap-icons.css" rel="stylesheet">
-<style>
-    .conductor-info { margin-top: 0.25rem; font-size: 0.875em; }
-    .conductor-error { color: #dc3545; }
-    #conductor-spinner { display: none; }
-    .spinner-border { width: 1rem; height: 1rem; border-width: 0.2em; }
-
-    /* Estilos para Select2 */
-    .select2-container {
-        z-index: 1050 !important;
-    }
-
-    .select2-container--bootstrap-5 .select2-selection {
-        border: 1px solid #ced4da;
-        border-radius: 0.375rem;
-        min-height: calc(1.5em + 0.75rem + 2px);
-    }
-
-    .select2-container--bootstrap-5 .select2-selection--multiple {
-        min-height: calc(1.5em + 0.75rem + 2px);
-    }
-
-    /* Prevenir duplicación visual de Select2 */
-    .select2-container--bootstrap-5 + .select2-container--bootstrap-5 {
-        display: none !important;
-    }
-
-    /* Ocultar selects originales cuando Select2 está activo */
-    select.select2-hidden-accessible {
-        display: none !important;
-    }
-
-    /* Asegurar que solo haya un contenedor Select2 por campo */
-    .form-group .select2-container:not(:first-of-type),
-    .col-md-6 .select2-container:not(:first-of-type) {
-        display: none !important;
-    }
-
-    /* Evitar duplicación de dropdowns */
-    .select2-dropdown.select2-dropdown--below + .select2-dropdown {
-        display: none !important;
-    }
-</style>
-{% endblock %}
-
 {% block content %}
-<div class="container py-4">
-    <div class="row justify-content-center">
-        <div class="col-lg-10">
-            <div class="card shadow">
-                <div class="card-header bg-primary text-white">
-                    <h4 class="mb-0">{% if form.instance.pk %}Editar{% else %}Nueva{% endif %} Orden de Servicio</h4>
+<div class="container-fluid p-0">
+    <!-- Header Principal -->
+    <div class="card border-0 shadow-sm mb-4" style="border-radius: 1.25rem; background: linear-gradient(135deg, #ffffff 0%, #f8fafc 100%); border: 1px solid rgba(226, 232, 240, 0.8) !important;">
+        <div class="card-body p-4 d-flex flex-wrap justify-content-between align-items-center gap-3">
+            <div class="d-flex align-items-center gap-3">
+                <div class="rounded-4 p-3 d-flex align-items-center justify-content-center text-white shadow-sm" 
+                     style="background: linear-gradient(135deg, #2563eb 0%, #1d4ed8 100%); width: 54px; height: 54px;">
+                    <i class="fas fa-file-invoice-dollar fa-xl"></i>
                 </div>
-                <div class="card-body">
-                    <form method="post" id="ordenServicioForm">
-                        {% csrf_token %}
-                        {{ form.non_field_errors }}
+                <div>
+                    <h4 class="fw-bold mb-1 text-dark">{% if form.instance.pk %}Editar Orden #{{ form.instance.id }}{% else %}Nueva Orden de Servicio{% endif %}</h4>
+                    <p class="text-muted small mb-0">Recepción técnica de vehículo, cotización de servicios y repuestos</p>
+                </div>
+            </div>
+            <a href="{% url 'orden_servicio_listado' %}" class="btn btn-outline-secondary rounded-pill px-4">
+                <i class="fas fa-arrow-left me-1"></i> Volver al Listado
+            </a>
+        </div>
+    </div>
 
+    <!-- Formulario Principal -->
+    <form method="post" id="ordenServicioForm" autocomplete="off">
+        {% csrf_token %}
+        
+        {% if form.non_field_errors %}
+            <div class="alert alert-danger py-2 mb-3">
+                {% for error in form.non_field_errors %}
+                    <div><i class="fas fa-exclamation-circle me-1"></i> {{ error }}</div>
+                {% endfor %}
+            </div>
+        {% endif %}
+
+        <div class="row g-4">
+            <!-- Columna Izquierda: Datos del Vehículo y Operación -->
+            <div class="col-lg-8">
+                <!-- Tarjeta 1: Vehículo y Conductor -->
+                <div class="card border-0 shadow-sm rounded-4 mb-4" style="border: 1px solid #e2e8f0 !important;">
+                    <div class="card-header bg-white border-0 pt-4 px-4 pb-2">
+                        <h5 class="fw-bold text-dark mb-0 d-flex align-items-center gap-2">
+                            <i class="fas fa-car text-primary"></i> 1. Identificación del Vehículo & Cliente
+                        </h5>
+                    </div>
+                    <div class="card-body p-4">
                         <div class="row g-3">
                             <!-- Vehículo -->
                             <div class="col-md-6">
-                                <label for="id_vehiculo" class="form-label">Vehículo</label>
-                                {{ form.vehiculo }}
+                                <label for="id_vehiculo_select" class="form-label fw-semibold text-dark small mb-1">
+                                    Vehículo a Ingresar <span class="text-danger">*</span>
+                                </label>
+                                <select name="vehiculo" id="id_vehiculo_select" class="form-select" required>
+                                    <option value="">--- Seleccione un Vehículo ---</option>
+                                    {% for v in form.fields.vehiculo.queryset %}
+                                        <option value="{{ v.id }}" 
+                                                data-conductor-id="{{ v.conductor.id|default:'' }}" 
+                                                data-conductor-nombre="{{ v.conductor.nombre|default:'' }}" 
+                                                data-conductor-tel="{{ v.conductor.telefono|default:'' }}"
+                                                data-km="{{ v.kilometraje|default:0 }}"
+                                                {% if form.instance.vehiculo_id == v.id %}selected{% endif %}>
+                                            {{ v.placa }} - {{ v.marca }} {{ v.modelo }}
+                                        </option>
+                                    {% endfor %}
+                                </select>
+                                {% if form.vehiculo.errors %}
+                                    <div class="invalid-feedback d-block">{{ form.vehiculo.errors|striptags }}</div>
+                                {% endif %}
                             </div>
 
-                            <!-- Conductor -->
+                            <!-- Conductor (Auto-detectado) -->
                             <div class="col-md-6">
-                                <label for="conductor-display" class="form-label">Conductor</label>
+                                <label for="conductor_display_input" class="form-label fw-semibold text-dark small mb-1">
+                                    Conductor / Propietario Asignado
+                                </label>
                                 <div class="input-group">
-                                    <input type="text" id="conductor-display" class="form-control" readonly
-                                        value="{% if form.instance.vehiculo and form.instance.vehiculo.conductor %}{{ form.instance.vehiculo.conductor.nombre }}{% elif form.instance.conductor %}{{ form.instance.conductor.nombre }}{% endif %}">
+                                    <span class="input-group-text bg-light border-end-0 text-muted"><i class="fas fa-user-check"></i></span>
+                                    <input type="text" id="conductor_display_input" class="form-control bg-light border-start-0 fw-semibold text-dark" readonly
+                                           placeholder="Automático según vehículo"
+                                           value="{% if form.instance.conductor %}{{ form.instance.conductor.nombre }}{% elif form.instance.vehiculo and form.instance.vehiculo.conductor %}{{ form.instance.vehiculo.conductor.nombre }}{% endif %}">
                                 </div>
-                                {{ form.conductor }}
-                                <div id="conductor-info" class="conductor-info text-muted">
+                                <input type="hidden" name="conductor" id="id_conductor_hidden" value="{% if form.instance.conductor %}{{ form.instance.conductor.id }}{% elif form.instance.vehiculo and form.instance.vehiculo.conductor %}{{ form.instance.vehiculo.conductor.id }}{% endif %}">
+                                <div id="conductor_tel_info" class="text-muted small mt-1">
                                     {% if form.instance.vehiculo and form.instance.vehiculo.conductor and form.instance.vehiculo.conductor.telefono %}
-                                        <i class="bi bi-telephone"></i> {{ form.instance.vehiculo.conductor.telefono }}
+                                        <i class="fas fa-phone-alt text-success me-1"></i> {{ form.instance.vehiculo.conductor.telefono }}
                                     {% endif %}
                                 </div>
                             </div>
 
                             <!-- Kilometraje -->
                             <div class="col-md-6">
-                                <label for="id_kilometraje" class="form-label">Kilometraje</label>
-                                {{ form.kilometraje }}
-                            </div>
-
-                            <!-- Servicios -->
-                            <div class="col-md-6">
-                                <label for="id_servicios" class="form-label">Servicios</label>
-                                {{ form.servicios }}
-                            </div>
-
-                            <!-- Método de pago -->
-                            <div class="col-md-6">
-                                <label for="id_metodo_pago" class="form-label">Método de pago</label>
-                                {{ form.metodo_pago }}
-                            </div>
-
-                            <!-- Productos -->
-                            <div class="col-md-6">
-                                <label for="id_productos" class="form-label">Productos</label>
-                                {{ form.productos }}
-                                <div id="productos-por-servicio" class="mt-2"></div>
-                                <div id="total-a-pagar" class="mt-2 fw-bold text-success"></div>
+                                <label for="id_km_input" class="form-label fw-semibold text-dark small mb-1">
+                                    Kilometraje de Ingreso <span class="text-danger">*</span>
+                                </label>
+                                <div class="input-group">
+                                    <span class="input-group-text bg-light text-muted"><i class="fas fa-tachometer-alt"></i></span>
+                                    <input type="number" name="kilometraje" id="id_km_input" class="form-control" placeholder="Ej: 45000" value="{{ form.instance.kilometraje|default:0 }}">
+                                    <span class="input-group-text bg-light text-muted small">km</span>
+                                </div>
+                                {% if form.kilometraje.errors %}
+                                    <div class="invalid-feedback d-block">{{ form.kilometraje.errors|striptags }}</div>
+                                {% endif %}
                             </div>
 
                             <!-- Estado -->
                             <div class="col-md-6">
-                                <label for="id_estado" class="form-label">Estado</label>
-                                {{ form.estado }}
-                            </div>
-
-                            <!-- Total -->
-                            <div class="col-md-6">
-                                <label for="id_total" class="form-label">Total a Pagar</label>
-                                <div class="input-group">
-                                    <span class="input-group-text">$</span>
-                                    {{ form.total }}
-                                </div>
-                                <div id="desglose-precios" class="mt-2 small text-muted"></div>
-                            </div>
-
-                            <!-- Botón guardar -->
-                            <div class="col-12 mt-4">
-                                <button type="submit" class="btn btn-primary">
-                                    <i class="bi bi-save me-2"></i>Guardar
-                                </button>
+                                <label for="id_estado_select" class="form-label fw-semibold text-dark small mb-1">
+                                    Estado Inicial de la Orden
+                                </label>
+                                <select name="estado" id="id_estado_select" class="form-select">
+                                    <option value="pendiente" {% if form.instance.estado == 'pendiente' %}selected{% endif %}>Pendiente</option>
+                                    <option value="en_progreso" {% if form.instance.estado == 'en_progreso' %}selected{% endif %}>En Progreso</option>
+                                    <option value="completada" {% if form.instance.estado == 'completada' %}selected{% endif %}>Completada</option>
+                                    <option value="facturada" {% if form.instance.estado == 'facturada' %}selected{% endif %}>Facturada</option>
+                                    <option value="anulada" {% if form.instance.estado == 'anulada' %}selected{% endif %}>Anulada</option>
+                                </select>
                             </div>
                         </div>
-                    </form>
+                    </div>
+                </div>
+
+                <!-- Tarjeta 2: Servicios y Productos con Tarjetas Dinámicas -->
+                <div class="card border-0 shadow-sm rounded-4" style="border: 1px solid #e2e8f0 !important;">
+                    <div class="card-header bg-white border-0 pt-4 px-4 pb-2">
+                        <h5 class="fw-bold text-dark mb-0 d-flex align-items-center gap-2">
+                            <i class="fas fa-tools text-primary"></i> 2. Trabajos & Repuestos Requeridos
+                        </h5>
+                    </div>
+                    <div class="card-body p-4">
+                        <div class="row g-4">
+                            <!-- Servicios del Catálogo -->
+                            <div class="col-12">
+                                <div class="d-flex justify-content-between align-items-center mb-2">
+                                    <label class="form-label fw-semibold text-dark small mb-0">
+                                        <i class="fas fa-list-check text-primary me-1"></i> Selecciona los Servicios a Realizar <span class="text-danger">*</span>
+                                    </label>
+                                    <span class="badge bg-primary bg-opacity-10 text-primary" id="badge-servicios-count">0 seleccionados</span>
+                                </div>
+                                <div class="p-3 bg-light rounded-3 border" style="max-height: 240px; overflow-y: auto; background-color: #f8fafc !important;">
+                                    <div class="row g-2">
+                                        {% for serv in form.fields.servicios.queryset %}
+                                        <div class="col-md-6">
+                                            <div class="card h-100 p-2 bg-white border rounded-3 shadow-none hover-card">
+                                                <div class="form-check d-flex align-items-center justify-content-between m-0">
+                                                    <div>
+                                                        <input class="form-check-input serv-cb me-2" type="checkbox" name="servicios" value="{{ serv.id }}" id="chk_s_{{ serv.id }}" data-precio="{{ serv.precio|default:0 }}" {% if serv in form.instance.servicios.all %}checked{% endif %}>
+                                                        <label class="form-check-label fw-semibold text-dark small cursor-pointer" for="chk_s_{{ serv.id }}">
+                                                            {{ serv.nombre }}
+                                                        </label>
+                                                    </div>
+                                                    <span class="badge bg-primary bg-opacity-10 text-primary fw-bold" style="font-size: 0.82rem;">
+                                                        ${{ serv.precio|default:"0.00" }}
+                                                    </span>
+                                                </div>
+                                            </div>
+                                        </div>
+                                        {% empty %}
+                                        <div class="col-12 text-center text-muted small py-3">No hay servicios registrados en el catálogo.</div>
+                                        {% endfor %}
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- Repuestos & Materiales -->
+                            <div class="col-12">
+                                <div class="d-flex justify-content-between align-items-center mb-2">
+                                    <label class="form-label fw-semibold text-dark small mb-0">
+                                        <i class="fas fa-boxes-stacked text-info me-1"></i> Repuestos & Materiales Requeridos
+                                    </label>
+                                    <span class="badge bg-secondary bg-opacity-10 text-secondary" id="badge-repuestos-count">0 seleccionados</span>
+                                </div>
+                                <div class="p-3 bg-light rounded-3 border" style="max-height: 240px; overflow-y: auto; background-color: #f8fafc !important;">
+                                    <div class="row g-2">
+                                        {% for prod in form.fields.productos.queryset %}
+                                        <div class="col-md-6">
+                                            <div class="card h-100 p-2 bg-white border rounded-3 shadow-none hover-card">
+                                                <div class="form-check d-flex align-items-center justify-content-between m-0">
+                                                    <div>
+                                                        <input class="form-check-input prod-cb me-2" type="checkbox" name="productos" value="{{ prod.id }}" id="chk_p_{{ prod.id }}" data-precio="{{ prod.precio_venta|default:0 }}" {% if prod in form.instance.productos.all %}checked{% endif %}>
+                                                        <label class="form-check-label fw-semibold text-dark small cursor-pointer" for="chk_p_{{ prod.id }}">
+                                                            {{ prod.nombre }}
+                                                        </label>
+                                                    </div>
+                                                    <span class="badge bg-success bg-opacity-10 text-success fw-bold" style="font-size: 0.82rem;">
+                                                        ${{ prod.precio_venta|default:"0.00" }}
+                                                    </span>
+                                                </div>
+                                            </div>
+                                        </div>
+                                        {% empty %}
+                                        <div class="col-12 text-center text-muted small py-3">No hay repuestos registrados en stock.</div>
+                                        {% endfor %}
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Columna Derecha: Resumen de Cuenta & Liquidación -->
+            <div class="col-lg-4">
+                <div class="card border-0 shadow-sm rounded-4 sticky-top" style="top: 2rem; border: 1px solid #e2e8f0 !important; background: #ffffff;">
+                    <div class="card-header bg-white border-0 pt-4 px-4 pb-2">
+                        <h5 class="fw-bold text-dark mb-0 d-flex align-items-center gap-2">
+                            <i class="fas fa-receipt text-success"></i> Resumen de Cuenta
+                        </h5>
+                    </div>
+                    <div class="card-body p-4">
+                        <!-- Método de Pago -->
+                        <div class="mb-3">
+                            <label for="id_metodo_pago" class="form-label fw-semibold text-dark small mb-1">
+                                Método de Pago Previsto
+                            </label>
+                            <input type="text" name="metodo_pago" id="id_metodo_pago" class="form-control" placeholder="Ej: Efectivo, Tarjeta, Transferencia" value="{{ form.instance.metodo_pago|default:'Efectivo' }}">
+                        </div>
+
+                        <!-- Caja de Desglose en Vivo -->
+                        <div class="rounded-3 p-3 mb-3" style="background-color: #f8fafc; border: 1px solid #f1f5f9;">
+                            <div class="fw-bold text-muted small text-uppercase mb-2" style="letter-spacing: 0.5px; font-size: 0.72rem;">Liquidación en Tiempo Real:</div>
+                            <div class="d-flex justify-content-between text-dark small mb-2">
+                                <span>Mano de Obra / Servicios:</span>
+                                <span class="fw-bold text-primary" id="total-servicios-txt">$0.00</span>
+                            </div>
+                            <div class="d-flex justify-content-between text-dark small mb-2">
+                                <span>Repuestos & Materiales:</span>
+                                <span class="fw-bold text-info" id="total-repuestos-txt">$0.00</span>
+                            </div>
+                            <hr class="my-2">
+                            <div class="d-flex justify-content-between fw-bold text-success fs-6">
+                                <span>Total General:</span>
+                                <span id="total-general-txt">$0.00</span>
+                            </div>
+                        </div>
+
+                        <!-- Total Final Input (oculto / visible) -->
+                        <div class="mb-4">
+                            <label class="form-label fw-bold text-dark small mb-1">Total a Liquidar ($)</label>
+                            <div class="input-group input-group-lg">
+                                <span class="input-group-text bg-success bg-opacity-10 text-success border-success border-opacity-25 fw-bold">$</span>
+                                <input type="number" step="0.01" name="total" id="id_total_input" class="form-control fw-bold text-success bg-light" readonly value="{{ form.instance.total|default:'0.00' }}">
+                            </div>
+                        </div>
+
+                        <!-- Botón Guardar -->
+                        <button type="submit" class="btn btn-primary btn-lg rounded-pill w-100 py-3 shadow-sm fw-bold d-flex align-items-center justify-content-center gap-2"
+                                style="background: #2563eb; border-color: #2563eb;">
+                            <i class="fas fa-save"></i> 
+                            <span>{% if form.instance.pk %}Actualizar Orden{% else %}Crear Orden de Servicio{% endif %}</span>
+                        </button>
+                    </div>
                 </div>
             </div>
         </div>
-    </div>
+    </form>
 </div>
-{% endblock %}
 
-
-
-{% block extra_js %}
-<script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
-<script src="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/js/select2.min.js"></script>
-<script src="{% static 'gestion_taller/orden_servicio.js' %}"></script>
+<!-- Lógica Interactiva Directa (sin librerías conflictivas) -->
 <script>
-// Variable para evitar múltiples inicializaciones
-if (typeof window.ordenServicioFormInitialized === 'undefined') {
-    window.ordenServicioFormInitialized = false;
-}
+document.addEventListener('DOMContentLoaded', function() {
+    const vehiculoSelect = document.getElementById('id_vehiculo_select');
+    const condDisplay = document.getElementById('conductor_display_input');
+    const condHidden = document.getElementById('id_conductor_hidden');
+    const condTelInfo = document.getElementById('conductor_tel_info');
+    const kmInput = document.getElementById('id_km_input');
 
-$(document).ready(function() {
-    // Evitar múltiples inicializaciones
-    if (window.ordenServicioFormInitialized) {
-        console.log('Formulario ya inicializado, saltando...');
-        return;
-    }
-    
-    // Limpieza agresiva de Select2 existente
-    function limpiarSelect2() {
-        // Destruir todas las instancias de Select2
-        $('.select2-hidden-accessible').each(function() {
-            try {
-                $(this).select2('destroy');
-            } catch(e) {
-                console.log('Error al destruir Select2:', e);
-            }
-        });
-        
-        // Remover contenedores Select2 huérfanos
-        $('.select2-container').remove();
-        
-        // Remover dropdowns Select2 huérfanos
-        $('.select2-dropdown').remove();
-        
-        // Restaurar visibilidad de selects originales
-        $('#id_vehiculo, #id_servicios, #id_productos, #id_metodo_pago').show().removeClass('select2-hidden-accessible');
-    }
-    
-    // Ejecutar limpieza
-    limpiarSelect2();
-    
-    // Pequeño delay para asegurar que la limpieza se complete
-    setTimeout(function() {
-        // Inicializar Select2 solo una vez por campo
-    $('#id_vehiculo').select2({
-        theme: 'bootstrap-5',
-        width: '100%',
-        allowClear: true,
-        minimumResultsForSearch: 5,
-        placeholder: 'Seleccione un vehículo...'
-    });
+    // Manejador de Vehículo
+    if (vehiculoSelect) {
+        vehiculoSelect.addEventListener('change', function() {
+            const opt = this.options[this.selectedIndex];
+            if (opt && opt.value) {
+                const nombre = opt.getAttribute('data-conductor-nombre') || 'Sin conductor asignado';
+                const id = opt.getAttribute('data-conductor-id') || '';
+                const tel = opt.getAttribute('data-conductor-tel') || '';
+                const km = opt.getAttribute('data-km') || 0;
 
-    $('#id_servicios').select2({
-        theme: 'bootstrap-5',
-        width: '100%',
-        allowClear: true,
-        minimumResultsForSearch: 5,
-        placeholder: 'Seleccione servicios...'
-    });
-
-    $('#id_productos').select2({
-        theme: 'bootstrap-5',
-        width: '100%',
-        allowClear: true,
-        minimumResultsForSearch: 5,
-        placeholder: 'Seleccione productos...'
-    });
-
-    // Actualizar conductor según vehículo
-    function actualizarConductorPorVehiculo(vehiculoId) {
-        if (!vehiculoId) {
-            $('#conductor-display').val('');
-            $('#id_conductor').val('');
-            $('#conductor-info').text('');
-            return;
-        }
-
-        $.ajax({
-            url: `/api/vehiculo/${vehiculoId}/conductor/`,
-            method: 'GET',
-            success: function(data) {
-                if (data.success && data.conductor) {
-                    $('#conductor-display').val(data.conductor.nombre);
-                    $('#id_conductor').val(data.conductor.id);
-                    if (data.conductor.telefono) {
-                        $('#conductor-info').html(`<i class="bi bi-telephone"></i> ${data.conductor.telefono}`);
-                    } else {
-                        $('#conductor-info').text('');
-                    }
-                } else {
-                    $('#conductor-display').val('');
-                    $('#id_conductor').val('');
-                    $('#conductor-info').text('');
+                if (condDisplay) condDisplay.value = nombre;
+                if (condHidden) condHidden.value = id;
+                if (condTelInfo) {
+                    condTelInfo.innerHTML = tel ? `<i class="fas fa-phone-alt text-success me-1"></i> ${tel}` : '';
                 }
-            },
-            error: function() {
-                $('#conductor-display').val('');
-                $('#id_conductor').val('');
-                $('#conductor-info').text('');
-            }
-        });
-    }
-
-    // Evento cambio de vehículo
-    $(document).on('change', '#id_vehiculo', function() {
-        actualizarConductorPorVehiculo($(this).val());
-    });
-
-    // Cargar conductor inicial si ya hay vehículo
-    const vehiculoInicial = $('#id_vehiculo').val();
-    if (vehiculoInicial) {
-        actualizarConductorPorVehiculo(vehiculoInicial);
-    }
-
-    // Función calcular precios
-    function calcularPrecios() {
-        const serviciosIds = $('#id_servicios').val() || [];
-        const productosIds = $('#id_productos').val() || [];
-
-        if (serviciosIds.length === 0 && productosIds.length === 0) {
-            $('#id_total').val('0.00');
-            $('#desglose-precios').html('');
-            return;
-        }
-
-        $.ajax({
-            url: '{% url "calcular_precios_orden" %}',
-            method: 'POST',
-            headers: {
-                'X-CSRFToken': $('[name=csrfmiddlewaretoken]').val(),
-                'Content-Type': 'application/json'
-            },
-            data: JSON.stringify({
-                servicios: serviciosIds,
-                productos: productosIds
-            }),
-            success: function(response) {
-                if (response.success) {
-                    $('#id_total').val(response.total_general.toFixed(2));
-                    
-                    let desglose = '';
-                    const ivaInfo = response.iva_info || {};
-                    
-                    // Mostrar desglose básico
-                    if (response.total_servicios > 0) {
-                        desglose += `<div class="d-flex justify-content-between"><span>Servicios:</span><span>$${response.total_servicios.toFixed(2)}</span></div>`;
-                    }
-                    if (response.total_productos > 0) {
-                        desglose += `<div class="d-flex justify-content-between"><span>Productos:</span><span>$${response.total_productos.toFixed(2)}</span></div>`;
-                    }
-                    
-                    // Mostrar desglose de IVA si está habilitado
-                    if (ivaInfo.mostrar_desglose && ivaInfo.total_iva > 0) {
-                        desglose += `<hr class="my-2">`;
-                        desglose += `<div class="d-flex justify-content-between text-muted"><span>Subtotal (sin IVA):</span><span>$${ivaInfo.total_sin_iva.toFixed(2)}</span></div>`;
-                        desglose += `<div class="d-flex justify-content-between text-muted"><span>IVA (${ivaInfo.porcentaje_iva}%):</span><span>$${ivaInfo.total_iva.toFixed(2)}</span></div>`;
-                    }
-                    
-                    // Total final
-                    if (desglose) {
-                        desglose += `<hr class="my-2">`;
-                        desglose += `<div class="d-flex justify-content-between fw-bold text-success"><span>Total:</span><span>$${response.total_general.toFixed(2)}</span></div>`;
-                    }
-                    
-                    $('#desglose-precios').html(desglose);
+                if (kmInput && (!kmInput.value || kmInput.value == '0')) {
+                    kmInput.value = km;
                 }
-            },
-            error: function(xhr, status, error) {
-                console.error('Error al calcular precios:', error);
-                $('#desglose-precios').html('<div class="text-danger"><i class="bi bi-exclamation-triangle"></i> Error al calcular precios</div>');
-            }
-        });
-    }
-
-    // Función para filtrar productos según servicios catálogo seleccionados
-    function filtrarProductosPorServicios() {
-        const serviciosIds = $('#id_servicios').val() || [];
-        
-        if (serviciosIds.length === 0) {
-            // Si no hay servicios seleccionados, limpiar productos sugeridos
-            $('#productos-por-servicio').html('');
-            return;
-        }
-        
-        // Obtener productos asociados a los servicios seleccionados
-        $.ajax({
-            url: '{% url "productos_por_servicios_ajax" %}',
-            method: 'GET',
-            data: {
-                'servicios': serviciosIds
-            },
-            success: function(response) {
-                if (response.success) {
-                    // Mostrar productos sugeridos (sin modificar el select original)
-                    mostrarProductosSugeridos(response.productos);
-                }
-            },
-            error: function() {
-                console.log('Error al obtener productos por servicios');
-                $('#productos-por-servicio').html('<div class="text-danger small"><i class="bi bi-exclamation-triangle"></i> Error al cargar productos sugeridos</div>');
-            }
-        });
-    }
-    
-    // Función para mostrar productos sugeridos
-    function mostrarProductosSugeridos(productos) {
-        let html = '';
-        if (productos && productos.length > 0) {
-            html = '<div class="mt-2"><small class="text-muted"><i class="bi bi-lightbulb"></i> Productos sugeridos para los servicios seleccionados:</small>';
-            html += '<div class="mt-1">';
-            productos.forEach(function(producto) {
-                const isSelected = $('#id_productos').val() && $('#id_productos').val().includes(producto.id.toString());
-                const badgeClass = isSelected ? 'bg-success' : 'bg-secondary';
-                const icon = isSelected ? 'bi-check-circle' : 'bi-plus-circle';
-                html += `<span class="badge ${badgeClass} me-1 mb-1 producto-sugerido" data-producto-id="${producto.id}" style="cursor: pointer;">`;
-                html += `<i class="bi ${icon}"></i> ${producto.nombre} - $${parseFloat(producto.precio).toFixed(2)}`;
-                html += '</span>';
-            });
-            html += '</div></div>';
-        }
-        $('#productos-por-servicio').html(html);
-        
-        // Event listener para agregar/quitar productos sugeridos
-        $('.producto-sugerido').off('click').on('click', function() {
-            const productoId = $(this).data('producto-id').toString();
-            const productosSeleccionados = $('#id_productos').val() || [];
-            
-            if (productosSeleccionados.includes(productoId)) {
-                // Quitar producto
-                const nuevaSeleccion = productosSeleccionados.filter(id => id !== productoId);
-                $('#id_productos').val(nuevaSeleccion).trigger('change');
             } else {
-                // Agregar producto
-                productosSeleccionados.push(productoId);
-                $('#id_productos').val(productosSeleccionados).trigger('change');
+                if (condDisplay) condDisplay.value = '';
+                if (condHidden) condHidden.value = '';
+                if (condTelInfo) condTelInfo.innerHTML = '';
             }
         });
     }
-    
-    // Recalcular cuando cambien servicios catálogo o productos
-    $(document).on('change', '#id_servicios', function() {
-        filtrarProductosPorServicios();
-        calcularPrecios();
-    });
-    $(document).on('change', '#id_productos', calcularPrecios);
 
-        // Inicializar
-        calcularPrecios();
-        filtrarProductosPorServicios();
+    // Recalcular Totales
+    function recalcularTotales() {
+        let totalServicios = 0;
+        let totalRepuestos = 0;
+        let servCount = 0;
+        let prodCount = 0;
+
+        document.querySelectorAll('.serv-cb:checked').forEach(function(cb) {
+            totalServicios += parseFloat(cb.getAttribute('data-precio')) || 0;
+            servCount++;
+        });
+
+        document.querySelectorAll('.prod-cb:checked').forEach(function(cb) {
+            totalRepuestos += parseFloat(cb.getAttribute('data-precio')) || 0;
+            prodCount++;
+        });
+
+        const totalGeneral = totalServicios + totalRepuestos;
+
+        document.getElementById('total-servicios-txt').textContent = `$${totalServicios.toFixed(2)}`;
+        document.getElementById('total-repuestos-txt').textContent = `$${totalRepuestos.toFixed(2)}`;
+        document.getElementById('total-general-txt').textContent = `$${totalGeneral.toFixed(2)}`;
         
-        // Marcar como inicializado
-        window.ordenServicioFormInitialized = true;
-        console.log('Formulario de orden de servicio inicializado correctamente');
-        
-        // Verificación final para limpiar duplicados
-        setTimeout(function() {
-            // Ocultar contenedores Select2 duplicados
-            $('.select2-container').each(function(index) {
-                const fieldId = $(this).attr('id');
-                if (fieldId) {
-                    const duplicates = $('.select2-container[id="' + fieldId + '"]');
-                    if (duplicates.length > 1) {
-                        duplicates.not(':first').hide();
-                        console.log('Ocultando duplicado de:', fieldId);
-                    }
-                }
-            });
-        }, 200);
-    }, 100); // Delay de 100ms
+        const totalInput = document.getElementById('id_total_input');
+        if (totalInput) {
+            totalInput.value = totalGeneral.toFixed(2);
+        }
+
+        const badgeServ = document.getElementById('badge-servicios-count');
+        if (badgeServ) badgeServ.textContent = `${servCount} seleccionado${servCount === 1 ? '' : 's'}`;
+
+        const badgeProd = document.getElementById('badge-repuestos-count');
+        if (badgeProd) badgeProd.textContent = `${prodCount} seleccionado${prodCount === 1 ? '' : 's'}`;
+    }
+
+    document.querySelectorAll('.serv-cb, .prod-cb').forEach(function(cb) {
+        cb.addEventListener('change', recalcularTotales);
+    });
+
+    recalcularTotales();
 });
 </script>
+
+<style>
+.cursor-pointer {
+    cursor: pointer;
+}
+.hover-card {
+    transition: all 0.2s ease;
+}
+.hover-card:hover {
+    border-color: #93c5fd !important;
+    background-color: #f8fafc !important;
+}
+.form-check-input:checked {
+    background-color: #2563eb;
+    border-color: #2563eb;
+}
+</style>
 {% endblock %}
