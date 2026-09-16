@@ -292,6 +292,8 @@ document.addEventListener('DOMContentLoaded', function() {
                 if (condTelInfo) condTelInfo.innerHTML = '';
             }
         });
+    }
+
     // Actualizar repuestos asociados según los servicios seleccionados
     function actualizarRepuestosAsociados() {
         const serviciosSeleccionados = Array.from(document.querySelectorAll('.serv-cb:checked'));
@@ -378,6 +380,10 @@ document.addEventListener('DOMContentLoaded', function() {
     document.querySelectorAll('.prod-cb').forEach(function(cb) {
         cb.addEventListener('change', recalcularTotales);
     });
+
+    if (vehiculoSelect && vehiculoSelect.value) {
+        vehiculoSelect.dispatchEvent(new Event('change'));
+    }
 
     actualizarRepuestosAsociados();
     recalcularTotales();

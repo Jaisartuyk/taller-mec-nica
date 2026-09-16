@@ -46,7 +46,7 @@ class OrdenServicioForm(forms.ModelForm):
 
         if user and hasattr(user, 'perfilusuario') and user.perfilusuario.cliente:
             cliente = user.perfilusuario.cliente
-            self.fields['vehiculo'].queryset = Vehiculo.objects.filter(cliente=cliente).distinct().order_by('placa')
+            self.fields['vehiculo'].queryset = Vehiculo.objects.filter(cliente=cliente).select_related('conductor').distinct().order_by('placa')
             self.fields['productos'].queryset = Repuesto.objects.filter(cliente=cliente).distinct().order_by('nombre')
             self.fields['servicios'].queryset = ServicioCatalogo.objects.filter(cliente=cliente).distinct().order_by('nombre')
 
