@@ -61,11 +61,15 @@ from django.dispatch import receiver
 @receiver(post_save, sender=User)
 def crear_perfil_usuario(sender, instance, created, **kwargs):
     if created:
-        # Si hay solo un cliente, lo asigna automáticamente; si hay varios, deberías adaptarlo
         from .models import Cliente
         cliente = Cliente.objects.first()
-        if cliente:
-            PerfilUsuario.objects.create(user=instance, cliente=cliente)
+        PerfilUsuario.objects.get_or_create(user=instance, defaults={'cliente': cliente})
+    else:
+        # Si el usuario ya existe pero por alguna razón no tiene PerfilUsuario
+        if not hasattr(instance, 'perfilusuario'):
+            from .models import Cliente
+            cliente = Cliente.objects.first()
+            PerfilUsuario.objects.get_or_create(user=instance, defaults={'cliente': cliente})
 
 class Conductor(models.Model):
     telegram_chat_id = models.CharField(max_length=50, blank=True, null=True, help_text="Chat ID de Telegram si es conductor sin usuario propio")

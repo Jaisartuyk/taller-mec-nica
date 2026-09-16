@@ -3,15 +3,9 @@ from .models import Vehiculo, Repuesto, Conductor, Cliente, PerfilUsuario, Pregu
 from django.contrib.auth.admin import UserAdmin as BaseUserAdmin
 from django.contrib.auth.models import User
 
-# Define el Inline para el PerfilUsuario
-class PerfilUsuarioInline(admin.StackedInline):
-    model = PerfilUsuario
-    can_delete = False
-    verbose_name_plural = 'Perfil'
-
 # Define el nuevo UserAdmin
 class UserAdmin(BaseUserAdmin):
-    inlines = (PerfilUsuarioInline, )
+    pass
 
 # Re-register UserAdmin
 admin.site.unregister(User)
