@@ -90,11 +90,23 @@
             border-top: 1px solid #ddd;
             padding-top: 20px;
         }
+        @media print {
+            .no-print {
+                display: none !important;
+            }
+            body {
+                padding: 0;
+            }
+        }
     </style>
 </head>
 <body>
     <!-- Header -->
     <div class="header">
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px;" class="no-print">
+            <a href="javascript:history.back()" style="padding: 8px 16px; background: #6c757d; color: white; text-decoration: none; border-radius: 4px; font-size: 14px;">&larr; Volver</a>
+            <button onclick="window.print()" style="padding: 8px 20px; background: #007bff; color: white; border: none; border-radius: 4px; font-size: 14px; cursor: pointer; font-weight: bold;">🖨️ Imprimir / Guardar PDF</button>
+        </div>
         <h1>ORDEN DE SERVICIO</h1>
         <p><strong>Número:</strong> #{{ orden.id }} | <strong>Fecha:</strong> {{ orden.fecha_creacion|date:"d/m/Y H:i" }}</p>
         <span class="status-badge status-{{ orden.estado }}">{{ orden.get_estado_display }}</span>
@@ -107,15 +119,15 @@
             <p><strong>Placa:</strong> {{ orden.vehiculo.placa }}</p>
             <p><strong>Marca:</strong> {{ orden.vehiculo.marca }}</p>
             <p><strong>Modelo:</strong> {{ orden.vehiculo.modelo }}</p>
-            <p><strong>Año:</strong> {{ orden.vehiculo.año }}</p>
+            <p><strong>Año:</strong> {{ orden.vehiculo.anio|default:orden.vehiculo.año|default:"No especificado" }}</p>
             <p><strong>Kilometraje:</strong> {{ orden.kilometraje|default:"No especificado" }} km</p>
         </div>
         
         <div class="info-box">
             <h3>👤 Información del Conductor</h3>
-            <p><strong>Nombre:</strong> {{ orden.conductor.nombre }}</p>
+            <p><strong>Nombre:</strong> {{ orden.conductor.nombre|default:"No asignado" }}</p>
             <p><strong>Teléfono:</strong> {{ orden.conductor.telefono|default:"No especificado" }}</p>
-            <p><strong>Email:</strong> {{ orden.conductor.email|default:"No especificado" }}</p>
+            <p><strong>Email:</strong> {{ orden.conductor.correo|default:orden.conductor.email|default:"No especificado" }}</p>
             <p><strong>Método de Pago:</strong> {{ orden.metodo_pago|default:"No especificado" }}</p>
         </div>
     </div>

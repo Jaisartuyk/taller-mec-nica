@@ -2224,6 +2224,8 @@ def imprimir_orden_pdf(request, pk):
         'aplicar_iva': config_taller.aplicar_iva if config_taller else False
     }
 
+    return render(request, 'gestion_taller/orden_servicio_pdf.html', context)
+
 # ===== VISTAS DE RECORDATORIOS DE MANTENIMIENTO =====
 
 from .models import RecordatorioMantenimiento
