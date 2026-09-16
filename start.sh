@@ -7,6 +7,9 @@ python manage.py migrate gestion_taller 0022 --fake --noinput || true
 # 2. Correr las demás migraciones normalmente (y continuar si alguna ya fue aplicada)
 python manage.py migrate --fake-initial --noinput || true
 
+echo "==> Creando superusuario administrador inicial..."
+python manage.py crear_superusuario_inicial || true
+
 echo "==> Recopilando archivos estáticos..."
 python manage.py collectstatic --noinput
 
