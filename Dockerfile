@@ -1,4 +1,4 @@
-# Dockerfile para Django + SQLite
+# Dockerfile para Django en Railway
 FROM python:3.11-slim
 
 WORKDIR /app
@@ -13,9 +13,11 @@ RUN pip install --no-cache-dir -r requirements.txt
 # Copia el resto del código
 COPY . .
 
+# Permisos para el script de inicio
+RUN chmod +x start.sh
+
 # Expone el puerto por defecto de Django
 EXPOSE 8000
 
-# Comando por defecto: runserver (solo para pruebas/desarrollo)
-CMD gunicorn --bind 0.0.0.0:$PORT taller_mecanica.wsgi:application
-
+# Comando de inicio: ejecuta migraciones y luego gunicorn
+CMD ["./start.sh"]
