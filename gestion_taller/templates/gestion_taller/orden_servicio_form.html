@@ -1,4 +1,4 @@
-﻿{% extends 'gestion_taller/base.html' %}
+{% extends 'gestion_taller/base.html' %}
 {% load static %}
 
 {% block content %}
@@ -137,20 +137,20 @@
                                     </label>
                                     <span class="badge bg-primary bg-opacity-10 text-primary" id="badge-servicios-count">0 seleccionados</span>
                                 </div>
-                                <div class="p-3 bg-light rounded-3 border" style="max-height: 240px; overflow-y: auto; background-color: #f8fafc !important;">
+                                <div class="p-3 bg-light rounded-3 border" style="max-height: 260px; overflow-y: auto; background-color: #f8fafc !important;">
                                     <div class="row g-2">
                                         {% for serv in form.fields.servicios.queryset %}
                                         <div class="col-md-6">
-                                            <div class="card h-100 p-2 bg-white border rounded-3 shadow-none hover-card">
+                                            <div class="card h-100 p-2 bg-white border rounded-3 shadow-none hover-card servicio-card" id="card_s_{{ serv.id }}">
                                                 <div class="form-check d-flex align-items-center justify-content-between m-0">
-                                                    <div>
-                                                        <input class="form-check-input serv-cb me-2" type="checkbox" name="servicios" value="{{ serv.id }}" id="chk_s_{{ serv.id }}" data-precio="{{ serv.precio|default:0 }}" {% if serv in form.instance.servicios.all %}checked{% endif %}>
-                                                        <label class="form-check-label fw-semibold text-dark small cursor-pointer" for="chk_s_{{ serv.id }}">
+                                                    <div class="d-flex align-items-center me-2">
+                                                        <input class="form-check-input serv-cb me-2" type="checkbox" name="servicios" value="{{ serv.id }}" id="chk_s_{{ serv.id }}" data-precio="{{ serv.precio_base|default:0 }}" data-repuestos="{{ serv.get_productos_requeridos_ids }}" {% if serv in form.instance.servicios.all %}checked{% endif %}>
+                                                        <label class="form-check-label fw-semibold text-dark small cursor-pointer mb-0" for="chk_s_{{ serv.id }}">
                                                             {{ serv.nombre }}
                                                         </label>
                                                     </div>
-                                                    <span class="badge bg-primary bg-opacity-10 text-primary fw-bold" style="font-size: 0.82rem;">
-                                                        ${{ serv.precio|default:"0.00" }}
+                                                    <span class="badge bg-primary bg-opacity-10 text-primary fw-bold flex-shrink-0" style="font-size: 0.82rem;">
+                                                        ${{ serv.precio_base|default:"0.00" }}
                                                     </span>
                                                 </div>
                                             </div>
@@ -170,29 +170,32 @@
                                     </label>
                                     <span class="badge bg-secondary bg-opacity-10 text-secondary" id="badge-repuestos-count">0 seleccionados</span>
                                 </div>
-                                <div class="p-3 bg-light rounded-3 border" style="max-height: 240px; overflow-y: auto; background-color: #f8fafc !important;">
-                                    <div class="row g-2">
-                                        {% for prod in form.fields.productos.queryset %}
-                                        <div class="col-md-6">
-                                            <div class="card h-100 p-2 bg-white border rounded-3 shadow-none hover-card">
-                                                <div class="form-check d-flex align-items-center justify-content-between m-0">
-                                                    <div>
-                                                        <input class="form-check-input prod-cb me-2" type="checkbox" name="productos" value="{{ prod.id }}" id="chk_p_{{ prod.id }}" data-precio="{{ prod.precio_venta|default:0 }}" {% if prod in form.instance.productos.all %}checked{% endif %}>
-                                                        <label class="form-check-label fw-semibold text-dark small cursor-pointer" for="chk_p_{{ prod.id }}">
-                                                            {{ prod.nombre }}
-                                                        </label>
-                                                    </div>
-                                                    <span class="badge bg-success bg-opacity-10 text-success fw-bold" style="font-size: 0.82rem;">
-                                                        ${{ prod.precio_venta|default:"0.00" }}
-                                                    </span>
-                                                </div>
-                                            </div>
-                                        </div>
-                                        {% empty %}
-                                        <div class="col-12 text-center text-muted small py-3">No hay repuestos registrados en stock.</div>
-                                        {% endfor %}
-                                    </div>
-                                </div>
+                                <div class="p-3 bg-light rounded-3 border" style="max-height: 280px; overflow-y: auto; background-color: #f8fafc !important;">
+                                    <div class="row g-2" id="contenedor-repuestos">
+                                         {% for prod in form.fields.productos.queryset %}
+                                         <div class="col-md-6 repuesto-wrapper" id="wrap_p_{{ prod.id }}" data-repuesto-id="{{ prod.id }}">
+                                             <div class="card h-100 p-2 bg-white border rounded-3 shadow-none hover-card repuesto-card" id="card_p_{{ prod.id }}">
+                                                 <div class="form-check d-flex align-items-center justify-content-between m-0">
+                                                     <div class="d-flex align-items-center me-2">
+                                                         <input class="form-check-input prod-cb me-2" type="checkbox" name="productos" value="{{ prod.id }}" id="chk_p_{{ prod.id }}" data-precio="{{ prod.precio_venta|default:0 }}" {% if prod in form.instance.productos.all %}checked{% endif %}>
+                                                         <label class="form-check-label fw-semibold text-dark small cursor-pointer mb-0" for="chk_p_{{ prod.id }}">
+                                                             {{ prod.nombre }}
+                                                         </label>
+                                                     </div>
+                                                     <div class="d-flex align-items-center gap-1 flex-shrink-0">
+                                                         <span class="badge bg-info bg-opacity-10 text-info fw-bold d-none badge-asociado" style="font-size: 0.72rem;">Sugerido</span>
+                                                         <span class="badge bg-success bg-opacity-10 text-success fw-bold" style="font-size: 0.82rem;">
+                                                             ${{ prod.precio_venta|default:"0.00" }}
+                                                         </span>
+                                                     </div>
+                                                 </div>
+                                             </div>
+                                         </div>
+                                         {% empty %}
+                                         <div class="col-12 text-center text-muted small py-3">No hay repuestos registrados en stock.</div>
+                                         {% endfor %}
+                                     </div>
+                                 </div>
                             </div>
                         </div>
                     </div>
@@ -289,6 +292,45 @@ document.addEventListener('DOMContentLoaded', function() {
                 if (condTelInfo) condTelInfo.innerHTML = '';
             }
         });
+    // Actualizar repuestos asociados según los servicios seleccionados
+    function actualizarRepuestosAsociados() {
+        const serviciosSeleccionados = Array.from(document.querySelectorAll('.serv-cb:checked'));
+        const repuestosAsociadosSet = new Set();
+
+        serviciosSeleccionados.forEach(cb => {
+            const repuestosStr = cb.getAttribute('data-repuestos') || '';
+            if (repuestosStr) {
+                repuestosStr.split(',').forEach(id => {
+                    const cleanId = id.trim();
+                    if (cleanId) repuestosAsociadosSet.add(cleanId);
+                });
+            }
+        });
+
+        const hayServicios = serviciosSeleccionados.length > 0;
+        const repuestosWrappers = document.querySelectorAll('.repuesto-wrapper');
+
+        repuestosWrappers.forEach(wrap => {
+            const repId = wrap.getAttribute('data-repuesto-id');
+            const card = wrap.querySelector('.repuesto-card');
+            const badge = wrap.querySelector('.badge-asociado');
+            const check = wrap.querySelector('.prod-cb');
+
+            if (hayServicios && repuestosAsociadosSet.has(repId)) {
+                // Es un repuesto asociado al servicio seleccionado
+                wrap.style.order = '-1'; // Poner arriba en la lista
+                if (card) {
+                    card.classList.add('border-info', 'bg-info', 'bg-opacity-10');
+                }
+                if (badge) badge.classList.remove('d-none');
+            } else {
+                wrap.style.order = '0';
+                if (card) {
+                    card.classList.remove('border-info', 'bg-info', 'bg-opacity-10');
+                }
+                if (badge) badge.classList.add('d-none');
+            }
+        });
     }
 
     // Recalcular Totales
@@ -326,10 +368,18 @@ document.addEventListener('DOMContentLoaded', function() {
         if (badgeProd) badgeProd.textContent = `${prodCount} seleccionado${prodCount === 1 ? '' : 's'}`;
     }
 
-    document.querySelectorAll('.serv-cb, .prod-cb').forEach(function(cb) {
+    document.querySelectorAll('.serv-cb').forEach(function(cb) {
+        cb.addEventListener('change', function() {
+            actualizarRepuestosAsociados();
+            recalcularTotales();
+        });
+    });
+
+    document.querySelectorAll('.prod-cb').forEach(function(cb) {
         cb.addEventListener('change', recalcularTotales);
     });
 
+    actualizarRepuestosAsociados();
     recalcularTotales();
 });
 </script>
@@ -348,6 +398,10 @@ document.addEventListener('DOMContentLoaded', function() {
 .form-check-input:checked {
     background-color: #2563eb;
     border-color: #2563eb;
+}
+#contenedor-repuestos {
+    display: flex;
+    flex-wrap: wrap;
 }
 </style>
 {% endblock %}

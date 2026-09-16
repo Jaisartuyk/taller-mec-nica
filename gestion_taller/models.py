@@ -266,6 +266,14 @@ class ServicioCatalogo(models.Model):
     productos_requeridos = models.ManyToManyField('Repuesto', blank=True, related_name='servicios_catalogo')
     activo = models.BooleanField(default=True)
     
+    @property
+    def precio(self):
+        return self.precio_base
+    
+    def get_productos_requeridos_ids(self):
+        """Retorna los IDs de repuestos asociados como string separado por comas"""
+        return ",".join(str(p_id) for p_id in self.productos_requeridos.values_list('id', flat=True))
+    
     # Configuración de IVA específica del servicio
     aplicar_iva_servicio = models.BooleanField(
         null=True, 

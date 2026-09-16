@@ -1,4 +1,4 @@
-﻿<form method="post" id="ordenServicioModalForm" action="{% url 'orden_servicio_nueva' %}">
+<form method="post" id="ordenServicioModalForm" action="{% url 'orden_servicio_nueva' %}">
     {% csrf_token %}
     
     {% if form.non_field_errors %}
@@ -67,16 +67,18 @@
                 <span><i class="fas fa-tools text-primary me-1"></i> Servicios a Realizar <span class="text-danger">*</span></span>
                 <span class="badge bg-primary bg-opacity-10 text-primary" id="servicios-contador">0 seleccionados</span>
             </label>
-            <div class="p-3 bg-light rounded-3 border" style="max-height: 180px; overflow-y: auto; background-color: #f8fafc !important;">
+            <div class="p-3 bg-light rounded-3 border" style="max-height: 190px; overflow-y: auto; background-color: #f8fafc !important;">
                 <div class="row g-2">
                     {% for serv in form.fields.servicios.queryset %}
                     <div class="col-md-6">
-                        <div class="form-check p-2 bg-white rounded-2 border border-opacity-50">
-                            <input class="form-check-input servicio-checkbox me-2" type="checkbox" name="servicios" value="{{ serv.id }}" id="serv_{{ serv.id }}" data-precio="{{ serv.precio|default:0 }}" {% if serv in form.instance.servicios.all %}checked{% endif %}>
-                            <label class="form-check-label small fw-medium text-dark w-100 cursor-pointer d-flex justify-content-between" for="serv_{{ serv.id }}">
-                                <span>{{ serv.nombre }}</span>
-                                <span class="text-primary fw-bold">${{ serv.precio|default:"0.00" }}</span>
-                            </label>
+                        <div class="form-check p-2 bg-white rounded-2 border border-opacity-50 h-100 d-flex align-items-center justify-content-between">
+                            <div class="d-flex align-items-center me-2">
+                                <input class="form-check-input servicio-checkbox me-2" type="checkbox" name="servicios" value="{{ serv.id }}" id="serv_{{ serv.id }}" data-precio="{{ serv.precio_base|default:0 }}" data-repuestos="{{ serv.get_productos_requeridos_ids }}" {% if serv in form.instance.servicios.all %}checked{% endif %}>
+                                <label class="form-check-label small fw-medium text-dark cursor-pointer mb-0" for="serv_{{ serv.id }}">
+                                    {{ serv.nombre }}
+                                </label>
+                            </div>
+                            <span class="text-primary fw-bold flex-shrink-0">${{ serv.precio_base|default:"0.00" }}</span>
                         </div>
                     </div>
                     {% empty %}
@@ -92,16 +94,21 @@
                 <span><i class="fas fa-cogs text-info me-1"></i> Repuestos / Materiales</span>
                 <span class="badge bg-secondary bg-opacity-10 text-secondary" id="productos-contador">0 seleccionados</span>
             </label>
-            <div class="p-3 bg-light rounded-3 border" style="max-height: 180px; overflow-y: auto; background-color: #f8fafc !important;">
-                <div class="row g-2">
+            <div class="p-3 bg-light rounded-3 border" style="max-height: 200px; overflow-y: auto; background-color: #f8fafc !important;">
+                <div class="row g-2" id="modal-contenedor-repuestos">
                     {% for prod in form.fields.productos.queryset %}
-                    <div class="col-md-6">
-                        <div class="form-check p-2 bg-white rounded-2 border border-opacity-50">
-                            <input class="form-check-input producto-checkbox me-2" type="checkbox" name="productos" value="{{ prod.id }}" id="prod_{{ prod.id }}" data-precio="{{ prod.precio_venta|default:0 }}" {% if prod in form.instance.productos.all %}checked{% endif %}>
-                            <label class="form-check-label small fw-medium text-dark w-100 cursor-pointer d-flex justify-content-between" for="prod_{{ prod.id }}">
-                                <span>{{ prod.nombre }}</span>
+                    <div class="col-md-6 modal-repuesto-wrapper" id="modal_wrap_p_{{ prod.id }}" data-repuesto-id="{{ prod.id }}">
+                        <div class="form-check p-2 bg-white rounded-2 border border-opacity-50 h-100 d-flex align-items-center justify-content-between modal-repuesto-card">
+                            <div class="d-flex align-items-center me-2">
+                                <input class="form-check-input producto-checkbox me-2" type="checkbox" name="productos" value="{{ prod.id }}" id="prod_{{ prod.id }}" data-precio="{{ prod.precio_venta|default:0 }}" {% if prod in form.instance.productos.all %}checked{% endif %}>
+                                <label class="form-check-label small fw-medium text-dark cursor-pointer mb-0" for="prod_{{ prod.id }}">
+                                    {{ prod.nombre }}
+                                </label>
+                            </div>
+                            <div class="d-flex align-items-center gap-1 flex-shrink-0">
+                                <span class="badge bg-info bg-opacity-10 text-info fw-bold d-none modal-badge-asociado" style="font-size: 0.7rem;">Sugerido</span>
                                 <span class="text-success fw-bold">${{ prod.precio_venta|default:"0.00" }}</span>
-                            </label>
+                            </div>
                         </div>
                     </div>
                     {% empty %}
@@ -167,6 +174,43 @@
                 if (condInput) condInput.value = '';
             }
         });
+    // Asociar repuestos dinámicamente según los servicios elegidos
+    function actualizarRepuestosModal() {
+        const serviciosSeleccionados = Array.from(form.querySelectorAll('.servicio-checkbox:checked'));
+        const repuestosAsociadosSet = new Set();
+
+        serviciosSeleccionados.forEach(cb => {
+            const repuestosStr = cb.getAttribute('data-repuestos') || '';
+            if (repuestosStr) {
+                repuestosStr.split(',').forEach(id => {
+                    const cleanId = id.trim();
+                    if (cleanId) repuestosAsociadosSet.add(cleanId);
+                });
+            }
+        });
+
+        const hayServicios = serviciosSeleccionados.length > 0;
+        const wrappers = form.querySelectorAll('.modal-repuesto-wrapper');
+
+        wrappers.forEach(wrap => {
+            const repId = wrap.getAttribute('data-repuesto-id');
+            const card = wrap.querySelector('.modal-repuesto-card');
+            const badge = wrap.querySelector('.modal-badge-asociado');
+
+            if (hayServicios && repuestosAsociadosSet.has(repId)) {
+                wrap.style.order = '-1';
+                if (card) {
+                    card.classList.add('border-info', 'bg-info', 'bg-opacity-10');
+                }
+                if (badge) badge.classList.remove('d-none');
+            } else {
+                wrap.style.order = '0';
+                if (card) {
+                    card.classList.remove('border-info', 'bg-info', 'bg-opacity-10');
+                }
+                if (badge) badge.classList.add('d-none');
+            }
+        });
     }
 
     // Cálculo dinámico de total
@@ -197,10 +241,25 @@
         if (pContador) pContador.textContent = `${pCount} seleccionado${pCount === 1 ? '' : 's'}`;
     }
 
-    form.querySelectorAll('.servicio-checkbox, .producto-checkbox').forEach(cb => {
+    form.querySelectorAll('.servicio-checkbox').forEach(cb => {
+        cb.addEventListener('change', function() {
+            actualizarRepuestosModal();
+            recalcularTotal();
+        });
+    });
+
+    form.querySelectorAll('.producto-checkbox').forEach(cb => {
         cb.addEventListener('change', recalcularTotal);
     });
 
+    actualizarRepuestosModal();
     recalcularTotal();
 })();
 </script>
+
+<style>
+#modal-contenedor-repuestos {
+    display: flex;
+    flex-wrap: wrap;
+}
+</style>
