@@ -34,14 +34,18 @@ SECRET_KEY = 'django-insecure-$z=w!70h%+p*jrb2go45!t41i0rp%36@z&*6bf^^13&@049%$0
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = True
 
-ALLOWED_HOSTS = os.environ.get(
-    'ALLOWED_HOSTS',
-    'localhost,127.0.0.1,django,iqautoec.com,www.iqautoec.com,oqcfncr6.up.railway.app'
-).split(',')
+allowed_hosts_env = os.environ.get('ALLOWED_HOSTS')
+if allowed_hosts_env:
+    ALLOWED_HOSTS = [host.strip() for host in allowed_hosts_env.split(',') if host.strip()]
+else:
+    ALLOWED_HOSTS = ['*']
 
 CSRF_TRUSTED_ORIGINS = [
     "https://iqautoec.com",
     "https://www.iqautoec.com",
+    "https://*.railway.app",
+    "https://*.up.railway.app",
+    "https://taller-mec-nica-production.up.railway.app",
 ]
 
 
