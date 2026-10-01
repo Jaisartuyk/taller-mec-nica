@@ -2226,6 +2226,11 @@ def imprimir_orden_pdf(request, pk):
 
     return render(request, 'gestion_taller/orden_servicio_pdf.html', context)
 
+@login_required
+def documento_tesis_capitulo3(request):
+    """Vista formal del Capítulo 3 de Tesis con diseño APA y diagramas técnicos para impresión/PDF"""
+    return render(request, 'gestion_taller/documento_tesis_capitulo3.html')
+
 # ===== VISTAS DE RECORDATORIOS DE MANTENIMIENTO =====
 
 from .models import RecordatorioMantenimiento

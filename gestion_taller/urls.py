@@ -58,6 +58,8 @@ urlpatterns = [
     path('api/ordenes-servicio/<int:pk>/cambiar-estado/', views.cambiar_estado_orden_ajax, name='cambiar_estado_orden_ajax'),
     path('api/ordenes-servicio/<int:pk>/registrar-pago/', views.registrar_pago_orden, name='registrar_pago_orden'),
     path('ordenes-servicio/<int:pk>/imprimir/', views.imprimir_orden_pdf, name='imprimir_orden_pdf'),
+    # Documento de Tesis - Capítulo 3
+    path('documento-tesis/capitulo-3/', views.documento_tesis_capitulo3, name='documento_tesis_capitulo3'),
 
     # URLs para Servicios del Catálogo
     path('servicios-catalogo/', views.servicios_catalogo_list, name='servicios_catalogo_list'),

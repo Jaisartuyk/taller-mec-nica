@@ -333,6 +333,12 @@
                 <i class="fas fa-robot text-info"></i>
                 <span>Asistente Virtual</span>
             </a>
+
+            <div class="menu-header">Titulación & Tesis</div>
+            <a href="{% url 'documento_tesis_capitulo3' %}" target="_blank" class="nav-link-custom {% if 'documento_tesis' in request.resolver_match.url_name %}active{% endif %} text-warning">
+                <i class="fas fa-book-open"></i>
+                <span>Capítulo 3 (Doc & PDF)</span>
+            </a>
         </div>
 
         <div class="sidebar-footer">
