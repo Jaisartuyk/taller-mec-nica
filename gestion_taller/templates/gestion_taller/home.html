@@ -164,11 +164,12 @@
       </a>
     </div>
     <div class="col-6 col-md-3">
-      <a href="{% url 'whatsapp_dashboard' %}" class="card border-0 shadow-sm text-decoration-none h-100 p-3 text-center">
-        <i class="fab fa-whatsapp text-success fa-2x mb-2"></i>
-        <div class="fw-bold text-dark small">Centro WhatsApp</div>
-        <div class="text-muted" style="font-size: 0.75rem;">Mensajería directa</div>
-      </a>
+      <div class="card border-0 shadow-sm h-100 p-3 text-center opacity-75 position-relative" style="cursor: not-allowed;">
+        <span class="position-absolute top-0 end-0 badge bg-secondary bg-opacity-25 text-secondary m-2" style="font-size: 0.65rem;">Muy pronto</span>
+        <i class="fab fa-whatsapp text-muted fa-2x mb-2"></i>
+        <div class="fw-bold text-muted small">Centro WhatsApp</div>
+        <div class="text-muted" style="font-size: 0.75rem;">Próximamente disponible</div>
+      </div>
     </div>
     <div class="col-6 col-md-3">
       <a href="{% url 'servicios_catalogo_list' %}" class="card border-0 shadow-sm text-decoration-none h-100 p-3 text-center">
