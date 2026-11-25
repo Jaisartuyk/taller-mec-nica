@@ -171,7 +171,7 @@ class AgenteIATallerService:
 
         modelo_principal = os.environ.get('GEMINI_MODEL', 'gemini-3.8-flash').strip() or 'gemini-3.8-flash'
         modelos_candidatos = []
-        for m in (modelo_principal, 'gemini-2.5-flash-lite', 'gemini-flash-latest'):
+        for m in (modelo_principal, 'gemini-3.5-flash-lite', 'gemini-flash-latest'):
             if m and m not in modelos_candidatos:
                 modelos_candidatos.append(m)
 
