@@ -207,13 +207,57 @@ STATIC_URL = '/static/'
 STATIC_ROOT = os.path.join(BASE_DIR, 'staticfiles')
 STATICFILES_DIRS = [os.path.join(BASE_DIR, 'static')]
 
-# Archivos de medios
+# Archivos de medios (Cloudflare R2 en producción si están configuradas las variables, local si no)
 MEDIA_URL = '/media/'
 MEDIA_ROOT = os.environ.get('MEDIA_ROOT', os.path.join(BASE_DIR, 'media'))
 
-# WhiteNoise para producción
-if not DEBUG:
-    STATICFILES_STORAGE = 'whitenoise.storage.CompressedManifestStaticFilesStorage'
+R2_ACCESS_KEY_ID = os.environ.get('R2_ACCESS_KEY_ID', '').strip()
+R2_SECRET_ACCESS_KEY = os.environ.get('R2_SECRET_ACCESS_KEY', '').strip()
+R2_ENDPOINT_URL = os.environ.get('R2_ENDPOINT_URL', '').strip()
+R2_BUCKET_NAME = os.environ.get('R2_BUCKET_NAME', 'tallerer').strip()
+R2_PUBLIC_URL = os.environ.get('R2_PUBLIC_URL', '').strip().rstrip('/')
+
+_staticfiles_backend = (
+    'whitenoise.storage.CompressedManifestStaticFilesStorage'
+    if not DEBUG
+    else 'django.contrib.staticfiles.storage.StaticFilesStorage'
+)
+
+if R2_ACCESS_KEY_ID and R2_SECRET_ACCESS_KEY and R2_ENDPOINT_URL:
+    _r2_options = {
+        'access_key': R2_ACCESS_KEY_ID,
+        'secret_key': R2_SECRET_ACCESS_KEY,
+        'bucket_name': R2_BUCKET_NAME,
+        'endpoint_url': R2_ENDPOINT_URL,
+        'region_name': 'auto',
+        'signature_version': 's3v4',
+        'addressing_style': 'path',
+        'default_acl': None,
+        'file_overwrite': False,
+        'querystring_auth': not bool(R2_PUBLIC_URL),
+    }
+    if R2_PUBLIC_URL:
+        _r2_options['custom_domain'] = R2_PUBLIC_URL.replace('https://', '').replace('http://', '')
+        MEDIA_URL = f'{R2_PUBLIC_URL}/'
+
+    STORAGES = {
+        'default': {
+            'BACKEND': 'storages.backends.s3.S3Storage',
+            'OPTIONS': _r2_options,
+        },
+        'staticfiles': {
+            'BACKEND': _staticfiles_backend,
+        },
+    }
+else:
+    STORAGES = {
+        'default': {
+            'BACKEND': 'django.core.files.storage.FileSystemStorage',
+        },
+        'staticfiles': {
+            'BACKEND': _staticfiles_backend,
+        },
+    }
 
 
 # Default primary key field type
