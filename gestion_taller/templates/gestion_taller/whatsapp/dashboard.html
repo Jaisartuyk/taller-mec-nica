@@ -118,11 +118,14 @@
             <form id="formRespuestaHumana" class="d-flex gap-2 align-items-center" enctype="multipart/form-data">
               {% csrf_token %}
               <input type="file" id="inputArchivoMedia" accept="image/*,audio/*,video/*" class="d-none">
-              <button type="button" id="btnAdjuntarMedia" class="btn btn-light border rounded-circle" title="Adjuntar imagen, audio o video" disabled style="width: 40px; height: 40px;">
+              <button type="button" id="btnAdjuntarMedia" class="btn btn-light border rounded-circle flex-shrink-0" title="Adjuntar imagen, audio o video" disabled style="width: 40px; height: 40px;">
                 <i class="fas fa-paperclip text-secondary"></i>
               </button>
-              <input type="text" id="inputRespuestaHumana" class="form-control rounded-pill px-4" placeholder="Escribe un mensaje o adjunta imagen/audio/video..." disabled autocomplete="off">
-              <button type="submit" id="btnEnviarHumano" class="btn btn-success rounded-pill px-4 fw-semibold" disabled>
+              <button type="button" id="btnGrabarAudio" class="btn btn-light border rounded-circle flex-shrink-0" title="Grabar nota de voz" disabled style="width: 40px; height: 40px;">
+                <i class="fas fa-microphone text-danger"></i>
+              </button>
+              <input type="text" id="inputRespuestaHumana" class="form-control rounded-pill px-4" placeholder="Escribe un mensaje, adjunta o graba un audio..." disabled autocomplete="off">
+              <button type="submit" id="btnEnviarHumano" class="btn btn-success rounded-pill px-4 fw-semibold flex-shrink-0" disabled>
                 <i class="fas fa-paper-plane me-1"></i> Enviar
               </button>
             </form>
@@ -149,9 +152,47 @@ document.addEventListener('DOMContentLoaded', function() {
   const buscarInput = document.getElementById('buscarChatInput');
   const inputArchivo = document.getElementById('inputArchivoMedia');
   const btnAdjuntar = document.getElementById('btnAdjuntarMedia');
+  const btnGrabarAudio = document.getElementById('btnGrabarAudio');
   const mediaPreviewBar = document.getElementById('mediaPreviewBar');
   const mediaPreviewName = document.getElementById('mediaPreviewName');
   const btnLimpiarMedia = document.getElementById('btnLimpiarMedia');
+
+  let mediaRecorder = null;
+  let audioChunks = [];
+  let audioGrabadoFile = null;
+
+  if (btnGrabarAudio) {
+    btnGrabarAudio.addEventListener('click', async () => {
+      if (mediaRecorder && mediaRecorder.state === 'recording') {
+        mediaRecorder.stop();
+        btnGrabarAudio.className = 'btn btn-light border rounded-circle flex-shrink-0';
+        btnGrabarAudio.innerHTML = '<i class="fas fa-microphone text-danger"></i>';
+        return;
+      }
+      if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+        alert('Tu navegador no soporta grabación de audio.');
+        return;
+      }
+      try {
+        const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+        audioChunks = [];
+        mediaRecorder = new MediaRecorder(stream);
+        mediaRecorder.ondataavailable = e => { if (e.data.size > 0) audioChunks.push(e.data); };
+        mediaRecorder.onstop = () => {
+          stream.getTracks().forEach(t => t.stop());
+          const blob = new Blob(audioChunks, { type: 'audio/webm' });
+          audioGrabadoFile = new File([blob], `nota_voz_${Date.now()}.webm`, { type: 'audio/webm' });
+          mediaPreviewName.textContent = '🎙️ Nota de voz grabada (lista para enviar)';
+          mediaPreviewBar.classList.remove('d-none');
+        };
+        mediaRecorder.start();
+        btnGrabarAudio.className = 'btn btn-danger rounded-circle flex-shrink-0';
+        btnGrabarAudio.innerHTML = '<i class="fas fa-stop text-white"></i>';
+      } catch (err) {
+        alert('Permite el acceso al micrófono para grabar notas de voz.');
+      }
+    });
+  }
 
   if (btnAdjuntar && inputArchivo) {
     btnAdjuntar.addEventListener('click', () => inputArchivo.click());
@@ -167,6 +208,7 @@ document.addEventListener('DOMContentLoaded', function() {
   if (btnLimpiarMedia) {
     btnLimpiarMedia.addEventListener('click', () => {
       inputArchivo.value = '';
+      audioGrabadoFile = null;
       mediaPreviewBar.classList.add('d-none');
     });
   }
@@ -265,6 +307,7 @@ document.addEventListener('DOMContentLoaded', function() {
         inputResp.disabled = false;
         btnEnviar.disabled = false;
         if (btnAdjuntar) btnAdjuntar.disabled = false;
+        if (btnGrabarAudio) btnGrabarAudio.disabled = false;
         actualizarBotonBot(data.conductor.bot_pausado);
         renderMensajes(data.mensajes);
       }
@@ -294,7 +337,7 @@ document.addEventListener('DOMContentLoaded', function() {
   if (formResp) {
     formResp.addEventListener('submit', async function(e) {
       e.preventDefault();
-      const archivoFile = inputArchivo && inputArchivo.files ? inputArchivo.files[0] : null;
+      const archivoFile = audioGrabadoFile || (inputArchivo && inputArchivo.files ? inputArchivo.files[0] : null);
       const texto = inputResp.value.trim();
       if (!conductorActivoId || (!texto && !archivoFile)) return;
 
@@ -303,6 +346,7 @@ document.addEventListener('DOMContentLoaded', function() {
       if (archivoFile) formData.append('archivo', archivoFile);
 
       inputResp.value = '';
+      audioGrabadoFile = null;
       if (inputArchivo) inputArchivo.value = '';
       if (mediaPreviewBar) mediaPreviewBar.classList.add('d-none');
       btnEnviar.disabled = true;

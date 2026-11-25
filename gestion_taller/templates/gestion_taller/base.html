@@ -845,7 +845,7 @@ window.addEventListener('appinstalled', function(evt) {
 });
 </script>
 
-{% if user.is_authenticated and user.perfilusuario.cliente.tiene_whatsapp_pro and request.resolver_match.url_name != 'chatbot_dashboard' %}
+{% if user.is_authenticated and user.perfilusuario.cliente.tiene_whatsapp_pro and request.resolver_match.url_name != 'chatbot_dashboard' and request.resolver_match.url_name != 'whatsapp_dashboard' %}
 <!-- Botón Flotante y Widget del Copiloto IA (disponible en todas las vistas) -->
 <div id="iaFloatingWidget" style="position: fixed; bottom: 24px; right: 24px; z-index: 1080;">
   <!-- Ventana de chat flotante -->
