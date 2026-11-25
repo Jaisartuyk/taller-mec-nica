@@ -126,9 +126,16 @@
           </td>
           <td>{{ orden.fecha_creacion|date:"d/m/Y H:i" }}</td>
           <td>
-            <a href="{% url 'orden_servicio_detail' orden.id %}" class="btn btn-sm btn-outline-info">
-              <i class="bi bi-eye"></i> Ver
-            </a>
+            <div class="d-flex gap-1">
+              <a href="{% url 'orden_servicio_detail' orden.id %}" class="btn btn-sm btn-outline-info">
+                <i class="bi bi-eye"></i> Ver
+              </a>
+              {% if not orden.pagada and orden.estado != 'facturada' %}
+                <a href="{% url 'orden_servicio_editar' orden.id %}" class="btn btn-sm btn-outline-primary">
+                  <i class="bi bi-pencil"></i> Editar
+                </a>
+              {% endif %}
+            </div>
           </td>
         </tr>
         {% empty %}

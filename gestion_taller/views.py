@@ -803,6 +803,52 @@ class OrdenServicioCreateView(LoginRequiredMixin, CreateView):
             }, status=400)
         return super().form_invalid(form)
 
+
+class OrdenServicioUpdateView(LoginRequiredMixin, UpdateView):
+    model = OrdenServicio
+    form_class = OrdenServicioForm
+    template_name = 'gestion_taller/orden_servicio_form.html'
+
+    def get_queryset(self):
+        perfil = getattr(self.request.user, 'perfilusuario', None)
+        if not perfil or not perfil.cliente:
+            return OrdenServicio.objects.none()
+        return OrdenServicio.objects.filter(cliente=perfil.cliente)
+
+    def dispatch(self, request, *args, **kwargs):
+        if request.user.is_authenticated:
+            orden = self.get_object()
+            if orden.pagada or orden.estado == 'facturada':
+                messages.warning(
+                    request,
+                    f'La orden #{orden.id} ya está facturada o pagada y no puede editarse.'
+                )
+                return redirect('orden_servicio_detail', pk=orden.pk)
+        return super().dispatch(request, *args, **kwargs)
+
+    def get_form_kwargs(self):
+        kwargs = super().get_form_kwargs()
+        kwargs['user'] = self.request.user
+        return kwargs
+
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        context['es_edicion'] = True
+        return context
+
+    def form_valid(self, form):
+        self.object = form.save(commit=False)
+        vehiculo = form.cleaned_data.get('vehiculo')
+        if not self.object.conductor and vehiculo and vehiculo.conductor:
+            self.object.conductor = vehiculo.conductor
+        self.object.save()
+        form.save_m2m()
+        self.object.total = self.object.calcular_total()
+        self.object.save(update_fields=['total'])
+        messages.success(self.request, f'Orden de servicio #{self.object.id} actualizada correctamente.')
+        return redirect('orden_servicio_detail', pk=self.object.pk)
+
+
 # --- API: Vinculación de Telegram ---
 
 from django.views.decorators.csrf import csrf_exempt

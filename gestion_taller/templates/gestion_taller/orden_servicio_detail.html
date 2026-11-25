@@ -109,6 +109,11 @@
               {% endif %}
             </div>
             <div class="col-md-6 text-end">
+              {% if not orden.pagada and orden.estado != 'facturada' %}
+                <a href="{% url 'orden_servicio_editar' orden.id %}" class="btn btn-outline-primary">
+                  <i class="bi bi-pencil"></i> Editar
+                </a>
+              {% endif %}
               <a href="{% url 'imprimir_orden_pdf' orden.id %}" class="btn btn-outline-secondary" target="_blank">
                 <i class="bi bi-printer"></i> Imprimir
               </a>

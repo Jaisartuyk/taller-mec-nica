@@ -59,6 +59,7 @@ urlpatterns = [
     path('ordenes-servicio/', views.OrdenServicioListView.as_view(), name='orden_servicio_listado'),
     path('ordenes-servicio/nueva/', views.OrdenServicioCreateView.as_view(), name='orden_servicio_nueva'),
     path('ordenes-servicio/<int:pk>/', views.OrdenServicioDetailView.as_view(), name='orden_servicio_detail'),
+    path('ordenes-servicio/<int:pk>/editar/', views.OrdenServicioUpdateView.as_view(), name='orden_servicio_editar'),
     path('ordenes-servicio/<int:pk>/cambiar-estado/', views.OrdenServicioCambiarEstadoView.as_view(), name='orden_servicio_cambiar_estado'),
     path('api/ordenes-servicio/<int:pk>/cambiar-estado/', views.cambiar_estado_orden_ajax, name='cambiar_estado_orden_ajax'),
     path('api/ordenes-servicio/<int:pk>/registrar-pago/', views.registrar_pago_orden, name='registrar_pago_orden'),
