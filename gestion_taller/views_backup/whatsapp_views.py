@@ -333,48 +333,8 @@ def enviar_mensaje_masivo(request):
 
 @login_required
 def configuracion_whatsapp(request):
-    """Vista para configurar WhatsApp del taller"""
-    cliente, error_msg = get_user_cliente_or_error(request)
-    if not cliente:
-        messages.error(request, error_msg)
-        return redirect('whatsapp_dashboard')
-    
-    # Obtener o crear configuración del taller
-    taller_config = cliente.configuracion
-    if not taller_config:
-        # Crear nueva configuración
-        taller_config = ConfiguracionTaller.objects.create(
-            nombre=cliente.nombre,
-            codigo=f"TALLER-{cliente.id:03d}",
-            telefono_principal=cliente.telefono,
-            email=cliente.correo or '',
-            direccion=cliente.direccion or '',
-            ciudad='',
-            usar_whatsapp=True,
-        )
-        # Asociar la configuración al cliente
-        cliente.configuracion = taller_config
-        cliente.save()
-        created = True
-    else:
-        created = False
-    
-    if request.method == 'POST':
-        form = ConfiguracionTallerForm(request.POST, instance=taller_config)
-        if form.is_valid():
-            form.save()
-            messages.success(request, 'Configuración de WhatsApp actualizada exitosamente')
-            return redirect('whatsapp_dashboard')
-    else:
-        form = ConfiguracionTallerForm(instance=taller_config)
-    
-    context = {
-        'form': form,
-        'cliente': cliente,
-        'taller_config': taller_config,
-    }
-    
-    return render(request, 'gestion_taller/whatsapp/configuracion.html', context)
+    """Redirige a la configuración unificada SaaS de Meta WhatsApp Cloud API y Agente IA"""
+    return redirect('plan_integraciones')
 
 
 @require_http_methods(["GET"])
