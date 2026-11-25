@@ -10,10 +10,20 @@ class Migration(migrations.Migration):
     ]
 
     operations = [
-        migrations.AddField(
-            model_name='cita',
-            name='mensaje',
-            field=models.TextField(blank=True, null=True),
+        migrations.SeparateDatabaseAndState(
+            database_operations=[
+                migrations.RunSQL(
+                    sql="ALTER TABLE gestion_taller_cita ADD COLUMN IF NOT EXISTS mensaje text NULL;",
+                    reverse_sql=migrations.RunSQL.noop,
+                ),
+            ],
+            state_operations=[
+                migrations.AddField(
+                    model_name='cita',
+                    name='mensaje',
+                    field=models.TextField(blank=True, null=True),
+                ),
+            ],
         ),
         migrations.AddField(
             model_name='cliente',
