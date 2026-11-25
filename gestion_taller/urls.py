@@ -20,6 +20,10 @@ urlpatterns = [
     path('telegram_webhook/', views.telegram_webhook, name='telegram_webhook'),
     # path('api/vincular-telegram/', views.vincular_telegram, name='vincular_telegram'),  # TODO: Implementar
     path('', views.home, name='home'),
+    path('registro-taller/', views.registro_taller, name='registro_taller'),
+    path('equipo/', views.equipo_taller_view, name='equipo_taller'),
+    path('equipo/<int:pk>/toggle/', views.toggle_empleado_estado, name='toggle_empleado_estado'),
+    path('plan-integraciones/', views.plan_integraciones_view, name='plan_integraciones'),
     path('perfil/', views.mostrar_perfil_view, name='perfil_usuario'),
     path('perfil/editar/', views.perfil_usuario_view, name='editar_perfil_usuario'),
     # Conductores
@@ -58,8 +62,6 @@ urlpatterns = [
     path('api/ordenes-servicio/<int:pk>/cambiar-estado/', views.cambiar_estado_orden_ajax, name='cambiar_estado_orden_ajax'),
     path('api/ordenes-servicio/<int:pk>/registrar-pago/', views.registrar_pago_orden, name='registrar_pago_orden'),
     path('ordenes-servicio/<int:pk>/imprimir/', views.imprimir_orden_pdf, name='imprimir_orden_pdf'),
-    # Documento de Tesis - Capítulo 3
-    path('documento-tesis/capitulo-3/', views.documento_tesis_capitulo3, name='documento_tesis_capitulo3'),
 
     # URLs para Servicios del Catálogo
     path('servicios-catalogo/', views.servicios_catalogo_list, name='servicios_catalogo_list'),

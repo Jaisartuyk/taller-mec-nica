@@ -585,3 +585,133 @@ class CitaForm(forms.ModelForm):
         self.fields['vehiculo'].empty_label = "-- Seleccionar Vehículo --"
         self.fields['servicios'].help_text = "Puedes seleccionar múltiples servicios manteniendo presionada la tecla Ctrl/Cmd o en el buscador."
 
+
+class RegistroTallerForm(forms.Form):
+    """Formulario de registro SaaS para nuevos talleres independientes (multi-tenant)"""
+    nombre_taller = forms.CharField(
+        max_length=100,
+        label="Nombre del Taller / Lubricadora",
+        widget=forms.TextInput(attrs={'class': 'form-control', 'placeholder': 'Ej. Lubricadora Express'})
+    )
+    telefono = forms.CharField(
+        max_length=20,
+        label="Teléfono de Contacto",
+        widget=forms.TextInput(attrs={'class': 'form-control', 'placeholder': 'Ej. +593 99 123 4567'})
+    )
+    ciudad = forms.CharField(
+        max_length=50,
+        label="Ciudad",
+        widget=forms.TextInput(attrs={'class': 'form-control', 'placeholder': 'Ej. Quito'})
+    )
+    direccion = forms.CharField(
+        max_length=200,
+        required=False,
+        label="Dirección",
+        widget=forms.TextInput(attrs={'class': 'form-control', 'placeholder': 'Ej. Av. Principal 123'})
+    )
+    username = forms.CharField(
+        max_length=150,
+        label="Usuario Administrador",
+        widget=forms.TextInput(attrs={'class': 'form-control', 'placeholder': 'Ej. admin_express'})
+    )
+    email = forms.EmailField(
+        label="Correo Electrónico",
+        widget=forms.EmailInput(attrs={'class': 'form-control', 'placeholder': 'contacto@tutaller.com'})
+    )
+    password = forms.CharField(
+        label="Contraseña",
+        widget=forms.PasswordInput(attrs={'class': 'form-control', 'placeholder': 'Mínimo 8 caracteres'}),
+        min_length=8
+    )
+    password_confirm = forms.CharField(
+        label="Confirmar Contraseña",
+        widget=forms.PasswordInput(attrs={'class': 'form-control', 'placeholder': 'Repita la contraseña'})
+    )
+
+    def clean_username(self):
+        from django.contrib.auth.models import User
+        username = self.cleaned_data['username'].strip()
+        if User.objects.filter(username__iexact=username).exists():
+            raise forms.ValidationError("Este nombre de usuario ya está en uso.")
+        return username
+
+    def clean_email(self):
+        from django.contrib.auth.models import User
+        email = self.cleaned_data['email'].strip().lower()
+        if User.objects.filter(email__iexact=email).exists():
+            raise forms.ValidationError("Ya existe una cuenta registrada con este correo.")
+        return email
+
+    def clean(self):
+        cleaned_data = super().clean()
+        password = cleaned_data.get('password')
+        password_confirm = cleaned_data.get('password_confirm')
+        if password and password_confirm and password != password_confirm:
+            self.add_error('password_confirm', "Las contraseñas no coinciden.")
+        return cleaned_data
+
+
+class EmpleadoTallerForm(forms.Form):
+    """Formulario para que el administrador de un taller agregue empleados a su equipo"""
+    first_name = forms.CharField(
+        max_length=100,
+        label="Nombre completo",
+        widget=forms.TextInput(attrs={'class': 'form-control', 'placeholder': 'Ej. Juan Pérez'})
+    )
+    username = forms.CharField(
+        max_length=150,
+        label="Usuario de acceso",
+        widget=forms.TextInput(attrs={'class': 'form-control', 'placeholder': 'Ej. juan_mecanico'})
+    )
+    email = forms.EmailField(
+        required=False,
+        label="Correo electrónico",
+        widget=forms.EmailInput(attrs={'class': 'form-control', 'placeholder': 'juan@taller.com'})
+    )
+    rol = forms.ChoiceField(
+        choices=[('empleado', 'Empleado / Mecánico'), ('admin', 'Administrador del Taller')],
+        label="Rol",
+        widget=forms.Select(attrs={'class': 'form-select'})
+    )
+    password = forms.CharField(
+        label="Contraseña inicial",
+        min_length=6,
+        widget=forms.PasswordInput(attrs={'class': 'form-control', 'placeholder': 'Mínimo 6 caracteres'})
+    )
+
+    def clean_username(self):
+        from django.contrib.auth.models import User
+        username = self.cleaned_data['username'].strip()
+        if User.objects.filter(username__iexact=username).exists():
+            raise forms.ValidationError("Este nombre de usuario ya está registrado.")
+        return username
+
+
+class IntegracionesTallerForm(forms.ModelForm):
+    """Formulario multi-tenant para credenciales de Meta WhatsApp Cloud API y Agente IA"""
+    class Meta:
+        from .models import ConfiguracionTaller
+        model = ConfiguracionTaller
+        fields = [
+            'usar_whatsapp',
+            'meta_phone_number_id',
+            'meta_waba_id',
+            'meta_access_token',
+            'meta_verify_token',
+            'agente_ia_activo',
+            'agente_ia_nombre',
+            'agente_ia_prompt',
+        ]
+        widgets = {
+            'usar_whatsapp': forms.CheckboxInput(attrs={'class': 'form-check-input'}),
+            'meta_phone_number_id': forms.TextInput(attrs={'class': 'form-control', 'placeholder': 'Ej. 109876543210123'}),
+            'meta_waba_id': forms.TextInput(attrs={'class': 'form-control', 'placeholder': 'Ej. 101234567890987'}),
+            'meta_access_token': forms.PasswordInput(render_value=True, attrs={'class': 'form-control', 'placeholder': 'Token permanente de Meta Cloud API'}),
+            'meta_verify_token': forms.TextInput(attrs={'class': 'form-control', 'placeholder': 'Token secreto para verificar Webhook'}),
+            'agente_ia_activo': forms.CheckboxInput(attrs={'class': 'form-check-input'}),
+            'agente_ia_nombre': forms.TextInput(attrs={'class': 'form-control', 'placeholder': 'Ej. Asistente de Lubricadora'}),
+            'agente_ia_prompt': forms.Textarea(attrs={'class': 'form-control', 'rows': 4, 'placeholder': 'Describe el tono, horarios, promociones y reglas de atención de tu taller...'}),
+        }
+
+
+

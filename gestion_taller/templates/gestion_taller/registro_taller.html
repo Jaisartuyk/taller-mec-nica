@@ -1,0 +1,102 @@
+{% extends "gestion_taller/base.html" %}
+
+{% block title %}Registrar Nuevo Taller | IQAutoEC{% endblock %}
+
+{% block content %}
+<div class="container py-4">
+  <div class="row justify-content-center">
+    <div class="col-lg-7 col-md-9">
+      <div class="card border-0 shadow-sm rounded-4 overflow-hidden">
+        <div class="card-header bg-dark text-white p-4 border-0">
+          <div class="d-flex align-items-center gap-3">
+            <div class="rounded-3 bg-primary bg-opacity-25 p-3 text-info">
+              <i class="fas fa-store fa-lg"></i>
+            </div>
+            <div>
+              <h4 class="fw-bold mb-1">Crea la cuenta de tu Taller</h4>
+              <p class="mb-0 small text-secondary" style="color: #cbd5e1 !important;">
+                Espacio independiente multi-tenant para gestionar vehículos, órdenes e inventario.
+              </p>
+            </div>
+          </div>
+        </div>
+
+        <div class="card-body p-4">
+          <form method="post" novalidate>
+            {% csrf_token %}
+
+            {% if form.non_field_errors %}
+              <div class="alert alert-danger small">
+                {{ form.non_field_errors }}
+              </div>
+            {% endif %}
+
+            <h6 class="text-uppercase text-muted fw-bold small mb-3">
+              <i class="fas fa-wrench me-1 text-primary"></i> Datos del Taller
+            </h6>
+            <div class="row g-3 mb-4">
+              <div class="col-md-6">
+                <label class="form-label small fw-semibold">{{ form.nombre_taller.label }}</label>
+                {{ form.nombre_taller }}
+                {% if form.nombre_taller.errors %}<div class="text-danger small mt-1">{{ form.nombre_taller.errors|striptags }}</div>{% endif %}
+              </div>
+              <div class="col-md-6">
+                <label class="form-label small fw-semibold">{{ form.telefono.label }}</label>
+                {{ form.telefono }}
+                {% if form.telefono.errors %}<div class="text-danger small mt-1">{{ form.telefono.errors|striptags }}</div>{% endif %}
+              </div>
+              <div class="col-md-6">
+                <label class="form-label small fw-semibold">{{ form.ciudad.label }}</label>
+                {{ form.ciudad }}
+                {% if form.ciudad.errors %}<div class="text-danger small mt-1">{{ form.ciudad.errors|striptags }}</div>{% endif %}
+              </div>
+              <div class="col-md-6">
+                <label class="form-label small fw-semibold">{{ form.direccion.label }}</label>
+                {{ form.direccion }}
+                {% if form.direccion.errors %}<div class="text-danger small mt-1">{{ form.direccion.errors|striptags }}</div>{% endif %}
+              </div>
+            </div>
+
+            <hr class="my-4">
+
+            <h6 class="text-uppercase text-muted fw-bold small mb-3">
+              <i class="fas fa-user-shield me-1 text-primary"></i> Cuenta de Administrador
+            </h6>
+            <div class="row g-3 mb-4">
+              <div class="col-md-6">
+                <label class="form-label small fw-semibold">{{ form.username.label }}</label>
+                {{ form.username }}
+                {% if form.username.errors %}<div class="text-danger small mt-1">{{ form.username.errors|striptags }}</div>{% endif %}
+              </div>
+              <div class="col-md-6">
+                <label class="form-label small fw-semibold">{{ form.email.label }}</label>
+                {{ form.email }}
+                {% if form.email.errors %}<div class="text-danger small mt-1">{{ form.email.errors|striptags }}</div>{% endif %}
+              </div>
+              <div class="col-md-6">
+                <label class="form-label small fw-semibold">{{ form.password.label }}</label>
+                {{ form.password }}
+                {% if form.password.errors %}<div class="text-danger small mt-1">{{ form.password.errors|striptags }}</div>{% endif %}
+              </div>
+              <div class="col-md-6">
+                <label class="form-label small fw-semibold">{{ form.password_confirm.label }}</label>
+                {{ form.password_confirm }}
+                {% if form.password_confirm.errors %}<div class="text-danger small mt-1">{{ form.password_confirm.errors|striptags }}</div>{% endif %}
+              </div>
+            </div>
+
+            <div class="d-grid gap-2">
+              <button type="submit" class="btn btn-primary py-2 fw-semibold rounded-pill">
+                <i class="fas fa-rocket me-2"></i> Crear mi Taller
+              </button>
+              <a href="{% url 'account_login' %}" class="btn btn-link text-decoration-none small text-muted">
+                ¿Ya tienes una cuenta? Inicia sesión aquí
+              </a>
+            </div>
+          </form>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}

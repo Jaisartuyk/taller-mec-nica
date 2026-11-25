@@ -1,0 +1,151 @@
+{% extends "gestion_taller/base.html" %}
+
+{% block title %}Mi Equipo | {{ cliente.nombre }}{% endblock %}
+
+{% block content %}
+<div class="container-fluid px-0">
+  <div class="d-flex flex-wrap justify-content-between align-items-center mb-4 gap-3">
+    <div>
+      <h4 class="fw-bold text-dark mb-1">
+        <i class="fas fa-users-cog text-primary me-2"></i>Mi Equipo de Trabajo
+      </h4>
+      <p class="text-muted small mb-0">
+        Gestiona los usuarios y mecánicos con acceso a <strong>{{ cliente.nombre }}</strong>.
+      </p>
+    </div>
+    <div class="d-flex align-items-center gap-2">
+      <span class="badge bg-primary bg-opacity-10 text-primary border border-primary border-opacity-25 px-3 py-2 rounded-pill">
+        <i class="fas fa-user-check me-1"></i> {{ total_activos }} / {{ cliente.max_usuarios }} usuarios activos
+      </span>
+      <a href="{% url 'plan_integraciones' %}" class="btn btn-sm btn-outline-primary rounded-pill px-3">
+        <i class="fas fa-crown me-1"></i> {{ cliente.get_plan_display }}
+      </a>
+    </div>
+  </div>
+
+  <div class="row g-4">
+    <!-- Lista de miembros -->
+    <div class="col-lg-8">
+      <div class="card border-0 shadow-sm rounded-4">
+        <div class="card-header bg-white border-0 py-3 px-4">
+          <h6 class="fw-bold mb-0 text-dark">Usuarios del Taller</h6>
+        </div>
+        <div class="card-body p-0">
+          <div class="table-responsive">
+            <table class="table table-hover align-middle mb-0">
+              <thead class="bg-light text-muted small text-uppercase">
+                <tr>
+                  <th class="ps-4">Usuario</th>
+                  <th>Rol</th>
+                  <th>Estado</th>
+                  {% if es_admin %}<th class="text-end pe-4">Acción</th>{% endif %}
+                </tr>
+              </thead>
+              <tbody>
+                {% for m in miembros %}
+                <tr>
+                  <td class="ps-4">
+                    <div class="fw-semibold text-dark">{{ m.user.get_full_name|default:m.user.username }}</div>
+                    <div class="text-muted small">@{{ m.user.username }}{% if m.user.email %} · {{ m.user.email }}{% endif %}</div>
+                  </td>
+                  <td>
+                    {% if m.rol == 'admin' %}
+                      <span class="badge bg-primary bg-opacity-10 text-primary border border-primary border-opacity-25">Administrador</span>
+                    {% else %}
+                      <span class="badge bg-secondary bg-opacity-10 text-secondary border">Empleado</span>
+                    {% endif %}
+                  </td>
+                  <td>
+                    {% if m.user.is_active %}
+                      <span class="badge bg-success bg-opacity-10 text-success"><i class="fas fa-circle me-1" style="font-size: 7px;"></i>Activo</span>
+                    {% else %}
+                      <span class="badge bg-danger bg-opacity-10 text-danger"><i class="fas fa-circle me-1" style="font-size: 7px;"></i>Inactivo</span>
+                    {% endif %}
+                  </td>
+                  {% if es_admin %}
+                  <td class="text-end pe-4">
+                    {% if m.user != request.user %}
+                      <form method="post" action="{% url 'toggle_empleado_estado' m.pk %}" class="d-inline">
+                        {% csrf_token %}
+                        {% if m.user.is_active %}
+                          <button type="submit" class="btn btn-sm btn-outline-danger rounded-pill px-3">Desactivar</button>
+                        {% else %}
+                          <button type="submit" class="btn btn-sm btn-outline-success rounded-pill px-3">Activar</button>
+                        {% endif %}
+                      </form>
+                    {% else %}
+                      <span class="text-muted small">Tú</span>
+                    {% endif %}
+                  </td>
+                  {% endif %}
+                </tr>
+                {% empty %}
+                <tr>
+                  <td colspan="4" class="text-center py-4 text-muted small">No hay usuarios registrados en este taller.</td>
+                </tr>
+                {% endfor %}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Formulario para agregar miembro -->
+    <div class="col-lg-4">
+      <div class="card border-0 shadow-sm rounded-4">
+        <div class="card-header bg-white border-0 py-3 px-4">
+          <h6 class="fw-bold mb-0 text-dark">
+            <i class="fas fa-user-plus text-primary me-1"></i> Nuevo Miembro
+          </h6>
+        </div>
+        <div class="card-body px-4 pb-4">
+          {% if not es_admin %}
+            <div class="alert alert-light border small text-muted mb-0">
+              Solo el administrador del taller puede crear o desactivar usuarios.
+            </div>
+          {% elif not puede_agregar %}
+            <div class="alert alert-warning small">
+              <strong>Límite alcanzado:</strong> Tu plan actual permite hasta {{ cliente.max_usuarios }} usuarios activos.
+            </div>
+            <a href="{% url 'plan_integraciones' %}" class="btn btn-primary btn-sm w-100 rounded-pill">
+              <i class="fas fa-arrow-up me-1"></i> Ver Planes Disponibles
+            </a>
+          {% else %}
+            <form method="post" novalidate>
+              {% csrf_token %}
+              <div class="mb-3">
+                <label class="form-label small fw-semibold">{{ form.first_name.label }}</label>
+                {{ form.first_name }}
+                {% if form.first_name.errors %}<div class="text-danger small mt-1">{{ form.first_name.errors|striptags }}</div>{% endif %}
+              </div>
+              <div class="mb-3">
+                <label class="form-label small fw-semibold">{{ form.username.label }}</label>
+                {{ form.username }}
+                {% if form.username.errors %}<div class="text-danger small mt-1">{{ form.username.errors|striptags }}</div>{% endif %}
+              </div>
+              <div class="mb-3">
+                <label class="form-label small fw-semibold">{{ form.email.label }}</label>
+                {{ form.email }}
+                {% if form.email.errors %}<div class="text-danger small mt-1">{{ form.email.errors|striptags }}</div>{% endif %}
+              </div>
+              <div class="mb-3">
+                <label class="form-label small fw-semibold">{{ form.rol.label }}</label>
+                {{ form.rol }}
+              </div>
+              <div class="mb-3">
+                <label class="form-label small fw-semibold">{{ form.password.label }}</label>
+                {{ form.password }}
+                {% if form.password.errors %}<div class="text-danger small mt-1">{{ form.password.errors|striptags }}</div>{% endif %}
+              </div>
+              <button type="submit" class="btn btn-primary w-100 rounded-pill fw-semibold">
+                <i class="fas fa-plus me-1"></i> Agregar al Equipo
+              </button>
+            </form>
+          {% endif %}
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}

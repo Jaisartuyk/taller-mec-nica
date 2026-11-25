@@ -30,12 +30,28 @@ class Cliente(models.Model):
         default=default_preferencias_notificacion,
         help_text="Preferencias de notificación del cliente"
     )
+    PLAN_CHOICES = [
+        ('basico', 'Plan Básico'),
+        ('pro', 'Plan Pro (WhatsApp & Chatbot)'),
+        ('ia', 'Plan Enterprise IA'),
+    ]
+    plan = models.CharField(max_length=20, choices=PLAN_CHOICES, default='basico', help_text="Plan SaaS contratado")
+    suscripcion_activa = models.BooleanField(default=True, help_text="Indica si la suscripción del taller está activa")
+    max_usuarios = models.PositiveIntegerField(default=2, help_text="Límite de usuarios permitidos para este taller")
     fecha_registro = models.DateTimeField(auto_now_add=True)
     
     class Meta:
         verbose_name_plural = "Clientes"
         ordering = ['nombre']
     
+    @property
+    def tiene_whatsapp_pro(self):
+        return self.suscripcion_activa and self.plan in ('pro', 'ia')
+
+    @property
+    def tiene_agente_ia(self):
+        return self.suscripcion_activa and self.plan == 'ia'
+
     def __str__(self):
         return self.nombre
 
@@ -60,16 +76,10 @@ from django.dispatch import receiver
 
 @receiver(post_save, sender=User)
 def crear_perfil_usuario(sender, instance, created, **kwargs):
-    if created:
-        from .models import Cliente
-        cliente = Cliente.objects.first()
-        PerfilUsuario.objects.get_or_create(user=instance, defaults={'cliente': cliente})
-    else:
-        # Si el usuario ya existe pero por alguna razón no tiene PerfilUsuario
-        if not hasattr(instance, 'perfilusuario'):
-            from .models import Cliente
-            cliente = Cliente.objects.first()
-            PerfilUsuario.objects.get_or_create(user=instance, defaults={'cliente': cliente})
+    # En arquitectura SaaS multi-tenant no se asigna automáticamente el primer taller
+    # para evitar fuga de datos entre inquilinos; el taller se asigna en el registro o por un admin.
+    if created or not hasattr(instance, 'perfilusuario'):
+        PerfilUsuario.objects.get_or_create(user=instance)
 
 class Conductor(models.Model):
     telegram_chat_id = models.CharField(max_length=50, blank=True, null=True, help_text="Chat ID de Telegram si es conductor sin usuario propio")
@@ -642,6 +652,38 @@ class ConfiguracionTaller(models.Model):
     usar_telegram = models.BooleanField(default=False)
     usar_emojis = models.BooleanField(default=True)
     incluir_firma = models.BooleanField(default=True)
+
+    # Credenciales Meta WhatsApp Cloud API (Multi-tenant por taller)
+    meta_phone_number_id = models.CharField(
+        max_length=100, blank=True, default='',
+        help_text="ID del número de teléfono en Meta WhatsApp Cloud API"
+    )
+    meta_waba_id = models.CharField(
+        max_length=100, blank=True, default='',
+        help_text="ID de la cuenta de WhatsApp Business (WABA)"
+    )
+    meta_access_token = models.TextField(
+        blank=True, default='',
+        help_text="Token permanente de acceso de Meta Cloud API"
+    )
+    meta_verify_token = models.CharField(
+        max_length=100, blank=True, default='',
+        help_text="Token de verificación para el Webhook de Meta"
+    )
+
+    # Configuración de Agente IA (Plan Enterprise IA)
+    agente_ia_activo = models.BooleanField(
+        default=False,
+        help_text="Activar Agente IA conversacional para este taller"
+    )
+    agente_ia_nombre = models.CharField(
+        max_length=60, blank=True, default='Asistente Virtual',
+        help_text="Nombre visible del agente IA"
+    )
+    agente_ia_prompt = models.TextField(
+        blank=True, default='',
+        help_text="Instrucciones personalizadas del taller (tono, políticas, promociones)"
+    )
     
     # Configuración de recordatorios
     dias_recordatorio_mantenimiento = models.IntegerField(default=7)

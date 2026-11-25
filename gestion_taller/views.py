@@ -2226,10 +2226,180 @@ def imprimir_orden_pdf(request, pk):
 
     return render(request, 'gestion_taller/orden_servicio_pdf.html', context)
 
+def registro_taller(request):
+    """Registro público SaaS: crea un nuevo taller (Cliente + ConfiguracionTaller) y su usuario administrador aislado."""
+    if request.user.is_authenticated:
+        return redirect('home')
+
+    from .forms import RegistroTallerForm
+    from .models import Cliente, ConfiguracionTaller, PerfilUsuario
+    from django.contrib.auth import login
+    from django.db import transaction
+    import uuid
+
+    if request.method == 'POST':
+        form = RegistroTallerForm(request.POST)
+        if form.is_valid():
+            data = form.cleaned_data
+            with transaction.atomic():
+                user = User.objects.create_user(
+                    username=data['username'],
+                    email=data['email'],
+                    password=data['password'],
+                )
+                codigo_taller = f"TLR-{uuid.uuid4().hex[:6].upper()}"
+                config = ConfiguracionTaller.objects.create(
+                    nombre=data['nombre_taller'],
+                    codigo=codigo_taller,
+                    telefono_principal=data['telefono'],
+                    email=data['email'],
+                    direccion=data.get('direccion') or 'Por definir',
+                    ciudad=data['ciudad'],
+                )
+                cliente = Cliente.objects.create(
+                    user=user,
+                    nombre=data['nombre_taller'],
+                    telefono=data['telefono'],
+                    correo=data['email'],
+                    direccion=data.get('direccion') or '',
+                    configuracion=config,
+                )
+                perfil, _ = PerfilUsuario.objects.get_or_create(user=user)
+                perfil.cliente = cliente
+                perfil.rol = 'admin'
+                perfil.save()
+
+            login(request, user, backend='django.contrib.auth.backends.ModelBackend')
+            messages.success(request, f"¡Bienvenido! Tu taller '{cliente.nombre}' ha sido creado exitosamente.")
+            return redirect('home')
+    else:
+        form = RegistroTallerForm()
+
+    return render(request, 'gestion_taller/registro_taller.html', {'form': form})
+
+
 @login_required
-def documento_tesis_capitulo3(request):
-    """Vista formal del Capítulo 3 de Tesis con diseño APA y diagramas técnicos para impresión/PDF"""
-    return render(request, 'gestion_taller/documento_tesis_capitulo3.html')
+def equipo_taller_view(request):
+    """Gestión de empleados/equipo para cada taller (SaaS multi-tenant)"""
+    perfil_actual = getattr(request.user, 'perfilusuario', None)
+    if not perfil_actual or not perfil_actual.cliente:
+        messages.error(request, "No tienes un taller asignado.")
+        return redirect('home')
+
+    cliente = perfil_actual.cliente
+    es_admin = perfil_actual.rol == 'admin' or request.user.is_superuser
+    miembros = PerfilUsuario.objects.filter(cliente=cliente).select_related('user').order_by('rol', 'user__username')
+    total_activos = miembros.filter(user__is_active=True).count()
+    puede_agregar = total_activos < cliente.max_usuarios
+
+    from .forms import EmpleadoTallerForm
+    if request.method == 'POST':
+        if not es_admin:
+            messages.error(request, "Solo el administrador del taller puede agregar miembros.")
+            return redirect('equipo_taller')
+        if not puede_agregar:
+            messages.warning(request, f"Has alcanzado el límite de {cliente.max_usuarios} usuarios de tu plan actual. Mejora tu plan para agregar más.")
+            return redirect('equipo_taller')
+
+        form = EmpleadoTallerForm(request.POST)
+        if form.is_valid():
+            data = form.cleaned_data
+            nuevo_user = User.objects.create_user(
+                username=data['username'],
+                email=data.get('email') or '',
+                password=data['password'],
+                first_name=data['first_name'],
+            )
+            perfil_nuevo, _ = PerfilUsuario.objects.get_or_create(user=nuevo_user)
+            perfil_nuevo.cliente = cliente
+            perfil_nuevo.rol = data['rol']
+            perfil_nuevo.save()
+            messages.success(request, f"Usuario '{nuevo_user.username}' agregado al equipo de {cliente.nombre}.")
+            return redirect('equipo_taller')
+    else:
+        form = EmpleadoTallerForm()
+
+    return render(request, 'gestion_taller/equipo_taller.html', {
+        'cliente': cliente,
+        'miembros': miembros,
+        'total_activos': total_activos,
+        'puede_agregar': puede_agregar,
+        'es_admin': es_admin,
+        'form': form,
+    })
+
+
+@login_required
+def toggle_empleado_estado(request, pk):
+    """Activa o desactiva un empleado dentro del mismo taller"""
+    if request.method != 'POST':
+        return redirect('equipo_taller')
+
+    perfil_actual = getattr(request.user, 'perfilusuario', None)
+    if not perfil_actual or not perfil_actual.cliente or (perfil_actual.rol != 'admin' and not request.user.is_superuser):
+        messages.error(request, "No tienes permisos para realizar esta acción.")
+        return redirect('equipo_taller')
+
+    miembro = get_object_or_404(PerfilUsuario, pk=pk, cliente=perfil_actual.cliente)
+    if miembro.user == request.user:
+        messages.warning(request, "No puedes desactivar tu propia cuenta.")
+        return redirect('equipo_taller')
+
+    miembro.user.is_active = not miembro.user.is_active
+    miembro.user.save(update_fields=['is_active'])
+    estado_txt = "activado" if miembro.user.is_active else "desactivado"
+    messages.success(request, f"El usuario '{miembro.user.username}' ha sido {estado_txt}.")
+    return redirect('equipo_taller')
+
+
+@login_required
+def plan_integraciones_view(request):
+    """Vista de Plan SaaS, credenciales de Meta WhatsApp Cloud API y Agente IA por taller"""
+    perfil_actual = getattr(request.user, 'perfilusuario', None)
+    if not perfil_actual or not perfil_actual.cliente:
+        messages.error(request, "No tienes un taller asignado.")
+        return redirect('home')
+
+    from .models import ConfiguracionTaller
+    from .forms import IntegracionesTallerForm
+    import uuid
+
+    cliente = perfil_actual.cliente
+    config = cliente.configuracion
+    if not config:
+        config = ConfiguracionTaller.objects.create(
+            nombre=cliente.nombre,
+            codigo=f"TLR-{uuid.uuid4().hex[:6].upper()}",
+            telefono_principal=cliente.telefono or '',
+            email=cliente.correo or (request.user.email or 'contacto@taller.com'),
+            direccion=cliente.direccion or 'Por definir',
+            ciudad='Por definir',
+        )
+        cliente.configuracion = config
+        cliente.save(update_fields=['configuracion'])
+
+    if request.method == 'POST':
+        if not cliente.tiene_whatsapp_pro:
+            messages.warning(request, "Tu plan actual no incluye integraciones de WhatsApp Meta ni Agente IA.")
+            return redirect('plan_integraciones')
+        form = IntegracionesTallerForm(request.POST, instance=config)
+        if form.is_valid():
+            instancia = form.save(commit=False)
+            if not cliente.tiene_agente_ia:
+                instancia.agente_ia_activo = False
+            instancia.save()
+            messages.success(request, "Configuración de integraciones guardada correctamente.")
+            return redirect('plan_integraciones')
+    else:
+        form = IntegracionesTallerForm(instance=config)
+
+    webhook_url = request.build_absolute_uri('/webhook/whatsapp/')
+    return render(request, 'gestion_taller/plan_integraciones.html', {
+        'cliente': cliente,
+        'config': config,
+        'form': form,
+        'webhook_url': webhook_url,
+    })
 
 # ===== VISTAS DE RECORDATORIOS DE MANTENIMIENTO =====
 

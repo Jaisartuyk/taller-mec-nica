@@ -1,0 +1,213 @@
+{% extends "gestion_taller/base.html" %}
+
+{% block title %}Plan & Integraciones | {{ cliente.nombre }}{% endblock %}
+
+{% block content %}
+<div class="container-fluid px-0">
+  <div class="d-flex flex-wrap justify-content-between align-items-center mb-4 gap-3">
+    <div>
+      <h4 class="fw-bold text-dark mb-1">
+        <i class="fas fa-crown text-warning me-2"></i>Plan SaaS & Integraciones
+      </h4>
+      <p class="text-muted small mb-0">
+        Administra tu suscripción, conecta tus credenciales de Meta WhatsApp Cloud API y configura tu Agente IA.
+      </p>
+    </div>
+    <div>
+      <span class="badge bg-dark px-3 py-2 rounded-pill">
+        Plan Actual: <span class="text-warning">{{ cliente.get_plan_display }}</span>
+      </span>
+    </div>
+  </div>
+
+  <!-- Comparativa de Planes (Mercado Ecuador - USD) -->
+  <div class="row g-3 mb-4">
+    <div class="col-md-4">
+      <div class="card border-0 shadow-sm rounded-4 h-100 {% if cliente.plan == 'basico' %}border border-2 border-primary{% endif %}">
+        <div class="card-body p-4 d-flex flex-column">
+          <div class="d-flex justify-content-between align-items-center mb-2">
+            <h6 class="fw-bold mb-0">Plan Básico</h6>
+            {% if cliente.plan == 'basico' %}<span class="badge bg-primary">Activo</span>{% endif %}
+          </div>
+          <div class="mb-2">
+            <span class="fs-3 fw-bold text-dark">$25</span>
+            <span class="text-muted small">/ mes + IVA</span>
+          </div>
+          <p class="text-muted small mb-3">Gestión operativa completa del taller.</p>
+          <ul class="list-unstyled small text-secondary mb-4 flex-grow-1">
+            <li class="mb-2"><i class="fas fa-check text-success me-2"></i>Órdenes de servicio, vehículos e inventario</li>
+            <li class="mb-2"><i class="fas fa-check text-success me-2"></i>Catálogo de servicios y comprobantes PDF</li>
+            <li class="mb-2"><i class="fas fa-check text-success me-2"></i>Hasta 2 usuarios del taller</li>
+            <li class="text-muted"><i class="fas fa-lock me-2"></i>WhatsApp Meta & Agente IA</li>
+          </ul>
+          {% if cliente.plan == 'basico' %}
+            <button class="btn btn-outline-primary btn-sm rounded-pill w-100" disabled>Tu plan actual</button>
+          {% endif %}
+        </div>
+      </div>
+    </div>
+
+    <div class="col-md-4">
+      <div class="card border-0 shadow-sm rounded-4 h-100 {% if cliente.plan == 'pro' %}border border-2 border-success{% endif %}">
+        <div class="card-body p-4 d-flex flex-column">
+          <div class="d-flex justify-content-between align-items-center mb-2">
+            <h6 class="fw-bold mb-0">Plan Pro <span class="text-success">(WhatsApp)</span></h6>
+            {% if cliente.plan == 'pro' %}<span class="badge bg-success">Activo</span>{% else %}<span class="badge bg-success bg-opacity-10 text-success">Más popular</span>{% endif %}
+          </div>
+          <div class="mb-2">
+            <span class="fs-3 fw-bold text-dark">$49</span>
+            <span class="text-muted small">/ mes + IVA</span>
+          </div>
+          <p class="text-muted small mb-3">Automatización oficial con Meta Cloud API.</p>
+          <ul class="list-unstyled small text-secondary mb-4 flex-grow-1">
+            <li class="mb-2"><i class="fas fa-check text-success me-2"></i>Todo lo del Plan Básico (hasta 5 usuarios)</li>
+            <li class="mb-2"><i class="fas fa-check text-success me-2"></i>Conexión con tu propio número en Meta</li>
+            <li class="mb-2"><i class="fas fa-check text-success me-2"></i>Chatbot de citas y recordatorios automáticos</li>
+            <li class="text-muted"><i class="fas fa-lock me-2"></i>Agente IA conversacional avanzado</li>
+          </ul>
+          {% if cliente.plan == 'pro' %}
+            <button class="btn btn-outline-success btn-sm rounded-pill w-100" disabled>Tu plan actual</button>
+          {% elif cliente.plan == 'basico' %}
+            <a href="mailto:ventas@iqautoec.com?subject=Actualizar%20a%20Plan%20Pro%20-%20{{ cliente.nombre|urlencode }}" class="btn btn-success btn-sm rounded-pill w-100 fw-semibold">
+              <i class="fas fa-arrow-up me-1"></i> Solicitar Plan Pro
+            </a>
+          {% endif %}
+        </div>
+      </div>
+    </div>
+
+    <div class="col-md-4">
+      <div class="card border-0 shadow-sm rounded-4 h-100 {% if cliente.plan == 'ia' %}border border-2 border-info{% endif %}">
+        <div class="card-body p-4 d-flex flex-column">
+          <div class="d-flex justify-content-between align-items-center mb-2">
+            <h6 class="fw-bold mb-0">Plan Enterprise <span class="text-info">IA</span></h6>
+            {% if cliente.plan == 'ia' %}<span class="badge bg-info text-dark">Activo</span>{% endif %}
+          </div>
+          <div class="mb-2">
+            <span class="fs-3 fw-bold text-dark">$89</span>
+            <span class="text-muted small">/ mes + IVA</span>
+          </div>
+          <p class="text-muted small mb-3">Agente IA entrenado con los datos de tu taller.</p>
+          <ul class="list-unstyled small text-secondary mb-4 flex-grow-1">
+            <li class="mb-2"><i class="fas fa-check text-success me-2"></i>Todo lo del Plan Pro (hasta 20 usuarios)</li>
+            <li class="mb-2"><i class="fas fa-check text-success me-2"></i>Agente IA 24/7 conectado a tu catálogo y stock</li>
+            <li class="mb-2"><i class="fas fa-check text-success me-2"></i>Prompt y tono personalizado por taller</li>
+            <li><i class="fas fa-check text-success me-2"></i>Implementación y soporte prioritario</li>
+          </ul>
+          {% if cliente.plan == 'ia' %}
+            <button class="btn btn-outline-info btn-sm rounded-pill w-100" disabled>Tu plan actual</button>
+          {% else %}
+            <a href="mailto:ventas@iqautoec.com?subject=Actualizar%20a%20Plan%20Enterprise%20IA%20-%20{{ cliente.nombre|urlencode }}" class="btn btn-dark btn-sm rounded-pill w-100 fw-semibold">
+              <i class="fas fa-robot me-1 text-info"></i> Solicitar Plan IA
+            </a>
+          {% endif %}
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Configuración Multi-tenant de Meta WhatsApp & Agente IA -->
+  <div class="card border-0 shadow-sm rounded-4">
+    <div class="card-header bg-white border-0 py-3 px-4 d-flex justify-content-between align-items-center">
+      <h6 class="fw-bold mb-0 text-dark">
+        <i class="fab fa-whatsapp text-success me-2"></i>Credenciales Meta WhatsApp Cloud API & Agente IA
+      </h6>
+      {% if not cliente.tiene_whatsapp_pro %}
+        <span class="badge bg-warning bg-opacity-25 text-dark border border-warning">
+          <i class="fas fa-lock me-1"></i> Requiere Plan Pro o Enterprise IA
+        </span>
+      {% endif %}
+    </div>
+    <div class="card-body p-4">
+      {% if not cliente.tiene_whatsapp_pro %}
+        <div class="alert alert-light border d-flex align-items-center gap-3 mb-0">
+          <i class="fas fa-rocket fa-2x text-primary"></i>
+          <div>
+            <div class="fw-bold text-dark">Activa la automatización para {{ cliente.nombre }}</div>
+            <div class="small text-muted">
+              Al actualizar al <strong>Plan Pro</strong> o <strong>Plan Enterprise IA</strong>, podrás ingresar aquí tus credenciales de Meta Cloud API y activar tu Chatbot / Agente IA en minutos.
+            </div>
+          </div>
+        </div>
+      {% else %}
+        <form method="post">
+          {% csrf_token %}
+          <div class="alert alert-info small mb-4">
+            <strong>URL del Webhook para Meta Developers:</strong>
+            <code class="ms-1 user-select-all">{{ webhook_url }}</code>
+          </div>
+
+          <div class="row g-3 mb-4">
+            <div class="col-12">
+              <div class="form-check form-switch">
+                {{ form.usar_whatsapp }}
+                <label class="form-check-label fw-semibold small" for="{{ form.usar_whatsapp.id_for_label }}">
+                  Habilitar canal oficial de WhatsApp (Meta Cloud API)
+                </label>
+              </div>
+            </div>
+            <div class="col-md-6">
+              <label class="form-label small fw-semibold">Phone Number ID (Meta)</label>
+              {{ form.meta_phone_number_id }}
+            </div>
+            <div class="col-md-6">
+              <label class="form-label small fw-semibold">WhatsApp Business Account ID (WABA)</label>
+              {{ form.meta_waba_id }}
+            </div>
+            <div class="col-md-6">
+              <label class="form-label small fw-semibold">Access Token Permanente</label>
+              {{ form.meta_access_token }}
+            </div>
+            <div class="col-md-6">
+              <label class="form-label small fw-semibold">Verify Token del Webhook</label>
+              {{ form.meta_verify_token }}
+            </div>
+          </div>
+
+          <hr class="my-4">
+
+          <div class="d-flex justify-content-between align-items-center mb-3">
+            <h6 class="fw-bold mb-0 text-dark">
+              <i class="fas fa-robot text-info me-2"></i>Configuración del Agente IA
+            </h6>
+            {% if not cliente.tiene_agente_ia %}
+              <span class="badge bg-info bg-opacity-10 text-info border border-info border-opacity-25">
+                <i class="fas fa-lock me-1"></i> Exclusivo Plan Enterprise IA
+              </span>
+            {% endif %}
+          </div>
+
+          {% if cliente.tiene_agente_ia %}
+            <div class="row g-3 mb-4">
+              <div class="col-12">
+                <div class="form-check form-switch">
+                  {{ form.agente_ia_activo }}
+                  <label class="form-check-label fw-semibold small" for="{{ form.agente_ia_activo.id_for_label }}">
+                    Activar Agente IA conversacional 24/7
+                  </label>
+                </div>
+              </div>
+              <div class="col-md-6">
+                <label class="form-label small fw-semibold">Nombre del Agente IA</label>
+                {{ form.agente_ia_nombre }}
+              </div>
+              <div class="col-12">
+                <label class="form-label small fw-semibold">Instrucciones / Personalidad del Taller</label>
+                {{ form.agente_ia_prompt }}
+              </div>
+            </div>
+          {% else %}
+            <p class="small text-muted mb-4">
+              Actualiza al <strong>Plan Enterprise IA</strong> para activar un asistente inteligente entrenado con tus servicios, precios y citas.
+            </p>
+          {% endif %}
+
+          <button type="submit" class="btn btn-primary rounded-pill px-4 fw-semibold">
+            <i class="fas fa-save me-2"></i> Guardar Configuración
+          </button>
+        </form>
+      {% endif %}
+    </div>
+  </div>
+</div>
+{% endblock %}

@@ -13,12 +13,15 @@ admin.site.register(User, UserAdmin)
 
 @admin.register(Cliente)
 class ClienteAdmin(admin.ModelAdmin):
-    list_display = ('nombre', 'correo', 'telefono', 'direccion', 'fecha_registro', 'logo_preview')
+    list_display = ('nombre', 'plan', 'suscripcion_activa', 'max_usuarios', 'correo', 'telefono', 'fecha_registro', 'logo_preview')
     search_fields = ('nombre', 'correo', 'telefono')
-    list_filter = ('fecha_registro',)
+    list_filter = ('plan', 'suscripcion_activa', 'fecha_registro')
     fieldsets = (
         (None, {
             'fields': ('nombre', 'telefono', 'correo', 'direccion', 'logo')
+        }),
+        ('Plan SaaS y Suscripción', {
+            'fields': ('plan', 'suscripcion_activa', 'max_usuarios')
         }),
         ('Preferencias', {
             'fields': ('preferencias_notificacion',)
