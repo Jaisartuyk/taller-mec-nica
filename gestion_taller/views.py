@@ -2087,7 +2087,13 @@ def cambiar_estado_orden_ajax(request, pk):
 def registrar_pago_orden(request, pk):
     """Vista para registrar un pago en una orden de servicio"""
     try:
-        orden = get_object_or_404(OrdenServicio, pk=pk)
+        perfil = getattr(request.user, 'perfilusuario', None)
+        if request.user.is_superuser:
+            orden = get_object_or_404(OrdenServicio, pk=pk)
+        elif perfil and perfil.cliente:
+            orden = get_object_or_404(OrdenServicio, pk=pk, cliente=perfil.cliente)
+        else:
+            return JsonResponse({'success': False, 'error': 'Sin permisos para acceder a esta orden'}, status=403)
         
         if request.method == 'POST':
             monto = Decimal(request.POST.get('monto', '0'))
@@ -2133,8 +2139,15 @@ def registrar_pago_orden(request, pk):
 
 @login_required
 def imprimir_orden_pdf(request, pk):
-    """Vista para generar PDF de la orden de servicio"""
-    orden = get_object_or_404(OrdenServicio, pk=pk)
+    """Vista para generar PDF de la orden de servicio (aislado por taller)"""
+    perfil = getattr(request.user, 'perfilusuario', None)
+    if request.user.is_superuser:
+        orden = get_object_or_404(OrdenServicio, pk=pk)
+    elif perfil and perfil.cliente:
+        orden = get_object_or_404(OrdenServicio, pk=pk, cliente=perfil.cliente)
+    else:
+        messages.error(request, 'No tienes permisos para ver esta orden.')
+        return redirect('home')
     
     # Obtener configuración de IVA del taller
     cliente = orden.cliente
