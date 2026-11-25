@@ -169,9 +169,14 @@ class AgenteIATallerService:
                     contents.append({'role': role, 'parts': [{'text': texto}]})
         contents.append({'role': 'user', 'parts': [{'text': mensaje_usuario}]})
 
-        modelo = os.environ.get('GEMINI_MODEL', 'gemini-3.8-flash').strip() or 'gemini-3.8-flash'
-        url = f"https://generativelanguage.googleapis.com/v1beta/models/{modelo}:generateContent?key={api_key}"
+        modelo_principal = os.environ.get('GEMINI_MODEL', 'gemini-3.8-flash').strip() or 'gemini-3.8-flash'
+        modelos_candidatos = []
+        for m in (modelo_principal, 'gemini-2.5-flash-lite', 'gemini-flash-latest'):
+            if m and m not in modelos_candidatos:
+                modelos_candidatos.append(m)
+
         herramientas_usadas = []
+        modelo_activo = modelos_candidatos[0]
 
         for _ in range(5):
             payload = {
@@ -179,22 +184,32 @@ class AgenteIATallerService:
                 'contents': contents,
                 'tools': [{'functionDeclarations': declarations}],
             }
-            try:
-                resp = requests.post(url, json=payload, timeout=20)
-                if resp.status_code != 200:
+            data = None
+            modelos_a_probar = [modelo_activo] + [m for m in modelos_candidatos if m != modelo_activo]
+            for candidato_modelo in modelos_a_probar:
+                url = f"https://generativelanguage.googleapis.com/v1beta/models/{candidato_modelo}:generateContent?key={api_key}"
+                try:
+                    resp = requests.post(url, json=payload, timeout=20)
+                    if resp.status_code == 200:
+                        modelo_activo = candidato_modelo
+                        data = resp.json()
+                        break
                     import logging
                     logging.getLogger(__name__).warning(
-                        "Gemini API error %s: %s", resp.status_code, resp.text[:400]
+                        "Gemini API error %s (%s): %s", resp.status_code, candidato_modelo, resp.text[:300]
                     )
-                    return None, tools, herramientas_usadas
-                data = resp.json()
-                candidate = (data.get('candidates') or [{}])[0]
-                content = candidate.get('content') or {}
-                parts = content.get('parts') or []
-            except Exception as exc:
-                import logging
-                logging.getLogger(__name__).warning("Gemini API exception: %s", exc)
+                    if resp.status_code not in (404, 429, 503):
+                        return None, tools, herramientas_usadas
+                except Exception as exc:
+                    import logging
+                    logging.getLogger(__name__).warning("Gemini API exception (%s): %s", candidato_modelo, exc)
+
+            if not data:
                 return None, tools, herramientas_usadas
+
+            candidate = (data.get('candidates') or [{}])[0]
+            content = candidate.get('content') or {}
+            parts = content.get('parts') or []
 
             function_calls = [p['functionCall'] for p in parts if 'functionCall' in p]
             if not function_calls:
