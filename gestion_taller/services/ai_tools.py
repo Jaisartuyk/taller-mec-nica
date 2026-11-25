@@ -753,7 +753,6 @@ class TallerAITools:
             {
                 'name': 'consultar_stock_bajo',
                 'description': 'Lista los repuestos que están por debajo o igual al stock mínimo.',
-                'parameters': {'type': 'OBJECT', 'properties': {}},
             },
         ]
         permitidas = self._permitidas()

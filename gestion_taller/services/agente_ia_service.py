@@ -181,12 +181,18 @@ class AgenteIATallerService:
             try:
                 resp = requests.post(url, json=payload, timeout=20)
                 if resp.status_code != 200:
+                    import logging
+                    logging.getLogger(__name__).warning(
+                        "Gemini API error %s: %s", resp.status_code, resp.text[:400]
+                    )
                     return None, tools, herramientas_usadas
                 data = resp.json()
                 candidate = (data.get('candidates') or [{}])[0]
                 content = candidate.get('content') or {}
                 parts = content.get('parts') or []
-            except Exception:
+            except Exception as exc:
+                import logging
+                logging.getLogger(__name__).warning("Gemini API exception: %s", exc)
                 return None, tools, herramientas_usadas
 
             function_calls = [p['functionCall'] for p in parts if 'functionCall' in p]
