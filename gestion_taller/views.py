@@ -2299,8 +2299,15 @@ def equipo_taller_view(request):
         messages.error(request, "No tienes un taller asignado.")
         return redirect('home')
 
+    if perfil_actual.rol != 'admin' and not request.user.is_superuser:
+        messages.error(request, "Solo el administrador del taller puede acceder a Plan e Integraciones.")
+        return redirect('home')
+
     cliente = perfil_actual.cliente
     es_admin = perfil_actual.rol == 'admin' or request.user.is_superuser
+    if not es_admin:
+        messages.error(request, "Esta sección es exclusiva para el administrador del taller.")
+        return redirect('home')
     miembros = PerfilUsuario.objects.filter(cliente=cliente).select_related('user').order_by('rol', 'user__username')
     total_activos = miembros.filter(user__is_active=True).count()
     limite_usuarios = cliente.limite_usuarios_efectivo
@@ -2372,6 +2379,10 @@ def plan_integraciones_view(request):
     perfil_actual = getattr(request.user, 'perfilusuario', None)
     if not perfil_actual or not perfil_actual.cliente:
         messages.error(request, "No tienes un taller asignado.")
+        return redirect('home')
+
+    if perfil_actual.rol != 'admin' and not request.user.is_superuser:
+        messages.error(request, "Solo el administrador del taller puede acceder a Plan e Integraciones.")
         return redirect('home')
 
     from .models import ConfiguracionTaller

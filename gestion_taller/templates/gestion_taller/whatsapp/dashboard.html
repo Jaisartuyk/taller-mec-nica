@@ -4,21 +4,23 @@
 
 {% block content %}
 <div class="container-fluid px-0">
-  <div class="d-flex flex-wrap justify-content-between align-items-center mb-4 gap-3">
+  <div class="d-flex flex-wrap justify-content-between align-items-center mb-3 gap-2">
     <div>
       <h4 class="fw-bold text-dark mb-1">
-        <i class="fab fa-whatsapp text-success me-2"></i>Canal WhatsApp (Meta Cloud API)
+        <i class="fab fa-whatsapp text-success me-2"></i>Bandeja WhatsApp & Control del Bot
       </h4>
       <p class="text-muted small mb-0">
-        Centro de mensajería oficial y automatización para <strong>{{ cliente.nombre }}</strong>.
+        Supervisa las conversaciones del bot de <strong>{{ cliente.nombre }}</strong>, pausa el bot y responde manualmente cuando lo necesites.
       </p>
     </div>
     <div class="d-flex gap-2">
-      <a href="{% url 'plan_integraciones' %}" class="btn btn-outline-primary btn-sm rounded-pill px-3">
-        <i class="fas fa-cog me-1"></i> Configurar Meta API
-      </a>
+      {% if user.is_superuser or user.perfilusuario.rol == 'admin' %}
+        <a href="{% url 'plan_integraciones' %}" class="btn btn-outline-primary btn-sm rounded-pill px-3">
+          <i class="fas fa-cog me-1"></i> Configurar Meta API
+        </a>
+      {% endif %}
       <a href="{% url 'chatbot_dashboard' %}" class="btn btn-dark btn-sm rounded-pill px-3">
-        <i class="fas fa-robot text-info me-1"></i> Abrir Agente IA
+        <i class="fas fa-robot text-info me-1"></i> Copiloto IA
       </a>
     </div>
   </div>
@@ -26,83 +28,253 @@
   {% if error %}
     <div class="alert alert-danger">{{ error }}</div>
   {% else %}
-    <!-- Estado de conexión Meta -->
-    <div class="card border-0 shadow-sm rounded-4 mb-4">
-      <div class="card-body p-4 d-flex flex-wrap justify-content-between align-items-center gap-3">
-        <div class="d-flex align-items-center gap-3">
-          <div class="rounded-circle p-3 {% if whatsapp_enabled %}bg-success bg-opacity-10 text-success{% else %}bg-warning bg-opacity-10 text-warning{% endif %}">
-            <i class="fab fa-whatsapp fa-2x"></i>
-          </div>
-          <div>
-            <div class="d-flex align-items-center gap-2">
-              <h6 class="fw-bold mb-0">Estado de Meta Cloud API</h6>
-              {% if whatsapp_enabled %}
-                <span class="badge bg-success">Conectado</span>
-              {% elif not cliente.tiene_whatsapp_pro %}
-                <span class="badge bg-warning text-dark">Requiere Plan Pro</span>
-              {% else %}
-                <span class="badge bg-secondary">Pendiente de credenciales</span>
-              {% endif %}
-            </div>
-            <div class="text-muted small mt-1">
-              Número del taller: <strong>{{ whatsapp_number }}</strong> · Webhook: <code class="user-select-all">{{ webhook_url }}</code>
-            </div>
-          </div>
+    <!-- Barra compacta de estado Meta -->
+    <div class="card border-0 shadow-sm rounded-4 mb-3">
+      <div class="card-body py-3 px-4 d-flex flex-wrap justify-content-between align-items-center gap-2">
+        <div class="d-flex align-items-center gap-2 flex-wrap">
+          {% if whatsapp_enabled %}
+            <span class="badge bg-success px-3 py-2 rounded-pill"><i class="fas fa-check-circle me-1"></i>Meta API Conectada</span>
+          {% elif not cliente.tiene_whatsapp_pro %}
+            <span class="badge bg-warning text-dark px-3 py-2 rounded-pill"><i class="fas fa-lock me-1"></i>Plan Básico (Vista previa)</span>
+          {% else %}
+            <span class="badge bg-secondary px-3 py-2 rounded-pill"><i class="fas fa-plug me-1"></i>Meta API pendiente de credenciales</span>
+          {% endif %}
+          <span class="text-muted small">Número: <strong>{{ whatsapp_number }}</strong></span>
+          <span class="text-muted small d-none d-md-inline">· Conductores: <strong>{{ conductores_con_telefono }}</strong></span>
+          <span class="text-muted small d-none d-md-inline">· Órdenes abiertas: <strong>{{ ordenes_pendientes }}</strong></span>
         </div>
-        {% if not whatsapp_enabled %}
-          <a href="{% url 'plan_integraciones' %}" class="btn btn-primary btn-sm rounded-pill px-4 fw-semibold">
-            {% if not cliente.tiene_whatsapp_pro %}Activar Plan Pro{% else %}Ingresar Credenciales de Meta{% endif %}
+        <div class="d-flex gap-2">
+          <a href="{% url 'enviar_mensaje_masivo' %}" class="btn btn-sm btn-outline-success rounded-pill px-3 {% if not whatsapp_enabled %}disabled{% endif %}">
+            <i class="fas fa-bullhorn me-1"></i> Campaña Masiva
           </a>
-        {% endif %}
-      </div>
-    </div>
-
-    <!-- Métricas -->
-    <div class="row g-3 mb-4">
-      <div class="col-md-4">
-        <div class="card border-0 shadow-sm rounded-4 p-3 h-100">
-          <div class="text-muted small">Conductores registrados</div>
-          <div class="fs-3 fw-bold text-dark">{{ total_conductores }}</div>
-          <div class="text-success small"><i class="fas fa-phone me-1"></i>{{ conductores_con_telefono }} con teléfono</div>
-        </div>
-      </div>
-      <div class="col-md-4">
-        <div class="card border-0 shadow-sm rounded-4 p-3 h-100">
-          <div class="text-muted small">Órdenes abiertas</div>
-          <div class="fs-3 fw-bold text-primary">{{ ordenes_pendientes }}</div>
-          <div class="text-muted small">Pendientes o en progreso</div>
-        </div>
-      </div>
-      <div class="col-md-4">
-        <div class="card border-0 shadow-sm rounded-4 p-3 h-100">
-          <div class="text-muted small">Plan SaaS activo</div>
-          <div class="fs-4 fw-bold text-dark">{{ cliente.get_plan_display }}</div>
-          <div class="text-muted small">Aislamiento multi-tenant activo</div>
         </div>
       </div>
     </div>
 
-    <!-- Acciones rápidas -->
-    <div class="row g-3">
-      <div class="col-md-6">
-        <div class="card border-0 shadow-sm rounded-4 p-4 h-100">
-          <h6 class="fw-bold text-dark mb-2"><i class="fas fa-paper-plane text-primary me-2"></i>Envío Individual</h6>
-          <p class="text-muted small mb-3">Envía avisos de vehículo listo, presupuestos o recordatorios a un conductor específico.</p>
-          <a href="{% url 'enviar_mensaje_individual' %}" class="btn btn-outline-primary btn-sm rounded-pill px-4 {% if not whatsapp_enabled %}disabled{% endif %}">
-            Enviar Mensaje
-          </a>
+    <!-- Bandeja tipo WhatsApp Web (2 columnas) -->
+    <div class="card border-0 shadow-sm rounded-4 overflow-hidden">
+      <div class="row g-0" style="min-height: 520px;">
+        <!-- Columna izquierda: Lista de clientes/chats -->
+        <div class="col-md-4 border-end bg-white d-flex flex-column">
+          <div class="p-3 border-bottom bg-light">
+            <input type="text" id="buscarChatInput" class="form-control form-control-sm rounded-pill px-3" placeholder="Buscar cliente o teléfono...">
+          </div>
+          <div id="listaConversaciones" class="list-group list-group-flush flex-grow-1" style="max-height: 465px; overflow-y: auto;">
+            {% for c in conductores_chat %}
+              <button type="button"
+                      class="list-group-item list-group-item-action py-3 px-3 border-bottom chat-item text-start"
+                      data-id="{{ c.id }}"
+                      data-nombre="{{ c.nombre|lower }}"
+                      data-tel="{{ c.telefono }}">
+                <div class="d-flex justify-content-between align-items-center">
+                  <div class="fw-semibold text-dark small text-truncate">{{ c.nombre }}</div>
+                  {% if c.bot_pausado %}
+                    <span class="badge bg-warning text-dark badge-estado-bot" style="font-size: 0.65rem;">Humano</span>
+                  {% else %}
+                    <span class="badge bg-success bg-opacity-10 text-success badge-estado-bot" style="font-size: 0.65rem;">Bot ON</span>
+                  {% endif %}
+                </div>
+                <div class="text-muted" style="font-size: 0.75rem;">
+                  <i class="fab fa-whatsapp text-success me-1"></i>{{ c.telefono }}
+                </div>
+              </button>
+            {% empty %}
+              <div class="p-4 text-center text-muted small">
+                No hay conductores con teléfono registrado aún.
+              </div>
+            {% endfor %}
+          </div>
         </div>
-      </div>
-      <div class="col-md-6">
-        <div class="card border-0 shadow-sm rounded-4 p-4 h-100">
-          <h6 class="fw-bold text-dark mb-2"><i class="fas fa-bullhorn text-success me-2"></i>Campañas / Envío Masivo</h6>
-          <p class="text-muted small mb-3">Notifica promociones de cambio de aceite o mantenimiento preventivo a tus clientes.</p>
-          <a href="{% url 'enviar_mensaje_masivo' %}" class="btn btn-outline-success btn-sm rounded-pill px-4 {% if not whatsapp_enabled %}disabled{% endif %}">
-            Envío Masivo
-          </a>
+
+        <!-- Columna derecha: Historial + Control Bot + Respuesta Humana -->
+        <div class="col-md-8 d-flex flex-column" style="background: #f0f2f5;">
+          <!-- Header del chat activo -->
+          <div id="chatHeader" class="bg-white border-bottom px-4 py-3 d-flex justify-content-between align-items-center">
+            <div>
+              <div id="chatNombreActivo" class="fw-bold text-dark">Selecciona una conversación</div>
+              <div id="chatTelActivo" class="text-muted small">Elige un cliente a la izquierda para ver el historial y controlar el bot</div>
+            </div>
+            <div id="chatControles" class="d-none">
+              <button type="button" id="btnToggleBot" class="btn btn-sm rounded-pill px-3 fw-semibold">
+                <i class="fas fa-pause me-1"></i> Pausar Bot
+              </button>
+            </div>
+          </div>
+
+          <!-- Mensajes -->
+          <div id="chatHistorialBox" class="p-4 flex-grow-1" style="height: 380px; overflow-y: auto;">
+            <div class="text-center text-muted my-5">
+              <i class="fab fa-whatsapp fa-3x text-success opacity-25 mb-2"></i>
+              <p class="small mb-0">Aquí verás los mensajes del cliente, las respuestas del bot y tus respuestas manuales.</p>
+            </div>
+          </div>
+
+          <!-- Caja de respuesta manual -->
+          <div class="bg-white border-top p-3">
+            <form id="formRespuestaHumana" class="d-flex gap-2">
+              {% csrf_token %}
+              <input type="text" id="inputRespuestaHumana" class="form-control rounded-pill px-4" placeholder="Escribe una respuesta manual al cliente..." disabled autocomplete="off">
+              <button type="submit" id="btnEnviarHumano" class="btn btn-success rounded-pill px-4 fw-semibold" disabled>
+                <i class="fas fa-paper-plane me-1"></i> Enviar
+              </button>
+            </form>
+          </div>
         </div>
       </div>
     </div>
   {% endif %}
 </div>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+  let conductorActivoId = null;
+  let botPausadoActual = false;
+
+  const historialBox = document.getElementById('chatHistorialBox');
+  const nombreActivo = document.getElementById('chatNombreActivo');
+  const telActivo = document.getElementById('chatTelActivo');
+  const controles = document.getElementById('chatControles');
+  const btnToggleBot = document.getElementById('btnToggleBot');
+  const formResp = document.getElementById('formRespuestaHumana');
+  const inputResp = document.getElementById('inputRespuestaHumana');
+  const btnEnviar = document.getElementById('btnEnviarHumano');
+  const buscarInput = document.getElementById('buscarChatInput');
+
+  function getCsrf() {
+    const el = document.querySelector('[name=csrfmiddlewaretoken]');
+    return el ? el.value : '';
+  }
+
+  function escapeHtml(text) {
+    return (text || '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/\n/g, '<br>');
+  }
+
+  function actualizarBotonBot(pausado) {
+    botPausadoActual = pausado;
+    if (pausado) {
+      btnToggleBot.className = 'btn btn-sm btn-success rounded-pill px-3 fw-semibold';
+      btnToggleBot.innerHTML = '<i class="fas fa-play me-1"></i> Reactivar Bot';
+    } else {
+      btnToggleBot.className = 'btn btn-sm btn-warning text-dark rounded-pill px-3 fw-semibold';
+      btnToggleBot.innerHTML = '<i class="fas fa-hand-paper me-1"></i> Pausar Bot (Atención Humana)';
+    }
+    const item = document.querySelector(`.chat-item[data-id="${conductorActivoId}"] .badge-estado-bot`);
+    if (item) {
+      if (pausado) {
+        item.className = 'badge bg-warning text-dark badge-estado-bot';
+        item.textContent = 'Humano';
+      } else {
+        item.className = 'badge bg-success bg-opacity-10 text-success badge-estado-bot';
+        item.textContent = 'Bot ON';
+      }
+    }
+  }
+
+  function renderMensajes(mensajes) {
+    if (!mensajes || mensajes.length === 0) {
+      historialBox.innerHTML = '<div class="text-center text-muted small my-5">No hay mensajes registrados todavía con este cliente.</div>';
+      return;
+    }
+    historialBox.innerHTML = '';
+    mensajes.forEach(m => {
+      const div = document.createElement('div');
+      if (m.emisor === 'cliente') {
+        div.className = 'd-flex justify-content-start mb-2';
+        div.innerHTML = `<div class="bg-white border rounded-4 px-3 py-2 shadow-sm small" style="max-width: 75%;">
+          <div class="text-dark">${escapeHtml(m.texto)}</div>
+          <div class="text-muted text-end" style="font-size: 0.65rem;">${m.fecha}</div>
+        </div>`;
+      } else {
+        const esHumano = m.emisor === 'humano';
+        const bgClass = esHumano ? 'bg-primary text-white' : 'bg-success bg-opacity-10 border border-success border-opacity-25 text-dark';
+        const etiqueta = esHumano ? '<i class="fas fa-user me-1"></i>Humano' : '<i class="fas fa-robot me-1"></i>Bot';
+        div.className = 'd-flex justify-content-end mb-2';
+        div.innerHTML = `<div class="${bgClass} rounded-4 px-3 py-2 shadow-sm small" style="max-width: 75%;">
+          <div class="fw-bold mb-1" style="font-size: 0.7rem; opacity: 0.85;">${etiqueta}</div>
+          <div>${escapeHtml(m.texto)}</div>
+          <div class="text-end mt-1" style="font-size: 0.65rem; opacity: 0.75;">${m.fecha}</div>
+        </div>`;
+      }
+      historialBox.appendChild(div);
+    });
+    historialBox.scrollTop = historialBox.scrollHeight;
+  }
+
+  async function cargarChat(conductorId) {
+    conductorActivoId = conductorId;
+    document.querySelectorAll('.chat-item').forEach(el => el.classList.remove('active'));
+    const activeBtn = document.querySelector(`.chat-item[data-id="${conductorId}"]`);
+    if (activeBtn) activeBtn.classList.add('active');
+
+    historialBox.innerHTML = '<div class="text-center text-muted small my-5"><i class="fas fa-spinner fa-spin me-1"></i>Cargando historial...</div>';
+    try {
+      const resp = await fetch(`/api/whatsapp/chat/${conductorId}/historial/`);
+      const data = await resp.json();
+      if (data.success) {
+        nombreActivo.textContent = data.conductor.nombre;
+        telActivo.textContent = data.conductor.telefono;
+        controles.classList.remove('d-none');
+        inputResp.disabled = false;
+        btnEnviar.disabled = false;
+        actualizarBotonBot(data.conductor.bot_pausado);
+        renderMensajes(data.mensajes);
+      }
+    } catch (e) {
+      historialBox.innerHTML = '<div class="text-center text-danger small my-5">Error cargando conversación.</div>';
+    }
+  }
+
+  document.querySelectorAll('.chat-item').forEach(btn => {
+    btn.addEventListener('click', function() {
+      cargarChat(this.getAttribute('data-id'));
+    });
+  });
+
+  if (btnToggleBot) {
+    btnToggleBot.addEventListener('click', async function() {
+      if (!conductorActivoId) return;
+      const resp = await fetch(`/api/whatsapp/chat/${conductorActivoId}/toggle-bot/`, {
+        method: 'POST',
+        headers: { 'X-CSRFToken': getCsrf() }
+      });
+      const data = await resp.json();
+      if (data.success) actualizarBotonBot(data.bot_pausado);
+    });
+  }
+
+  if (formResp) {
+    formResp.addEventListener('submit', async function(e) {
+      e.preventDefault();
+      if (!conductorActivoId || !inputResp.value.trim()) return;
+      const texto = inputResp.value.trim();
+      inputResp.value = '';
+      btnEnviar.disabled = true;
+      try {
+        const resp = await fetch(`/api/whatsapp/chat/${conductorActivoId}/responder/`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', 'X-CSRFToken': getCsrf() },
+          body: JSON.stringify({ mensaje: texto })
+        });
+        const data = await resp.json();
+        if (data.success) {
+          cargarChat(conductorActivoId);
+        }
+      } finally {
+        btnEnviar.disabled = false;
+        inputResp.focus();
+      }
+    });
+  }
+
+  if (buscarInput) {
+    buscarInput.addEventListener('input', function() {
+      const q = this.value.toLowerCase();
+      document.querySelectorAll('.chat-item').forEach(el => {
+        const match = (el.getAttribute('data-nombre') || '').includes(q) || (el.getAttribute('data-tel') || '').includes(q);
+        el.style.display = match ? '' : 'none';
+      });
+    });
+  }
+});
+</script>
 {% endblock %}

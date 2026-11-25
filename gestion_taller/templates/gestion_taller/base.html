@@ -351,15 +351,19 @@
                 </a>
             {% endif %}
 
-            <div class="menu-header">Administración SaaS</div>
-            <a href="{% url 'equipo_taller' %}" class="nav-link-custom {% if 'equipo' in request.resolver_match.url_name %}active{% endif %}">
-                <i class="fas fa-users-cog"></i>
-                <span>Mi Equipo</span>
-            </a>
-            <a href="{% url 'plan_integraciones' %}" class="nav-link-custom {% if 'plan_integraciones' in request.resolver_match.url_name %}active{% endif %}">
-                <i class="fas fa-crown text-warning"></i>
-                <span>Plan & Integraciones</span>
-            </a>
+            {% if user.is_authenticated %}
+                {% if user.is_superuser or user.perfilusuario.rol == 'admin' %}
+                <div class="menu-header">Administración SaaS</div>
+                <a href="{% url 'equipo_taller' %}" class="nav-link-custom {% if 'equipo' in request.resolver_match.url_name %}active{% endif %}">
+                    <i class="fas fa-users-cog"></i>
+                    <span>Mi Equipo</span>
+                </a>
+                <a href="{% url 'plan_integraciones' %}" class="nav-link-custom {% if 'plan_integraciones' in request.resolver_match.url_name %}active{% endif %}">
+                    <i class="fas fa-crown text-warning"></i>
+                    <span>Plan & Integraciones</span>
+                </a>
+                {% endif %}
+            {% endif %}
         </div>
 
         <div class="sidebar-footer">

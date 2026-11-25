@@ -8,7 +8,8 @@ from . import api_views
 from .views_backup.whatsapp_views import (
     whatsapp_dashboard, enviar_mensaje_individual, enviar_mensaje_masivo,
     configuracion_whatsapp, api_conductores_whatsapp, test_whatsapp_connection,
-    chatbot_dashboard, api_agente_ia_chat
+    chatbot_dashboard, api_agente_ia_chat,
+    api_whatsapp_historial, api_whatsapp_toggle_bot, api_whatsapp_responder_humano
 )
 
 # Importar vistas del Chatbot
@@ -84,6 +85,9 @@ urlpatterns += [
     # APIs para WhatsApp
     path('api/whatsapp/conductores/', api_conductores_whatsapp, name='api_conductores_whatsapp'),
     path('api/whatsapp/test-connection/', test_whatsapp_connection, name='test_whatsapp_connection'),
+    path('api/whatsapp/chat/<int:conductor_id>/historial/', api_whatsapp_historial, name='api_whatsapp_historial'),
+    path('api/whatsapp/chat/<int:conductor_id>/toggle-bot/', api_whatsapp_toggle_bot, name='api_whatsapp_toggle_bot'),
+    path('api/whatsapp/chat/<int:conductor_id>/responder/', api_whatsapp_responder_humano, name='api_whatsapp_responder_humano'),
     
     # Chatbot / Copiloto IA
     path('chatbot/', chatbot_dashboard, name='chatbot_dashboard'),

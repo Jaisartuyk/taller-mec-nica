@@ -15,7 +15,7 @@ from django.views.generic import ListView, CreateView, UpdateView
 from django.urls import reverse_lazy
 import json
 
-from ..models import Cliente, Conductor, OrdenServicio, ConfiguracionTaller
+from ..models import Cliente, Conductor, OrdenServicio, ConfiguracionTaller, InteraccionChat
 from ..services.multi_taller_messaging import MultiTallerMessagingService
 from ..services.chatbot_service import ChatbotService
 from ..forms import ConfiguracionTallerForm
@@ -63,6 +63,11 @@ def whatsapp_dashboard(request):
             estado__in=['pendiente', 'en_progreso']
         ).count()
 
+        conductores_chat = Conductor.objects.filter(
+            cliente=cliente,
+            telefono__isnull=False
+        ).exclude(telefono='').order_by('-bot_pausado', 'nombre')[:50]
+
         context = {
             'cliente': cliente,
             'config': config,
@@ -72,6 +77,7 @@ def whatsapp_dashboard(request):
             'total_conductores': total_conductores,
             'conductores_con_telefono': conductores_con_telefono,
             'ordenes_pendientes': ordenes_pendientes,
+            'conductores_chat': conductores_chat,
             'webhook_url': request.build_absolute_uri('/webhook/whatsapp/'),
         }
     except Exception as e:
@@ -437,3 +443,122 @@ def api_agente_ia_chat(request):
         })
     except Exception as e:
         return JsonResponse({'success': False, 'error': f'Error procesando consulta: {str(e)}'}, status=500)
+
+
+@require_http_methods(["GET"])
+@login_required
+def api_whatsapp_historial(request, conductor_id):
+    """Obtiene el historial de mensajes WhatsApp de un conductor y estado del bot"""
+    cliente, error_msg = get_user_cliente_or_error(request)
+    if not cliente:
+        return JsonResponse({'success': False, 'error': error_msg}, status=403)
+
+    conductor = get_object_or_404(Conductor, pk=conductor_id, cliente=cliente)
+    interacciones = InteraccionChat.objects.filter(
+        cliente=cliente,
+        conductor=conductor
+    ).order_by('fecha_creacion')[:100]
+
+    mensajes = []
+    for item in interacciones:
+        fecha_str = item.fecha_creacion.strftime('%d/%m %H:%M')
+        if item.mensaje:
+            mensajes.append({
+                'emisor': 'cliente',
+                'texto': item.mensaje,
+                'fecha': fecha_str,
+            })
+        if item.respuesta:
+            es_humano = item.respuesta.startswith('[Humano] ')
+            mensajes.append({
+                'emisor': 'humano' if es_humano else 'bot',
+                'texto': item.respuesta.replace('[Humano] ', '', 1) if es_humano else item.respuesta,
+                'fecha': fecha_str,
+            })
+
+    return JsonResponse({
+        'success': True,
+        'conductor': {
+            'id': conductor.id,
+            'nombre': conductor.nombre,
+            'telefono': conductor.telefono or '',
+            'bot_pausado': conductor.bot_pausado,
+        },
+        'mensajes': mensajes,
+    })
+
+
+@require_http_methods(["POST"])
+@login_required
+def api_whatsapp_toggle_bot(request, conductor_id):
+    """Pausa o reactiva el bot automático para un cliente específico (atención humana)"""
+    cliente, error_msg = get_user_cliente_or_error(request)
+    if not cliente:
+        return JsonResponse({'success': False, 'error': error_msg}, status=403)
+
+    conductor = get_object_or_404(Conductor, pk=conductor_id, cliente=cliente)
+    conductor.bot_pausado = not conductor.bot_pausado
+    conductor.save(update_fields=['bot_pausado'])
+    return JsonResponse({
+        'success': True,
+        'bot_pausado': conductor.bot_pausado,
+        'mensaje': 'Bot pausado: ahora atiendes manualmente.' if conductor.bot_pausado else 'Bot reactivado automáticamente.',
+    })
+
+
+@require_http_methods(["POST"])
+@login_required
+def api_whatsapp_responder_humano(request, conductor_id):
+    """Envía una respuesta manual desde el taller al cliente y la registra en el historial"""
+    import requests as http_requests
+
+    cliente, error_msg = get_user_cliente_or_error(request)
+    if not cliente:
+        return JsonResponse({'success': False, 'error': error_msg}, status=403)
+
+    conductor = get_object_or_404(Conductor, pk=conductor_id, cliente=cliente)
+    body = json.loads(request.body.decode('utf-8')) if request.body else {}
+    texto = (body.get('mensaje') or '').strip()
+    if not texto:
+        return JsonResponse({'success': False, 'error': 'Escribe un mensaje.'}, status=400)
+
+    # Registrar en historial
+    InteraccionChat.objects.create(
+        cliente=cliente,
+        conductor=conductor,
+        telefono=conductor.telefono or '',
+        mensaje='',
+        respuesta=f'[Humano] {texto}',
+        tipo='seguimiento',
+    )
+
+    # Enviar vía Meta WhatsApp Cloud API si el taller tiene credenciales activas
+    enviado_meta = False
+    config = cliente.configuracion
+    if config and config.meta_phone_number_id and config.meta_access_token and conductor.telefono:
+        tel_limpio = ''.join(c for c in conductor.telefono if c.isdigit())
+        try:
+            url = f"https://graph.facebook.com/v20.0/{config.meta_phone_number_id}/messages"
+            resp = http_requests.post(
+                url,
+                headers={
+                    'Authorization': f'Bearer {config.meta_access_token}',
+                    'Content-Type': 'application/json',
+                },
+                json={
+                    'messaging_product': 'whatsapp',
+                    'to': tel_limpio,
+                    'type': 'text',
+                    'text': {'body': texto},
+                },
+                timeout=10,
+            )
+            enviado_meta = resp.status_code in (200, 201)
+        except Exception:
+            enviado_meta = False
+
+    return JsonResponse({
+        'success': True,
+        'enviado_meta': enviado_meta,
+        'texto': texto,
+    })

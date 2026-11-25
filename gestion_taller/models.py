@@ -103,6 +103,7 @@ class Conductor(models.Model):
     telefono = models.CharField(max_length=20, blank=True, null=True)
     correo = models.EmailField(blank=True, null=True)
     direccion = models.CharField(max_length=200, blank=True, null=True)
+    bot_pausado = models.BooleanField(default=False, help_text="Si está activo, el bot pausa sus respuestas automáticas para atención humana")
     fecha_registro = models.DateTimeField(auto_now_add=True)
 
     def __str__(self):
