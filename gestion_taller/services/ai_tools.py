@@ -190,21 +190,28 @@ class TallerAITools:
     # HERRAMIENTAS DE VEHÍCULOS
     # ------------------------------------------------------------------
     def buscar_vehiculo(self, placa: str = '', cliente_id: int = None) -> dict:
+        from django.db.models import Value
+        from django.db.models.functions import Replace
         from gestion_taller.models import Vehiculo
 
         qs = Vehiculo.objects.filter(cliente=self.cliente, activo=True).select_related('conductor')
+        placa_norm = (placa or '').replace('-', '').replace(' ', '').upper().strip()
         if self.modo == 'whatsapp':
             if self.conductor_actual:
                 qs = qs.filter(conductor=self.conductor_actual)
-            elif placa:
-                qs = qs.filter(placa__icontains=placa.replace('-', '').strip())
+            elif placa_norm:
+                qs = qs.annotate(
+                    placa_limpia=Replace(Replace('placa', Value('-'), Value('')), Value(' '), Value(''))
+                ).filter(placa_limpia__icontains=placa_norm)
             else:
                 return {'ok': True, 'encontrado': False, 'vehiculos': []}
         else:
             if cliente_id:
                 qs = qs.filter(conductor_id=cliente_id)
-            if placa:
-                qs = qs.filter(placa__icontains=placa.replace('-', '').strip())
+            if placa_norm:
+                qs = qs.annotate(
+                    placa_limpia=Replace(Replace('placa', Value('-'), Value('')), Value(' '), Value(''))
+                ).filter(placa_limpia__icontains=placa_norm)
 
         vehiculos = [
             {
@@ -464,7 +471,12 @@ class TallerAITools:
         if orden_id:
             qs = qs.filter(id=orden_id)
         if placa:
-            qs = qs.filter(vehiculo__placa__icontains=placa.replace('-', '').strip())
+            from django.db.models import Value
+            from django.db.models.functions import Replace
+            placa_norm = placa.replace('-', '').replace(' ', '').upper().strip()
+            qs = qs.annotate(
+                placa_limpia=Replace(Replace('vehiculo__placa', Value('-'), Value('')), Value(' '), Value(''))
+            ).filter(placa_limpia__icontains=placa_norm)
 
         ordenes = [
             {
