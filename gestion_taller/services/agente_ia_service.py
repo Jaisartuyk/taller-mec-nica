@@ -169,9 +169,12 @@ class AgenteIATallerService:
                     contents.append({'role': role, 'parts': [{'text': texto}]})
         contents.append({'role': 'user', 'parts': [{'text': mensaje_usuario}]})
 
-        modelo_principal = os.environ.get('GEMINI_MODEL', 'gemini-3.8-flash').strip() or 'gemini-3.8-flash'
+        import time
+        inicio_total = time.monotonic()
+
+        modelo_principal = os.environ.get('GEMINI_MODEL', 'gemini-3.5-flash-lite').strip() or 'gemini-3.5-flash-lite'
         modelos_candidatos = []
-        for m in (modelo_principal, 'gemini-3.5-flash-lite', 'gemini-flash-latest'):
+        for m in (modelo_principal, 'gemini-3.5-flash-lite', 'gemini-3.8-flash'):
             if m and m not in modelos_candidatos:
                 modelos_candidatos.append(m)
 
@@ -179,6 +182,9 @@ class AgenteIATallerService:
         modelo_activo = modelos_candidatos[0]
 
         for _ in range(5):
+            if time.monotonic() - inicio_total > 22:
+                return None, tools, herramientas_usadas
+
             payload = {
                 'system_instruction': {'parts': [{'text': system_instruction}]},
                 'contents': contents,
@@ -187,9 +193,12 @@ class AgenteIATallerService:
             data = None
             modelos_a_probar = [modelo_activo] + [m for m in modelos_candidatos if m != modelo_activo]
             for candidato_modelo in modelos_a_probar:
+                restante = 22 - (time.monotonic() - inicio_total)
+                if restante < 3:
+                    break
                 url = f"https://generativelanguage.googleapis.com/v1beta/models/{candidato_modelo}:generateContent?key={api_key}"
                 try:
-                    resp = requests.post(url, json=payload, timeout=20)
+                    resp = requests.post(url, json=payload, timeout=min(10, restante))
                     if resp.status_code == 200:
                         modelo_activo = candidato_modelo
                         data = resp.json()
