@@ -1,10 +1,10 @@
 #!/bin/bash
 
 echo "==> Sincronizando migraciones de base de datos..."
-# 1. Si la tabla de Citas ya existe en la BD pero no está registrada la migración 0022, marcarla como aplicada (fake)
-python manage.py migrate gestion_taller 0022 --fake --noinput || true
+# 1. Marcar como aplicadas (fake) hasta la 0026 porque esas tablas/columnas ya existen en Railway
+python manage.py migrate gestion_taller 0026 --fake --noinput || true
 
-# 2. Correr las demás migraciones normalmente (y continuar si alguna ya fue aplicada)
+# 2. Aplicar las nuevas migraciones (0027 en adelante)
 python manage.py migrate --fake-initial --noinput || true
 
 echo "==> Creando superusuario administrador inicial..."
