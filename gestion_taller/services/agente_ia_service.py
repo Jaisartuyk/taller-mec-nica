@@ -92,79 +92,178 @@ class AgenteIATallerService:
                 return vehiculo, list(ultimas_ordenes)
         return None, []
 
-    def responder(self, mensaje_usuario: str) -> dict:
-        ctx = self._recopilar_contexto_taller()
-        vehiculo_encontrado, ordenes_vehiculo = self._buscar_placa_en_mensaje(mensaje_usuario)
-
-        api_key = os.environ.get('GEMINI_API_KEY', '').strip()
-        if api_key:
-            respuesta_ia = self._consultar_gemini(api_key, mensaje_usuario, ctx, vehiculo_encontrado, ordenes_vehiculo)
-            if respuesta_ia:
-                return {'respuesta': respuesta_ia, 'modo': 'gemini'}
-
-        return {
-            'respuesta': self._respuesta_local(mensaje_usuario, ctx, vehiculo_encontrado, ordenes_vehiculo),
-            'modo': 'analitico'
-        }
-
-    def _consultar_gemini(self, api_key, mensaje_usuario, ctx, vehiculo, ordenes_vehiculo):
-        nombre_agente = (self.config.agente_ia_nombre if self.config and self.config.agente_ia_nombre else 'Copiloto IA')
-        prompt_extra = (self.config.agente_ia_prompt if self.config and self.config.agente_ia_prompt else '')
-
-        citas_txt = "\n".join(
-            f"- {c.fecha_cita.strftime('%d/%m %H:%M')} | {c.conductor.nombre if c.conductor else 'Sin nombre'} | {c.vehiculo.placa if c.vehiculo else 'Sin placa'} ({c.estado})"
-            for c in ctx['citas_proximas']
-        ) or "Ninguna"
-
-        stock_txt = "\n".join(
-            f"- {r['nombre']}: {r['stock']} uds (mínimo {r['stock_minimo']})"
-            for r in ctx['repuestos_bajos']
-        ) or "Todo el inventario está sobre el mínimo."
-
-        servicios_txt = "\n".join(
-            f"- {s['nombre']}: ${s['precio_base']}"
-            for s in ctx['servicios_activos']
-        ) or "Sin servicios cargados."
-
-        vehiculo_txt = ""
-        if vehiculo:
-            ord_txt = ", ".join(f"#{o.id} ({o.estado}, ${o.total})" for o in ordenes_vehiculo) or "Sin órdenes"
-            vehiculo_txt = (
-                f"\nVEHÍCULO CONSULTADO: {vehiculo.placa} - {vehiculo.marca} {vehiculo.modelo} ({vehiculo.anio}), "
-                f"Km: {vehiculo.kilometraje}, Propietario: {vehiculo.conductor.nombre if vehiculo.conductor else 'Sin asignar'}. "
-                f"Últimas órdenes: {ord_txt}."
-            )
-
-        system_prompt = (
-            f"Eres {nombre_agente}, el copiloto inteligente del taller '{self.cliente.nombre}'. "
-            f"Responde siempre en español, de forma clara, concisa y profesional con datos reales del taller.\n"
-            f"{prompt_extra}\n\n"
-            f"DATOS EN TIEMPO REAL DEL TALLER ({ctx['hoy']}):\n"
-            f"- Órdenes pendientes: {ctx['ordenes_pendientes']} | En progreso: {ctx['ordenes_progreso']}\n"
-            f"- Órdenes completadas/facturadas este mes: {ctx['ordenes_completadas_mes']}\n"
-            f"- Ingresos últimos 7 días: ${ctx['ingresos_semana']:.2f} | Ingresos este mes: ${ctx['ingresos_mes']:.2f}\n"
-            f"- Total vehículos registrados: {ctx['total_vehiculos']}\n"
-            f"- Recordatorios de mantenimiento vencidos: {ctx['recordatorios_vencidos']}\n"
-            f"- Repuestos con stock bajo:\n{stock_txt}\n"
-            f"- Próximas citas:\n{citas_txt}\n"
-            f"- Catálogo de servicios:\n{servicios_txt}"
-            f"{vehiculo_txt}\n\n"
-            f"Pregunta del usuario: {mensaje_usuario}"
+    def _construir_system_instruction(self, modo: str) -> str:
+        from gestion_taller.services.ai_tools import (
+            construir_contexto_config_taller,
+            TONOS_DESCRIPCION,
         )
 
-        try:
-            url = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key={api_key}"
-            resp = requests.post(
-                url,
-                json={"contents": [{"parts": [{"text": system_prompt}]}]},
-                timeout=15,
+        hoy = timezone.localdate().strftime('%Y-%m-%d')
+        nombre_agente = (
+            self.config.agente_ia_nombre
+            if self.config and self.config.agente_ia_nombre
+            else ('Asistente Virtual' if modo == 'whatsapp' else 'Copiloto IA')
+        )
+        tono_key = (self.config.agente_ia_tono if self.config else 'profesional_cercano')
+        tono_desc = TONOS_DESCRIPCION.get(tono_key, 'profesional, cálido y cercano')
+        contexto_taller = construir_contexto_config_taller(self.cliente)
+
+        if modo == 'whatsapp':
+            regla_transferencia = (
+                "Si el cliente pide hablar con una persona o hay un caso complejo, usa transferir_a_humano()."
+                if (not self.config or self.config.agente_ia_transferencia_humano)
+                else "No transfieras a humano; resuelve con la información disponible."
             )
-            if resp.status_code == 200:
+            return (
+                f"Eres {nombre_agente}, el agente de atención al cliente del taller '{self.cliente.nombre}'.\n"
+                f"Fecha actual: {hoy}.\n"
+                f"Tono de atención: {tono_desc}.\n\n"
+                f"{contexto_taller}\n\n"
+                "REGLAS GENERALES OBLIGATORIAS:\n"
+                "1. Responde siempre en español, claro y breve (ideal para WhatsApp).\n"
+                "2. NUNCA inventes horarios, precios, órdenes ni stock. Usa SIEMPRE las herramientas disponibles.\n"
+                "3. Para agendar una cita: consulta disponibilidad real con consultar_disponibilidad(), ofrece opciones reales y confirma con el cliente antes de llamar a crear_cita().\n"
+                "4. Usa listar_servicios() para responder sobre servicios y precios.\n"
+                f"5. {regla_transferencia}\n"
+            )
+
+        return (
+            f"Eres {nombre_agente}, el Copiloto IA interno para el equipo y administrador del taller '{self.cliente.nombre}'.\n"
+            f"Fecha actual: {hoy}.\n"
+            f"Tono de atención: {tono_desc}.\n\n"
+            f"{contexto_taller}\n\n"
+            "REGLAS GENERALES OBLIGATORIAS:\n"
+            "1. Responde siempre en español, de forma clara, ejecutiva y directa.\n"
+            "2. Usa las herramientas disponibles para consultar clientes, vehículos, citas, órdenes, repuestos, stock bajo e ingresos en tiempo real.\n"
+            "3. Puedes crear clientes, vehículos, citas y órdenes de servicio cuando el administrador o empleado te lo pida.\n"
+            "4. Si falta algún dato obligatorio para crear un registro (ej. placa o fecha), pídelo brevemente antes de ejecutar la acción.\n"
+            "5. NUNCA inventes datos que no provengan de las herramientas.\n"
+        )
+
+    def _ejecutar_gemini_con_herramientas(
+        self,
+        api_key: str,
+        mensaje_usuario: str,
+        modo: str,
+        conductor_actual=None,
+        telefono_remitente: str = '',
+        historial: list = None,
+    ):
+        from gestion_taller.services.ai_tools import TallerAITools
+
+        tools = TallerAITools(
+            self.cliente,
+            modo=modo,
+            conductor_actual=conductor_actual,
+            telefono_remitente=telefono_remitente,
+        )
+        declarations = tools.get_gemini_tool_declarations()
+        system_instruction = self._construir_system_instruction(modo)
+
+        contents = []
+        if historial:
+            for item in historial[-8:]:
+                role = 'model' if item.get('role') in ('model', 'assistant') else 'user'
+                texto = (item.get('text') or '').strip()
+                if texto:
+                    contents.append({'role': role, 'parts': [{'text': texto}]})
+        contents.append({'role': 'user', 'parts': [{'text': mensaje_usuario}]})
+
+        url = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key={api_key}"
+        herramientas_usadas = []
+
+        for _ in range(5):
+            payload = {
+                'system_instruction': {'parts': [{'text': system_instruction}]},
+                'contents': contents,
+                'tools': [{'functionDeclarations': declarations}],
+            }
+            try:
+                resp = requests.post(url, json=payload, timeout=20)
+                if resp.status_code != 200:
+                    return None, tools, herramientas_usadas
                 data = resp.json()
-                return data['candidates'][0]['content']['parts'][0]['text']
-        except Exception:
-            pass
-        return None
+                candidate = (data.get('candidates') or [{}])[0]
+                content = candidate.get('content') or {}
+                parts = content.get('parts') or []
+            except Exception:
+                return None, tools, herramientas_usadas
+
+            function_calls = [p['functionCall'] for p in parts if 'functionCall' in p]
+            if not function_calls:
+                textos = [p.get('text', '') for p in parts if 'text' in p]
+                respuesta_final = "\n".join(t for t in textos if t).strip()
+                return (respuesta_final or None), tools, herramientas_usadas
+
+            # Agregar la respuesta del modelo (con sus functionCall) al historial del turno
+            contents.append({'role': 'model', 'parts': parts})
+
+            # Ejecutar cada herramienta solicitada y devolver functionResponse
+            response_parts = []
+            for fc in function_calls:
+                nombre_fn = fc.get('name', '')
+                args_fn = fc.get('args') or {}
+                resultado = tools.ejecutar(nombre_fn, args_fn)
+                herramientas_usadas.append(nombre_fn)
+                response_parts.append({
+                    'functionResponse': {
+                        'name': nombre_fn,
+                        'response': {'result': resultado},
+                    }
+                })
+            contents.append({'role': 'user', 'parts': response_parts})
+
+        return None, tools, herramientas_usadas
+
+    def responder(self, mensaje_usuario: str, historial: list = None) -> dict:
+        api_key = os.environ.get('GEMINI_API_KEY', '').strip()
+        if api_key:
+            respuesta_ia, _tools, usadas = self._ejecutar_gemini_con_herramientas(
+                api_key=api_key,
+                mensaje_usuario=mensaje_usuario,
+                modo='interno',
+                historial=historial,
+            )
+            if respuesta_ia:
+                return {
+                    'respuesta': respuesta_ia,
+                    'modo': 'gemini_tools',
+                    'herramientas_usadas': usadas,
+                }
+
+        ctx = self._recopilar_contexto_taller()
+        vehiculo_encontrado, ordenes_vehiculo = self._buscar_placa_en_mensaje(mensaje_usuario)
+        return {
+            'respuesta': self._respuesta_local(mensaje_usuario, ctx, vehiculo_encontrado, ordenes_vehiculo),
+            'modo': 'analitico',
+            'herramientas_usadas': [],
+        }
+
+    def responder_whatsapp(
+        self,
+        mensaje_usuario: str,
+        conductor_actual=None,
+        telefono_remitente: str = '',
+        historial: list = None,
+    ) -> dict:
+        api_key = os.environ.get('GEMINI_API_KEY', '').strip()
+        if not api_key:
+            return {'ok': False, 'respuesta': None, 'transferido_a_humano': False}
+
+        respuesta_ia, tools, usadas = self._ejecutar_gemini_con_herramientas(
+            api_key=api_key,
+            mensaje_usuario=mensaje_usuario,
+            modo='whatsapp',
+            conductor_actual=conductor_actual,
+            telefono_remitente=telefono_remitente,
+            historial=historial,
+        )
+        return {
+            'ok': bool(respuesta_ia),
+            'respuesta': respuesta_ia,
+            'transferido_a_humano': tools.transferido_a_humano,
+            'herramientas_usadas': usadas,
+        }
 
     def _respuesta_local(self, mensaje, ctx, vehiculo, ordenes_vehiculo):
         msg = mensaje.lower()

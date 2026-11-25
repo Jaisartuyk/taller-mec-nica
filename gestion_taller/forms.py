@@ -688,7 +688,7 @@ class EmpleadoTallerForm(forms.Form):
 
 
 class IntegracionesTallerForm(forms.ModelForm):
-    """Formulario multi-tenant para credenciales de Meta WhatsApp Cloud API y Agente IA"""
+    """Formulario multi-tenant para credenciales de Meta WhatsApp Cloud API, Agente IA e Información del Taller"""
     class Meta:
         from .models import ConfiguracionTaller
         model = ConfiguracionTaller
@@ -698,9 +698,21 @@ class IntegracionesTallerForm(forms.ModelForm):
             'meta_waba_id',
             'meta_access_token',
             'meta_verify_token',
+            # Configuración del Agente IA
             'agente_ia_activo',
             'agente_ia_nombre',
-            'agente_ia_prompt',
+            'agente_ia_tono',
+            'agente_ia_atencion_automatica',
+            'agente_ia_transferencia_humano',
+            # Información del taller (contexto automático para el Agente IA)
+            'nombre',
+            'horarios',
+            'direccion',
+            'telefono_principal',
+            'tiempo_aproximado_atencion',
+            'promociones',
+            'politicas_cancelacion',
+            'informacion_adicional',
         ]
         widgets = {
             'usar_whatsapp': forms.CheckboxInput(attrs={'class': 'form-check-input'}),
@@ -708,10 +720,28 @@ class IntegracionesTallerForm(forms.ModelForm):
             'meta_waba_id': forms.TextInput(attrs={'class': 'form-control', 'placeholder': 'Ej. 101234567890987'}),
             'meta_access_token': forms.PasswordInput(render_value=True, attrs={'class': 'form-control', 'placeholder': 'Token permanente de Meta Cloud API'}),
             'meta_verify_token': forms.TextInput(attrs={'class': 'form-control', 'placeholder': 'Token secreto para verificar Webhook'}),
+            # Agente IA
             'agente_ia_activo': forms.CheckboxInput(attrs={'class': 'form-check-input'}),
-            'agente_ia_nombre': forms.TextInput(attrs={'class': 'form-control', 'placeholder': 'Ej. Asistente de Lubricadora'}),
-            'agente_ia_prompt': forms.Textarea(attrs={'class': 'form-control', 'rows': 4, 'placeholder': 'Describe el tono, horarios, promociones y reglas de atención de tu taller...'}),
+            'agente_ia_nombre': forms.TextInput(attrs={'class': 'form-control', 'placeholder': 'Ej. Asistente Virtual'}),
+            'agente_ia_tono': forms.Select(attrs={'class': 'form-select'}),
+            'agente_ia_atencion_automatica': forms.CheckboxInput(attrs={'class': 'form-check-input'}),
+            'agente_ia_transferencia_humano': forms.CheckboxInput(attrs={'class': 'form-check-input'}),
+            # Información del taller
+            'nombre': forms.TextInput(attrs={'class': 'form-control', 'placeholder': 'Ej. Lubricadora y Taller Mecánico Express'}),
+            'horarios': forms.TextInput(attrs={'class': 'form-control', 'placeholder': 'Ej. Lun-Vie 8:00-18:00, Sáb 8:00-14:00'}),
+            'direccion': forms.TextInput(attrs={'class': 'form-control', 'placeholder': 'Ej. Av. Principal 123 y Secundaria'}),
+            'telefono_principal': forms.TextInput(attrs={'class': 'form-control', 'placeholder': 'Ej. +593 99 123 4567'}),
+            'tiempo_aproximado_atencion': forms.TextInput(attrs={'class': 'form-control', 'placeholder': 'Ej. 30 a 45 minutos para cambio de aceite'}),
+            'promociones': forms.Textarea(attrs={'class': 'form-control', 'rows': 2, 'placeholder': 'Ej. 10% de descuento en cambio de aceite los martes...'}),
+            'politicas_cancelacion': forms.Textarea(attrs={'class': 'form-control', 'rows': 2, 'placeholder': 'Ej. Puedes cancelar o reprogramar hasta 2 horas antes de tu cita...'}),
+            'informacion_adicional': forms.Textarea(attrs={'class': 'form-control', 'rows': 2, 'placeholder': 'Ej. Aceptamos efectivo, transferencia y tarjetas. Garantía de 30 días...'}),
         }
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        for campo in ('nombre', 'horarios', 'direccion', 'telefono_principal'):
+            if campo in self.fields:
+                self.fields[campo].required = False
 
 
 

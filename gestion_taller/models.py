@@ -697,6 +697,13 @@ class ConfiguracionTaller(models.Model):
     )
 
     # Configuración de Agente IA (Plan Enterprise IA)
+    TONO_AGENTE_CHOICES = [
+        ('profesional_cercano', 'Profesional y cercano'),
+        ('formal', 'Formal y corporativo'),
+        ('amigable', 'Amigable y relajado'),
+        ('directo', 'Directo y conciso'),
+    ]
+
     agente_ia_activo = models.BooleanField(
         default=False,
         help_text="Activar Agente IA conversacional para este taller"
@@ -705,9 +712,39 @@ class ConfiguracionTaller(models.Model):
         max_length=60, blank=True, default='Asistente Virtual',
         help_text="Nombre visible del agente IA"
     )
+    agente_ia_tono = models.CharField(
+        max_length=30, choices=TONO_AGENTE_CHOICES, default='profesional_cercano',
+        help_text="Tono de atención del agente IA"
+    )
+    agente_ia_atencion_automatica = models.BooleanField(
+        default=True,
+        help_text="Responder automáticamente mensajes entrantes 24/7"
+    )
+    agente_ia_transferencia_humano = models.BooleanField(
+        default=True,
+        help_text="Permitir transferir la conversación a un asesor humano"
+    )
     agente_ia_prompt = models.TextField(
         blank=True, default='',
-        help_text="Instrucciones personalizadas del taller (tono, políticas, promociones)"
+        help_text="Instrucciones personalizadas del taller (campo legado)"
+    )
+
+    # Información estructurada del taller para contexto del Agente IA
+    promociones = models.TextField(
+        blank=True, default='',
+        help_text="Promociones o descuentos vigentes del taller"
+    )
+    politicas_cancelacion = models.TextField(
+        blank=True, default='',
+        help_text="Políticas de cancelación o reprogramación de citas"
+    )
+    tiempo_aproximado_atencion = models.CharField(
+        max_length=120, blank=True, default='',
+        help_text="Tiempo aproximado de atención (ej: 30-45 min mantenimiento básico)"
+    )
+    informacion_adicional = models.TextField(
+        blank=True, default='',
+        help_text="Información adicional útil para el cliente (garantías, formas de pago, etc.)"
     )
     
     # Configuración de recordatorios

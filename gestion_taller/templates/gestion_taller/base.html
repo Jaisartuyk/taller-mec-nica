@@ -866,14 +866,17 @@ window.addEventListener('appinstalled', function(evt) {
     </div>
     <div id="iaFloatingMessages" class="p-3" style="height: 290px; overflow-y: auto; background: #f8fafc;">
       <div class="bg-white border rounded-3 p-2 small text-secondary mb-2 shadow-sm">
-        ¡Hola! Pregúntame por <strong>ingresos</strong>, <strong>stock bajo</strong>, <strong>citas</strong> o una <strong>placa</strong>.
+        ¡Hola! Pregúntame o pídeme crear <strong>clientes</strong>, <strong>citas</strong>, <strong>órdenes</strong>, consultar <strong>stock</strong> o <strong>ingresos</strong>.
       </div>
     </div>
     <div class="bg-white border-top p-2">
-      <form id="iaFloatingForm" class="d-flex gap-1">
+      <form id="iaFloatingForm" class="d-flex gap-1 align-items-center">
         {% csrf_token %}
-        <input type="text" id="iaFloatingInput" class="form-control form-control-sm rounded-pill px-3" placeholder="Pregunta al Copiloto IA..." autocomplete="off" required>
-        <button type="submit" id="iaFloatingSend" class="btn btn-primary btn-sm rounded-circle" style="width: 32px; height: 32px;">
+        <input type="text" id="iaFloatingInput" class="form-control form-control-sm rounded-pill px-3" placeholder="Pregunta o dicta al Copiloto IA..." autocomplete="off" required>
+        <button type="button" id="iaFloatingMic" class="btn btn-outline-secondary btn-sm rounded-circle d-none" style="width: 32px; height: 32px; flex-shrink: 0;" title="Hablar por voz">
+          <i class="fas fa-microphone" style="font-size: 0.75rem;"></i>
+        </button>
+        <button type="submit" id="iaFloatingSend" class="btn btn-primary btn-sm rounded-circle" style="width: 32px; height: 32px; flex-shrink: 0;">
           <i class="fas fa-paper-plane" style="font-size: 0.75rem;"></i>
         </button>
       </form>
@@ -897,13 +900,57 @@ document.addEventListener('DOMContentLoaded', function() {
   const input = document.getElementById('iaFloatingInput');
   const box = document.getElementById('iaFloatingMessages');
   const sendBtn = document.getElementById('iaFloatingSend');
+  const micBtn = document.getElementById('iaFloatingMic');
   if (!toggleBtn || !panel) return;
+
+  const historial = [];
 
   toggleBtn.addEventListener('click', () => {
     panel.classList.toggle('d-none');
     if (!panel.classList.contains('d-none')) input.focus();
   });
   closeBtn.addEventListener('click', () => panel.classList.add('d-none'));
+
+  // Dictado por voz (Web Speech API)
+  const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+  if (SpeechRecognition && micBtn) {
+    micBtn.classList.remove('d-none');
+    const recognition = new SpeechRecognition();
+    recognition.lang = 'es-EC';
+    recognition.interimResults = false;
+    recognition.maxAlternatives = 1;
+    let escuchando = false;
+
+    micBtn.addEventListener('click', () => {
+      if (escuchando) {
+        recognition.stop();
+        return;
+      }
+      try {
+        recognition.start();
+      } catch (e) {}
+    });
+
+    recognition.onstart = () => {
+      escuchando = true;
+      micBtn.classList.remove('btn-outline-secondary');
+      micBtn.classList.add('btn-danger');
+      input.placeholder = 'Escuchando...';
+    };
+    recognition.onend = () => {
+      escuchando = false;
+      micBtn.classList.remove('btn-danger');
+      micBtn.classList.add('btn-outline-secondary');
+      input.placeholder = 'Pregunta o dicta al Copiloto IA...';
+    };
+    recognition.onresult = (event) => {
+      const transcripcion = (event.results[0][0].transcript || '').trim();
+      if (transcripcion) {
+        input.value = transcripcion;
+        form.requestSubmit();
+      }
+    };
+  }
 
   function fmt(t) {
     return (t || '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/\*\*(.*?)\*\*/g,'<strong>$1</strong>').replace(/\n/g,'<br>');
@@ -931,10 +978,15 @@ document.addEventListener('DOMContentLoaded', function() {
       const resp = await fetch("{% url 'api_agente_ia_chat' %}", {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', 'X-CSRFToken': csrf },
-        body: JSON.stringify({ mensaje: texto })
+        body: JSON.stringify({ mensaje: texto, historial: historial.slice(-8) })
       });
       const data = await resp.json();
-      addBubble('bot', data.success ? data.respuesta : ('⚠️ ' + (data.error || 'Error')));
+      const respuesta = data.success ? data.respuesta : ('⚠️ ' + (data.error || 'Error'));
+      addBubble('bot', respuesta);
+      if (data.success) {
+        historial.push({ role: 'user', text: texto });
+        historial.push({ role: 'model', text: respuesta });
+      }
     } catch (err) {
       addBubble('bot', '⚠️ Error de conexión.');
     } finally {

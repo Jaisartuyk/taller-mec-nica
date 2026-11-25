@@ -430,16 +430,18 @@ def api_agente_ia_chat(request):
     try:
         body = json.loads(request.body.decode('utf-8')) if request.body else {}
         mensaje = (body.get('mensaje') or request.POST.get('mensaje') or '').strip()
+        historial = body.get('historial') if isinstance(body.get('historial'), list) else []
         if not mensaje:
             return JsonResponse({'success': False, 'error': 'Escribe una pregunta para el asistente.'}, status=400)
 
         from gestion_taller.services.agente_ia_service import AgenteIATallerService
         servicio = AgenteIATallerService(cliente)
-        resultado = servicio.responder(mensaje)
+        resultado = servicio.responder(mensaje, historial=historial)
         return JsonResponse({
             'success': True,
             'respuesta': resultado['respuesta'],
             'modo': resultado['modo'],
+            'herramientas_usadas': resultado.get('herramientas_usadas', []),
         })
     except Exception as e:
         return JsonResponse({'success': False, 'error': f'Error procesando consulta: {str(e)}'}, status=500)

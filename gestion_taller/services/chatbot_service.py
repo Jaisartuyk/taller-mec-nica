@@ -33,7 +33,48 @@ class ChatbotService:
             Dict con la respuesta y metadatos
         """
         try:
-            # Limpiar y normalizar mensaje
+            # 1. Identificar conductor y respetar pausa para atención humana
+            digitos = ''.join(c for c in (phone_number or '') if c.isdigit())
+            conductor = None
+            if len(digitos) >= 7:
+                conductor = Conductor.objects.filter(
+                    cliente=self.cliente, telefono__icontains=digitos[-9:]
+                ).first()
+            if conductor and conductor.bot_pausado:
+                return {
+                    'success': True,
+                    'response': None,
+                    'intent': 'human_mode',
+                    'entities': {},
+                    'requires_human': True,
+                }
+
+            # 2. Si el Agente IA 24/7 con atención automática está activo, usar Gemini + Herramientas
+            if (
+                self.taller_config
+                and self.taller_config.agente_ia_activo
+                and self.taller_config.agente_ia_atencion_automatica
+            ):
+                from .agente_ia_service import AgenteIATallerService
+                ia_service = AgenteIATallerService(self.cliente)
+                res_ia = ia_service.responder_whatsapp(
+                    mensaje_usuario=message,
+                    conductor_actual=conductor,
+                    telefono_remitente=phone_number,
+                )
+                if res_ia.get('ok') and res_ia.get('respuesta'):
+                    return {
+                        'success': True,
+                        'response': {
+                            'message': res_ia['respuesta'],
+                            'escalate_to_human': res_ia.get('transferido_a_humano', False),
+                        },
+                        'intent': 'agente_ia_tools',
+                        'entities': {'herramientas': res_ia.get('herramientas_usadas', [])},
+                        'requires_human': res_ia.get('transferido_a_humano', False),
+                    }
+
+            # 3. Respaldo: motor clásico basado en reglas
             clean_message = self._clean_message(message)
             
             # Obtener contexto de conversación

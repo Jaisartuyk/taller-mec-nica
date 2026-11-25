@@ -183,17 +183,82 @@
                 <div class="form-check form-switch">
                   {{ form.agente_ia_activo }}
                   <label class="form-check-label fw-semibold small" for="{{ form.agente_ia_activo.id_for_label }}">
-                    Activar Agente IA conversacional 24/7
+                    Agente IA conversacional 24/7
                   </label>
                 </div>
               </div>
               <div class="col-md-6">
-                <label class="form-label small fw-semibold">Nombre del Agente IA</label>
+                <label class="form-label small fw-semibold">Nombre del agente</label>
                 {{ form.agente_ia_nombre }}
               </div>
+              <div class="col-md-6">
+                <label class="form-label small fw-semibold">Tono de atención</label>
+                {{ form.agente_ia_tono }}
+              </div>
+              <div class="col-md-6">
+                <div class="form-check form-switch mt-1">
+                  {{ form.agente_ia_atencion_automatica }}
+                  <label class="form-check-label fw-semibold small" for="{{ form.agente_ia_atencion_automatica.id_for_label }}">
+                    Atención automática activada
+                  </label>
+                </div>
+              </div>
+              <div class="col-md-6">
+                <div class="form-check form-switch mt-1">
+                  {{ form.agente_ia_transferencia_humano }}
+                  <label class="form-check-label fw-semibold small" for="{{ form.agente_ia_transferencia_humano.id_for_label }}">
+                    Transferencia a humano activada
+                  </label>
+                </div>
+              </div>
+            </div>
+
+            <hr class="my-4">
+
+            <div class="d-flex justify-content-between align-items-center mb-3">
+              <h6 class="fw-bold mb-0 text-dark">
+                <i class="fas fa-store text-primary me-2"></i>Información del Taller
+              </h6>
+              <span class="badge bg-light text-secondary border">
+                Contexto automático para la IA
+              </span>
+            </div>
+            <p class="small text-muted mb-3">
+              El Agente IA usa estos datos automáticamente para responder a tus clientes. Tus <strong>servicios y precios</strong> se consultan en tiempo real desde tu catálogo.
+            </p>
+
+            <div class="row g-3 mb-4">
+              <div class="col-md-6">
+                <label class="form-label small fw-semibold">Nombre del taller</label>
+                {{ form.nombre }}
+              </div>
+              <div class="col-md-6">
+                <label class="form-label small fw-semibold">Teléfono</label>
+                {{ form.telefono_principal }}
+              </div>
+              <div class="col-md-6">
+                <label class="form-label small fw-semibold">Horario de atención</label>
+                {{ form.horarios }}
+              </div>
+              <div class="col-md-6">
+                <label class="form-label small fw-semibold">Tiempo aproximado de atención</label>
+                {{ form.tiempo_aproximado_atencion }}
+              </div>
               <div class="col-12">
-                <label class="form-label small fw-semibold">Instrucciones / Personalidad del Taller</label>
-                {{ form.agente_ia_prompt }}
+                <label class="form-label small fw-semibold">Dirección</label>
+                {{ form.direccion }}
+              </div>
+              <div class="col-md-6">
+                <label class="form-label small fw-semibold">Promociones vigentes</label>
+                {{ form.promociones }}
+              </div>
+              <div class="col-md-6">
+                <label class="form-label small fw-semibold">Políticas de cancelación</label>
+                {{ form.politicas_cancelacion }}
+              </div>
+              <div class="col-12">
+                <label class="form-label small fw-semibold">Información adicional</label>
+                {{ form.informacion_adicional }}
               </div>
             </div>
           {% else %}
