@@ -845,6 +845,107 @@ window.addEventListener('appinstalled', function(evt) {
 });
 </script>
 
+{% if user.is_authenticated and user.perfilusuario.cliente.tiene_whatsapp_pro and request.resolver_match.url_name != 'chatbot_dashboard' %}
+<!-- Botón Flotante y Widget del Copiloto IA (disponible en todas las vistas) -->
+<div id="iaFloatingWidget" style="position: fixed; bottom: 24px; right: 24px; z-index: 1080;">
+  <!-- Ventana de chat flotante -->
+  <div id="iaFloatingPanel" class="card border-0 shadow-lg rounded-4 overflow-hidden d-none mb-3" style="width: 350px; max-width: calc(100vw - 32px);">
+    <div class="bg-dark text-white px-3 py-2 d-flex justify-content-between align-items-center">
+      <div class="d-flex align-items-center gap-2">
+        <i class="fas fa-robot text-info"></i>
+        <span class="fw-bold small">Copiloto IA</span>
+      </div>
+      <div class="d-flex align-items-center gap-2">
+        <a href="{% url 'chatbot_dashboard' %}" class="text-info small text-decoration-none" title="Abrir pantalla completa">
+          <i class="fas fa-expand-alt"></i>
+        </a>
+        <button type="button" id="iaFloatingClose" class="btn btn-sm btn-link text-white p-0" title="Cerrar">
+          <i class="fas fa-times"></i>
+        </button>
+      </div>
+    </div>
+    <div id="iaFloatingMessages" class="p-3" style="height: 290px; overflow-y: auto; background: #f8fafc;">
+      <div class="bg-white border rounded-3 p-2 small text-secondary mb-2 shadow-sm">
+        ¡Hola! Pregúntame por <strong>ingresos</strong>, <strong>stock bajo</strong>, <strong>citas</strong> o una <strong>placa</strong>.
+      </div>
+    </div>
+    <div class="bg-white border-top p-2">
+      <form id="iaFloatingForm" class="d-flex gap-1">
+        {% csrf_token %}
+        <input type="text" id="iaFloatingInput" class="form-control form-control-sm rounded-pill px-3" placeholder="Pregunta al Copiloto IA..." autocomplete="off" required>
+        <button type="submit" id="iaFloatingSend" class="btn btn-primary btn-sm rounded-circle" style="width: 32px; height: 32px;">
+          <i class="fas fa-paper-plane" style="font-size: 0.75rem;"></i>
+        </button>
+      </form>
+    </div>
+  </div>
+
+  <!-- Botón circular flotante -->
+  <div class="d-flex justify-content-end">
+    <button type="button" id="iaFloatingToggle" class="btn btn-dark rounded-circle shadow-lg d-flex align-items-center justify-content-center border border-info border-2" style="width: 56px; height: 56px;" title="Abrir Copiloto IA">
+      <i class="fas fa-robot text-info fa-lg"></i>
+    </button>
+  </div>
+</div>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+  const toggleBtn = document.getElementById('iaFloatingToggle');
+  const closeBtn = document.getElementById('iaFloatingClose');
+  const panel = document.getElementById('iaFloatingPanel');
+  const form = document.getElementById('iaFloatingForm');
+  const input = document.getElementById('iaFloatingInput');
+  const box = document.getElementById('iaFloatingMessages');
+  const sendBtn = document.getElementById('iaFloatingSend');
+  if (!toggleBtn || !panel) return;
+
+  toggleBtn.addEventListener('click', () => {
+    panel.classList.toggle('d-none');
+    if (!panel.classList.contains('d-none')) input.focus();
+  });
+  closeBtn.addEventListener('click', () => panel.classList.add('d-none'));
+
+  function fmt(t) {
+    return (t || '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/\*\*(.*?)\*\*/g,'<strong>$1</strong>').replace(/\n/g,'<br>');
+  }
+
+  function addBubble(role, text) {
+    const d = document.createElement('div');
+    d.className = role === 'user' ? 'd-flex justify-content-end mb-2' : 'd-flex justify-content-start mb-2';
+    d.innerHTML = role === 'user'
+      ? `<div class="bg-primary text-white rounded-3 px-2 py-1 small" style="max-width: 85%;">${fmt(text)}</div>`
+      : `<div class="bg-white border rounded-3 px-2 py-1 small text-dark shadow-sm" style="max-width: 88%;">${fmt(text)}</div>`;
+    box.appendChild(d);
+    box.scrollTop = box.scrollHeight;
+  }
+
+  form.addEventListener('submit', async function(e) {
+    e.preventDefault();
+    const texto = input.value.trim();
+    if (!texto) return;
+    addBubble('user', texto);
+    input.value = '';
+    sendBtn.disabled = true;
+    const csrf = form.querySelector('[name=csrfmiddlewaretoken]').value;
+    try {
+      const resp = await fetch("{% url 'api_agente_ia_chat' %}", {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'X-CSRFToken': csrf },
+        body: JSON.stringify({ mensaje: texto })
+      });
+      const data = await resp.json();
+      addBubble('bot', data.success ? data.respuesta : ('⚠️ ' + (data.error || 'Error')));
+    } catch (err) {
+      addBubble('bot', '⚠️ Error de conexión.');
+    } finally {
+      sendBtn.disabled = false;
+      input.focus();
+    }
+  });
+});
+</script>
+{% endif %}
+
     {% block extra_js %}{% endblock %}
 </body>
 </html>
