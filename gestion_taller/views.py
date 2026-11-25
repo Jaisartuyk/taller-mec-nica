@@ -2303,7 +2303,8 @@ def equipo_taller_view(request):
     es_admin = perfil_actual.rol == 'admin' or request.user.is_superuser
     miembros = PerfilUsuario.objects.filter(cliente=cliente).select_related('user').order_by('rol', 'user__username')
     total_activos = miembros.filter(user__is_active=True).count()
-    puede_agregar = total_activos < cliente.max_usuarios
+    limite_usuarios = cliente.limite_usuarios_efectivo
+    puede_agregar = total_activos < limite_usuarios
 
     from .forms import EmpleadoTallerForm
     if request.method == 'POST':
@@ -2311,7 +2312,7 @@ def equipo_taller_view(request):
             messages.error(request, "Solo el administrador del taller puede agregar miembros.")
             return redirect('equipo_taller')
         if not puede_agregar:
-            messages.warning(request, f"Has alcanzado el límite de {cliente.max_usuarios} usuarios de tu plan actual. Mejora tu plan para agregar más.")
+            messages.warning(request, f"Has alcanzado el límite de {limite_usuarios} usuarios de tu plan actual. Mejora tu plan para agregar más.")
             return redirect('equipo_taller')
 
         form = EmpleadoTallerForm(request.POST)

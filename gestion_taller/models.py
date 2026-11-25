@@ -35,6 +35,11 @@ class Cliente(models.Model):
         ('pro', 'Plan Pro (WhatsApp & Chatbot)'),
         ('ia', 'Plan Enterprise IA'),
     ]
+    LIMITES_PLAN = {
+        'basico': 2,
+        'pro': 5,
+        'ia': 20,
+    }
     plan = models.CharField(max_length=20, choices=PLAN_CHOICES, default='basico', help_text="Plan SaaS contratado")
     suscripcion_activa = models.BooleanField(default=True, help_text="Indica si la suscripción del taller está activa")
     max_usuarios = models.PositiveIntegerField(default=2, help_text="Límite de usuarios permitidos para este taller")
@@ -45,12 +50,22 @@ class Cliente(models.Model):
         ordering = ['nombre']
     
     @property
+    def limite_usuarios_efectivo(self):
+        return max(self.max_usuarios or 2, self.LIMITES_PLAN.get(self.plan, 2))
+
+    @property
     def tiene_whatsapp_pro(self):
         return self.suscripcion_activa and self.plan in ('pro', 'ia')
 
     @property
     def tiene_agente_ia(self):
         return self.suscripcion_activa and self.plan == 'ia'
+
+    def save(self, *args, **kwargs):
+        limite_plan = self.LIMITES_PLAN.get(self.plan, 2)
+        if not self.max_usuarios or self.max_usuarios < limite_plan:
+            self.max_usuarios = limite_plan
+        super().save(*args, **kwargs)
 
     def __str__(self):
         return self.nombre
