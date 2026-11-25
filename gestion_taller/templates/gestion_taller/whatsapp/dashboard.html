@@ -109,11 +109,19 @@
             </div>
           </div>
 
-          <!-- Caja de respuesta manual -->
+          <!-- Caja de respuesta manual (texto + imagen/audio/video) -->
           <div class="bg-white border-top p-3">
-            <form id="formRespuestaHumana" class="d-flex gap-2">
+            <div id="mediaPreviewBar" class="d-none mb-2 px-3 py-1 bg-light border rounded-pill d-flex justify-content-between align-items-center small">
+              <span id="mediaPreviewName" class="text-truncate text-primary fw-semibold"></span>
+              <button type="button" id="btnLimpiarMedia" class="btn btn-sm btn-link text-danger p-0 ms-2"><i class="fas fa-times"></i></button>
+            </div>
+            <form id="formRespuestaHumana" class="d-flex gap-2 align-items-center" enctype="multipart/form-data">
               {% csrf_token %}
-              <input type="text" id="inputRespuestaHumana" class="form-control rounded-pill px-4" placeholder="Escribe una respuesta manual al cliente..." disabled autocomplete="off">
+              <input type="file" id="inputArchivoMedia" accept="image/*,audio/*,video/*" class="d-none">
+              <button type="button" id="btnAdjuntarMedia" class="btn btn-light border rounded-circle" title="Adjuntar imagen, audio o video" disabled style="width: 40px; height: 40px;">
+                <i class="fas fa-paperclip text-secondary"></i>
+              </button>
+              <input type="text" id="inputRespuestaHumana" class="form-control rounded-pill px-4" placeholder="Escribe un mensaje o adjunta imagen/audio/video..." disabled autocomplete="off">
               <button type="submit" id="btnEnviarHumano" class="btn btn-success rounded-pill px-4 fw-semibold" disabled>
                 <i class="fas fa-paper-plane me-1"></i> Enviar
               </button>
@@ -139,6 +147,43 @@ document.addEventListener('DOMContentLoaded', function() {
   const inputResp = document.getElementById('inputRespuestaHumana');
   const btnEnviar = document.getElementById('btnEnviarHumano');
   const buscarInput = document.getElementById('buscarChatInput');
+  const inputArchivo = document.getElementById('inputArchivoMedia');
+  const btnAdjuntar = document.getElementById('btnAdjuntarMedia');
+  const mediaPreviewBar = document.getElementById('mediaPreviewBar');
+  const mediaPreviewName = document.getElementById('mediaPreviewName');
+  const btnLimpiarMedia = document.getElementById('btnLimpiarMedia');
+
+  if (btnAdjuntar && inputArchivo) {
+    btnAdjuntar.addEventListener('click', () => inputArchivo.click());
+    inputArchivo.addEventListener('change', () => {
+      if (inputArchivo.files && inputArchivo.files[0]) {
+        mediaPreviewName.textContent = '📎 ' + inputArchivo.files[0].name;
+        mediaPreviewBar.classList.remove('d-none');
+      } else {
+        mediaPreviewBar.classList.add('d-none');
+      }
+    });
+  }
+  if (btnLimpiarMedia) {
+    btnLimpiarMedia.addEventListener('click', () => {
+      inputArchivo.value = '';
+      mediaPreviewBar.classList.add('d-none');
+    });
+  }
+
+  function renderMediaHtml(m) {
+    if (!m.media_url) return '';
+    if (m.tipo_media === 'image') {
+      return `<div class="mb-2"><a href="${m.media_url}" target="_blank"><img src="${m.media_url}" class="img-fluid rounded-3" style="max-height: 220px; object-fit: cover;"></a></div>`;
+    }
+    if (m.tipo_media === 'audio') {
+      return `<div class="mb-2"><audio controls src="${m.media_url}" style="max-width: 100%; height: 36px;"></audio></div>`;
+    }
+    if (m.tipo_media === 'video') {
+      return `<div class="mb-2"><video controls src="${m.media_url}" class="rounded-3" style="max-width: 100%; max-height: 220px;"></video></div>`;
+    }
+    return '';
+  }
 
   function getCsrf() {
     const el = document.querySelector('[name=csrfmiddlewaretoken]');
@@ -178,10 +223,12 @@ document.addEventListener('DOMContentLoaded', function() {
     historialBox.innerHTML = '';
     mensajes.forEach(m => {
       const div = document.createElement('div');
+      const mediaHtml = renderMediaHtml(m);
       if (m.emisor === 'cliente') {
         div.className = 'd-flex justify-content-start mb-2';
         div.innerHTML = `<div class="bg-white border rounded-4 px-3 py-2 shadow-sm small" style="max-width: 75%;">
-          <div class="text-dark">${escapeHtml(m.texto)}</div>
+          ${mediaHtml}
+          ${m.texto ? `<div class="text-dark">${escapeHtml(m.texto)}</div>` : ''}
           <div class="text-muted text-end" style="font-size: 0.65rem;">${m.fecha}</div>
         </div>`;
       } else {
@@ -191,7 +238,8 @@ document.addEventListener('DOMContentLoaded', function() {
         div.className = 'd-flex justify-content-end mb-2';
         div.innerHTML = `<div class="${bgClass} rounded-4 px-3 py-2 shadow-sm small" style="max-width: 75%;">
           <div class="fw-bold mb-1" style="font-size: 0.7rem; opacity: 0.85;">${etiqueta}</div>
-          <div>${escapeHtml(m.texto)}</div>
+          ${mediaHtml}
+          ${m.texto ? `<div>${escapeHtml(m.texto)}</div>` : ''}
           <div class="text-end mt-1" style="font-size: 0.65rem; opacity: 0.75;">${m.fecha}</div>
         </div>`;
       }
@@ -216,6 +264,7 @@ document.addEventListener('DOMContentLoaded', function() {
         controles.classList.remove('d-none');
         inputResp.disabled = false;
         btnEnviar.disabled = false;
+        if (btnAdjuntar) btnAdjuntar.disabled = false;
         actualizarBotonBot(data.conductor.bot_pausado);
         renderMensajes(data.mensajes);
       }
@@ -245,15 +294,24 @@ document.addEventListener('DOMContentLoaded', function() {
   if (formResp) {
     formResp.addEventListener('submit', async function(e) {
       e.preventDefault();
-      if (!conductorActivoId || !inputResp.value.trim()) return;
+      const archivoFile = inputArchivo && inputArchivo.files ? inputArchivo.files[0] : null;
       const texto = inputResp.value.trim();
+      if (!conductorActivoId || (!texto && !archivoFile)) return;
+
+      const formData = new FormData();
+      formData.append('mensaje', texto);
+      if (archivoFile) formData.append('archivo', archivoFile);
+
       inputResp.value = '';
+      if (inputArchivo) inputArchivo.value = '';
+      if (mediaPreviewBar) mediaPreviewBar.classList.add('d-none');
       btnEnviar.disabled = true;
+
       try {
         const resp = await fetch(`/api/whatsapp/chat/${conductorActivoId}/responder/`, {
           method: 'POST',
-          headers: { 'Content-Type': 'application/json', 'X-CSRFToken': getCsrf() },
-          body: JSON.stringify({ mensaje: texto })
+          headers: { 'X-CSRFToken': getCsrf() },
+          body: formData
         });
         const data = await resp.json();
         if (data.success) {

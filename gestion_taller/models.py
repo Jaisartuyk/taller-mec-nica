@@ -611,8 +611,17 @@ class InteraccionChat(models.Model):
     cliente = models.ForeignKey(Cliente, on_delete=models.CASCADE, related_name='interacciones_chat')
     conductor = models.ForeignKey('Conductor', on_delete=models.CASCADE, null=True, blank=True, related_name='interacciones_chat')
     telefono = models.CharField(max_length=20, help_text="Número de teléfono del contacto")
-    mensaje = models.TextField()
-    respuesta = models.TextField(blank=True)
+    mensaje = models.TextField(blank=True, default='')
+    respuesta = models.TextField(blank=True, default='')
+    archivo = models.FileField(upload_to='whatsapp_media/', null=True, blank=True, help_text="Imagen, audio o video adjunto")
+    tipo_media = models.CharField(
+        max_length=20,
+        blank=True,
+        default='',
+        choices=[('', 'Texto'), ('image', 'Imagen'), ('audio', 'Audio'), ('video', 'Video')],
+        help_text="Tipo de archivo multimedia"
+    )
+    media_url = models.URLField(blank=True, default='', help_text="URL externa del archivo multimedia (si aplica)")
     tipo = models.CharField(max_length=20, choices=TIPOS, default='consulta')
     fecha_creacion = models.DateTimeField(auto_now_add=True)
     resuelta = models.BooleanField(default=False)

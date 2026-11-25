@@ -462,18 +462,25 @@ def api_whatsapp_historial(request, conductor_id):
     mensajes = []
     for item in interacciones:
         fecha_str = item.fecha_creacion.strftime('%d/%m %H:%M')
-        if item.mensaje:
+        url_media = item.archivo.url if item.archivo else (item.media_url or '')
+        t_media = item.tipo_media or ''
+        if item.mensaje or (url_media and not item.respuesta):
             mensajes.append({
                 'emisor': 'cliente',
                 'texto': item.mensaje,
                 'fecha': fecha_str,
+                'tipo_media': t_media if not item.respuesta else '',
+                'media_url': url_media if not item.respuesta else '',
             })
-        if item.respuesta:
-            es_humano = item.respuesta.startswith('[Humano] ')
+        if item.respuesta or (url_media and item.respuesta):
+            es_humano = item.respuesta.startswith('[Humano]')
+            texto_limpio = item.respuesta.replace('[Humano] ', '', 1).replace('[Humano]', '', 1) if es_humano else item.respuesta
             mensajes.append({
                 'emisor': 'humano' if es_humano else 'bot',
-                'texto': item.respuesta.replace('[Humano] ', '', 1) if es_humano else item.respuesta,
+                'texto': texto_limpio,
                 'fecha': fecha_str,
+                'tipo_media': t_media,
+                'media_url': url_media,
             })
 
     return JsonResponse({
@@ -509,7 +516,7 @@ def api_whatsapp_toggle_bot(request, conductor_id):
 @require_http_methods(["POST"])
 @login_required
 def api_whatsapp_responder_humano(request, conductor_id):
-    """Envía una respuesta manual desde el taller al cliente y la registra en el historial"""
+    """Envía una respuesta manual (texto, imagen, audio o video) desde el taller al cliente"""
     import requests as http_requests
 
     cliente, error_msg = get_user_cliente_or_error(request)
@@ -517,18 +524,38 @@ def api_whatsapp_responder_humano(request, conductor_id):
         return JsonResponse({'success': False, 'error': error_msg}, status=403)
 
     conductor = get_object_or_404(Conductor, pk=conductor_id, cliente=cliente)
-    body = json.loads(request.body.decode('utf-8')) if request.body else {}
-    texto = (body.get('mensaje') or '').strip()
-    if not texto:
-        return JsonResponse({'success': False, 'error': 'Escribe un mensaje.'}, status=400)
+
+    archivo = request.FILES.get('archivo')
+    if request.content_type and 'application/json' in request.content_type:
+        body = json.loads(request.body.decode('utf-8')) if request.body else {}
+        texto = (body.get('mensaje') or '').strip()
+    else:
+        texto = (request.POST.get('mensaje') or '').strip()
+
+    if not texto and not archivo:
+        return JsonResponse({'success': False, 'error': 'Escribe un mensaje o adjunta un archivo.'}, status=400)
+
+    tipo_media = ''
+    if archivo:
+        ctype = (archivo.content_type or '').lower()
+        if ctype.startswith('image/'):
+            tipo_media = 'image'
+        elif ctype.startswith('audio/'):
+            tipo_media = 'audio'
+        elif ctype.startswith('video/'):
+            tipo_media = 'video'
+        else:
+            return JsonResponse({'success': False, 'error': 'Solo se permiten imágenes, audios o videos.'}, status=400)
 
     # Registrar en historial
-    InteraccionChat.objects.create(
+    interaccion = InteraccionChat.objects.create(
         cliente=cliente,
         conductor=conductor,
         telefono=conductor.telefono or '',
         mensaje='',
-        respuesta=f'[Humano] {texto}',
+        respuesta=f'[Humano] {texto}' if texto else '[Humano]',
+        archivo=archivo if archivo else None,
+        tipo_media=tipo_media,
         tipo='seguimiento',
     )
 
@@ -537,23 +564,51 @@ def api_whatsapp_responder_humano(request, conductor_id):
     config = cliente.configuracion
     if config and config.meta_phone_number_id and config.meta_access_token and conductor.telefono:
         tel_limpio = ''.join(c for c in conductor.telefono if c.isdigit())
+        headers = {'Authorization': f'Bearer {config.meta_access_token}'}
         try:
-            url = f"https://graph.facebook.com/v20.0/{config.meta_phone_number_id}/messages"
-            resp = http_requests.post(
-                url,
-                headers={
-                    'Authorization': f'Bearer {config.meta_access_token}',
-                    'Content-Type': 'application/json',
-                },
-                json={
-                    'messaging_product': 'whatsapp',
-                    'to': tel_limpio,
-                    'type': 'text',
-                    'text': {'body': texto},
-                },
-                timeout=10,
-            )
-            enviado_meta = resp.status_code in (200, 201)
+            if archivo and tipo_media:
+                # 1. Subir archivo a Meta Media API
+                media_url_api = f"https://graph.facebook.com/v20.0/{config.meta_phone_number_id}/media"
+                interaccion.archivo.open('rb')
+                files = {'file': (archivo.name, interaccion.archivo, archivo.content_type)}
+                upload_resp = http_requests.post(
+                    media_url_api,
+                    headers=headers,
+                    data={'messaging_product': 'whatsapp'},
+                    files=files,
+                    timeout=20,
+                )
+                interaccion.archivo.close()
+                if upload_resp.status_code in (200, 201):
+                    media_id = upload_resp.json().get('id')
+                    payload_media = {'id': media_id}
+                    if texto and tipo_media in ('image', 'video'):
+                        payload_media['caption'] = texto
+                    msg_resp = http_requests.post(
+                        f"https://graph.facebook.com/v20.0/{config.meta_phone_number_id}/messages",
+                        headers={**headers, 'Content-Type': 'application/json'},
+                        json={
+                            'messaging_product': 'whatsapp',
+                            'to': tel_limpio,
+                            'type': tipo_media,
+                            tipo_media: payload_media,
+                        },
+                        timeout=10,
+                    )
+                    enviado_meta = msg_resp.status_code in (200, 201)
+            elif texto:
+                msg_resp = http_requests.post(
+                    f"https://graph.facebook.com/v20.0/{config.meta_phone_number_id}/messages",
+                    headers={**headers, 'Content-Type': 'application/json'},
+                    json={
+                        'messaging_product': 'whatsapp',
+                        'to': tel_limpio,
+                        'type': 'text',
+                        'text': {'body': texto},
+                    },
+                    timeout=10,
+                )
+                enviado_meta = msg_resp.status_code in (200, 201)
         except Exception:
             enviado_meta = False
 
@@ -561,4 +616,6 @@ def api_whatsapp_responder_humano(request, conductor_id):
         'success': True,
         'enviado_meta': enviado_meta,
         'texto': texto,
+        'tipo_media': tipo_media,
+        'media_url': interaccion.archivo.url if interaccion.archivo else '',
     })
