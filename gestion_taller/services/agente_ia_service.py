@@ -169,7 +169,8 @@ class AgenteIATallerService:
                     contents.append({'role': role, 'parts': [{'text': texto}]})
         contents.append({'role': 'user', 'parts': [{'text': mensaje_usuario}]})
 
-        url = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key={api_key}"
+        modelo = os.environ.get('GEMINI_MODEL', 'gemini-3.8-flash').strip() or 'gemini-3.8-flash'
+        url = f"https://generativelanguage.googleapis.com/v1beta/models/{modelo}:generateContent?key={api_key}"
         herramientas_usadas = []
 
         for _ in range(5):
