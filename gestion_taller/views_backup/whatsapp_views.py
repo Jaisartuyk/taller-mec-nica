@@ -2,6 +2,7 @@
 Vistas para la integración de WhatsApp multi-taller
 """
 import json
+import os
 import time
 from django.shortcuts import render, redirect, get_object_or_404
 from django.contrib.auth.decorators import login_required
@@ -38,54 +39,46 @@ def get_user_cliente_or_error(request):
 
 @login_required
 def whatsapp_dashboard(request):
-    """Dashboard principal de WhatsApp con información del sistema"""
-    # Obtener información del cliente actual - SOLO SU PROPIO TALLER
+    """Dashboard principal de WhatsApp Meta Cloud API (Multi-tenant por taller)"""
     try:
         cliente, error_msg = get_user_cliente_or_error(request)
         if not cliente:
             messages.error(request, error_msg)
             return redirect('home')
-        
-        if cliente:
-            messaging_service = MultiTallerMessagingService(cliente=cliente)
-            
-            # Información del taller
-            taller_info = messaging_service.get_taller_info()
-            whatsapp_enabled = messaging_service._is_whatsapp_enabled()
-            whatsapp_number = messaging_service.get_whatsapp_number()
-            
-            # Estadísticas básicas
-            total_conductores = Conductor.objects.filter(cliente=cliente).count()
-            conductores_con_telefono = Conductor.objects.filter(
-                cliente=cliente, 
-                telefono__isnull=False
-            ).exclude(telefono='').count()
-            
-            ordenes_pendientes = OrdenServicio.objects.filter(
-                vehiculo__conductor__cliente=cliente,
-                estado__in=['pendiente', 'en_proceso']
-            ).count()
-            
-            context = {
-                'cliente': cliente,
-                'taller_info': taller_info,
-                'whatsapp_enabled': whatsapp_enabled,
-                'whatsapp_number': whatsapp_number,
-                'total_conductores': total_conductores,
-                'conductores_con_telefono': conductores_con_telefono,
-                'ordenes_pendientes': ordenes_pendientes,
-                'messaging_service': messaging_service,
-            }
-        else:
-            context = {
-                'error': 'No hay clientes configurados en el sistema'
-            }
-            
+
+        config = cliente.configuracion
+        meta_conectado = bool(
+            config and config.usar_whatsapp and config.meta_phone_number_id and config.meta_access_token
+        )
+        whatsapp_number = (config.get_telefono_whatsapp() if config else cliente.telefono) or 'No configurado'
+
+        total_conductores = Conductor.objects.filter(cliente=cliente).count()
+        conductores_con_telefono = Conductor.objects.filter(
+            cliente=cliente,
+            telefono__isnull=False
+        ).exclude(telefono='').count()
+
+        ordenes_pendientes = OrdenServicio.objects.filter(
+            cliente=cliente,
+            estado__in=['pendiente', 'en_progreso']
+        ).count()
+
+        context = {
+            'cliente': cliente,
+            'config': config,
+            'whatsapp_enabled': meta_conectado and cliente.tiene_whatsapp_pro,
+            'meta_conectado': meta_conectado,
+            'whatsapp_number': whatsapp_number,
+            'total_conductores': total_conductores,
+            'conductores_con_telefono': conductores_con_telefono,
+            'ordenes_pendientes': ordenes_pendientes,
+            'webhook_url': request.build_absolute_uri('/webhook/whatsapp/'),
+        }
     except Exception as e:
         context = {
-            'error': f'Error al cargar la configuración: {str(e)}'
+            'error': f'Error al cargar el panel de WhatsApp: {str(e)}'
         }
-    
+
     return render(request, 'gestion_taller/whatsapp/dashboard.html', context)
 
 
@@ -394,29 +387,53 @@ def test_whatsapp_connection(request):
 
 @login_required
 def chatbot_dashboard(request):
-    """Dashboard del chatbot de WhatsApp"""
+    """Vista del Copiloto / Agente IA del Taller (Multi-tenant)"""
+    cliente, error_msg = get_user_cliente_or_error(request)
+    if not cliente:
+        messages.error(request, error_msg)
+        return redirect('home')
+
+    config = cliente.configuracion
+    nombre_agente = (config.agente_ia_nombre if config and config.agente_ia_nombre else 'Copiloto IA')
+    gemini_activo = bool(os.environ.get('GEMINI_API_KEY', '').strip())
+
+    context = {
+        'cliente': cliente,
+        'config': config,
+        'nombre_agente': nombre_agente,
+        'gemini_activo': gemini_activo,
+        'page_title': 'Asistente IA del Taller',
+    }
+    return render(request, 'gestion_taller/whatsapp/chatbot_dashboard.html', context)
+
+
+@require_http_methods(["POST"])
+@login_required
+def api_agente_ia_chat(request):
+    """Endpoint AJAX para conversar con el Copiloto IA del taller"""
+    cliente, error_msg = get_user_cliente_or_error(request)
+    if not cliente:
+        return JsonResponse({'success': False, 'error': error_msg}, status=403)
+
+    if not cliente.tiene_whatsapp_pro:
+        return JsonResponse({
+            'success': False,
+            'error': 'Activa el Plan Pro o Enterprise IA para usar el Asistente IA.'
+        }, status=403)
+
     try:
-        # Obtener cliente asociado usando PerfilUsuario - SOLO SU PROPIO CLIENTE
-        cliente, error_msg = get_user_cliente_or_error(request)
-        
-        # Si no hay cliente asociado, denegar acceso por seguridad
-        if not cliente:
-            messages.error(request, error_msg)
-            return redirect('home')  # Redirigir a home en lugar de whatsapp_dashboard
-        
-        # Verificar si el chatbot está habilitado
-        messaging_service = MultiTallerMessagingService(cliente=cliente)
-        chatbot_enabled = messaging_service._is_whatsapp_enabled()
-        
-        context = {
-            'cliente': cliente,
-            'page_title': 'Chatbot WhatsApp',
-            'chatbot_enabled': chatbot_enabled,
-            'user': request.user
-        }
-        
-        return render(request, 'gestion_taller/whatsapp/chatbot_dashboard.html', context)
-        
+        body = json.loads(request.body.decode('utf-8')) if request.body else {}
+        mensaje = (body.get('mensaje') or request.POST.get('mensaje') or '').strip()
+        if not mensaje:
+            return JsonResponse({'success': False, 'error': 'Escribe una pregunta para el asistente.'}, status=400)
+
+        from gestion_taller.services.agente_ia_service import AgenteIATallerService
+        servicio = AgenteIATallerService(cliente)
+        resultado = servicio.responder(mensaje)
+        return JsonResponse({
+            'success': True,
+            'respuesta': resultado['respuesta'],
+            'modo': resultado['modo'],
+        })
     except Exception as e:
-        messages.error(request, f'Error cargando dashboard del chatbot: {str(e)}')
-        return redirect('whatsapp_dashboard')
+        return JsonResponse({'success': False, 'error': f'Error procesando consulta: {str(e)}'}, status=500)
